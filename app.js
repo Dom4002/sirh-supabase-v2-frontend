@@ -346,7 +346,10 @@ async function secureFetch(url, options = {}) {
     }
 }
 
-   async function handleLogin(e) { 
+
+
+
+async function handleLogin(e) { 
                 e.preventDefault(); 
                 // Déverrouille l'audio pour mobile
                 NOTIF_SOUND.play().then(() => { NOTIF_SOUND.pause(); NOTIF_SOUND.currentTime = 0; }).catch(() => {});
@@ -383,13 +386,16 @@ async function secureFetch(url, options = {}) {
                             Toast.fire({icon: 'success', title: 'Bienvenue ' + userData.nom});
                             
                             // 3. ON APPELLE setSession UNE SEULE FOIS AVEC LES PERMISSIONS
+                            // Ligne modifiée ici pour inclure d.permissions
                             await setSession(userData.nom, userData.role, userData.id, d.permissions); 
                         }
                     
                     else { 
+                        // Ce bloc reste inchangé
                         Swal.fire('Refusé', 'Identifiant ou mot de passe incorrect', 'error'); 
                     }
                 } catch (error) {
+                    // Ce bloc reste inchangé
                     console.error(error);
                     if (error.name === 'AbortError') { 
                         Swal.fire('Délai dépassé', 'Le serveur met du temps à répondre. Vérifiez votre connexion.', 'warning'); 
@@ -399,10 +405,10 @@ async function secureFetch(url, options = {}) {
                         Swal.fire('Erreur Système', 'Impossible de contacter le serveur. Réessayez.', 'error'); 
                     }
                 } finally {
+                    // Ce bloc reste inchangé
                     btn.innerHTML = originalBtnText; btn.disabled = false; btn.classList.remove('opacity-50', 'cursor-not-allowed');
                 }
             }
-
 
 
 
@@ -4441,25 +4447,52 @@ function initChatRealtime() {
 
 
 
-
 function applyPermissionsUI(perms) {
-    const safePerms = perms || {}; // Évite les erreurs si perms est vide
-    console.log("🛠️ Application des permissions UI...", safePerms);
-    
-    document.querySelectorAll('[data-perm]').forEach(el => {
-        const key = el.getAttribute('data-perm');
+    const safePerms = perms || {}; // Sécurité si perms est vide ou null
+    console.log("🛠️ Application des permissions UI (Granulaire)...", safePerms);
+
+    // ÉTAPE 1 : Gérer la visibilité de CHAQUE BOUTON individuellement
+    document.querySelectorAll('button[data-perm]').forEach(button => {
+        const key = button.getAttribute('data-perm');
         
-        // Si la permission est à TRUE, on laisse l'affichage par défaut du CSS
-        // Sinon, on cache l'élément
+        // Si la permission est à TRUE, on affiche le bouton (reprend le style par défaut)
         if (safePerms[key] === true) {
-            el.style.display = ''; 
+            button.style.display = ''; 
         } else {
-            el.style.display = 'none';
+            // Sinon, on cache le bouton
+            button.style.display = 'none';
+        }
+    });
+
+    // ÉTAPE 2 : Gérer la visibilité des GROUPES DE MENUS (les conteneurs)
+    // On parcourt tous les groupes de menu (qui ne sont pas "Personnel")
+    document.querySelectorAll('.menu-group').forEach(group => {
+        // On ne gère que les groupes qui contiennent des boutons avec permissions
+        const permButtonsInGroup = group.querySelectorAll('button[data-perm]');
+        
+        // Si un groupe n'a pas de boutons avec data-perm (comme le groupe "Personnel"), on ne le cache jamais
+        if (permButtonsInGroup.length === 0) {
+            group.style.display = ''; // Assure que les groupes comme "Personnel" restent visibles
+            return;
+        }
+
+        // On vérifie si au moins UN bouton DANS ce groupe est visible
+        let hasVisibleButton = false;
+        permButtonsInGroup.forEach(button => {
+            // Si le style display n'est PAS 'none', alors il est visible
+            if (button.style.display !== 'none') {
+                hasVisibleButton = true;
+            }
+        });
+
+        // Si aucun bouton dans le groupe n'est visible, on cache tout le groupe
+        if (hasVisibleButton) {
+            group.style.display = ''; // Affiche le titre du groupe
+        } else {
+            group.style.display = 'none'; // Cache le titre du groupe
         }
     });
 }
-
-
 
 
          
@@ -4475,6 +4508,7 @@ function applyPermissionsUI(perms) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
