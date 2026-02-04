@@ -126,18 +126,19 @@ let chatSubscription = null;
 
 
 
-            window.addEventListener('DOMContentLoaded', () => {
-                applyBranding(); 
-                const session = localStorage.getItem('sirh_user_session');
-                const loader = document.getElementById('initial-loader');
+           window.addEventListener('DOMContentLoaded', () => {
+    applyBranding(); 
+    const session = localStorage.getItem('sirh_user_session');
+    const loader = document.getElementById('initial-loader');
 
-                if(session) {
-                    try {
-                        const u = JSON.parse(session);
-                        if(u && u.nom) {
-                            console.log("Restauration session : " + u.nom);
-                            // On connecte l'utilisateur
-                            setSession(u.nom, u.role, u.id);
+    if(session) {
+        try {
+            const u = JSON.parse(session);
+            if(u && u.nom) {
+                console.log("Restauration session : " + u.nom);
+                
+                // === CORRECTION ICI : ON PASSE u.permissions ===
+                setSession(u.nom, u.role, u.id, u.permissions);
                             
                                             
                                 // On laisse le loader 1 seconde (1000ms) pour faire "Pro"
@@ -372,23 +373,30 @@ async function handleLogin(e) {
                     
                     const d = await response.json();
                     
-              // --- DANS app.js (handleLogin) ---
-                        if(d.status === "success") { 
-                            // 1. On enregistre le token
-                            if(d.token) localStorage.setItem('sirh_token', d.token);
-                            
-                            // 2. On prépare les données de session
-                            let r = d.role || "EMPLOYEE"; if(Array.isArray(r)) r = r[0]; 
-                            const userData = { nom: d.nom || u, role: String(r).toUpperCase(), id: d.id };
-                            localStorage.setItem('sirh_user_session', JSON.stringify(userData));
-                        
-                            const Toast = Swal.mixin({toast: true, position: 'top-end', showConfirmButton: false, timer: 2000});
-                            Toast.fire({icon: 'success', title: 'Bienvenue ' + userData.nom});
-                            
-                            // 3. ON APPELLE setSession UNE SEULE FOIS AVEC LES PERMISSIONS
-                            // Ligne modifiée ici pour inclure d.permissions
-                            await setSession(userData.nom, userData.role, userData.id, d.permissions); 
-                        }
+// --- DANS app.js (handleLogin) ---
+if(d.status === "success") { 
+    // 1. On enregistre le token
+    if(d.token) localStorage.setItem('sirh_token', d.token);
+    
+    // 2. On prépare les données de session
+    let r = d.role || "EMPLOYEE"; if(Array.isArray(r)) r = r[0]; 
+    
+    // === CORRECTION ICI : ON AJOUTE LES PERMISSIONS DANS L'OBJET ===
+    const userData = { 
+        nom: d.nom || u, 
+        role: String(r).toUpperCase(), 
+        id: d.id,
+        permissions: d.permissions || {} // <--- C'EST CETTE LIGNE QUI MANQUAIT
+    };
+    
+    localStorage.setItem('sirh_user_session', JSON.stringify(userData));
+
+    const Toast = Swal.mixin({toast: true, position: 'top-end', showConfirmButton: false, timer: 2000});
+    Toast.fire({icon: 'success', title: 'Bienvenue ' + userData.nom});
+    
+    // 3. ON APPELLE setSession
+    await setSession(userData.nom, userData.role, userData.id, d.permissions); 
+}
                     
                     else { 
                         // Ce bloc reste inchangé
@@ -4508,6 +4516,7 @@ function applyPermissionsUI(perms) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
