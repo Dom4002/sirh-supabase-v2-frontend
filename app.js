@@ -655,34 +655,29 @@ async function fetchCompanyConfig() {
     }
 
 
-    async function triggerGlobalPush(title, message) {
-        // 1. SON (Ordi et Mobile déverrouillé)
-        NOTIF_SOUND.play().catch(e => console.log("Audio en attente d'interaction"));
 
-        // 2. VIBRATION (Android uniquement, iOS ne l'autorise pas en JS web)
-        if ("vibrate" in navigator) {
-            navigator.vibrate([200, 100, 200]);
-        }
 
-        // 3. NOTIFICATION (Méthode PWA Mobile)
-        if (Notification.permission === "granted") {
-            // On vérifie si on est dans la PWA (Service Worker)
-            if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-                const reg = await navigator.serviceWorker.ready;
-                reg.showNotification(title, {
-                    body: message,
-                    icon: 'https://cdn-icons-png.flaticon.com/512/9322/9322127.png',
-                    badge: 'https://cdn-icons-png.flaticon.com/512/9322/9322127.png',
-                    vibrate: [200, 100, 200],
-                    tag: 'flash-info', // Évite de cumuler 50 notifications
-                    renotify: true
-                });
-            } else {
-                // Fallback pour ordinateur
-                new Notification(title, { body: message });
-            }
-        }
+
+async function triggerGlobalPush(title, message) {
+    PremiumUI.play('notification');
+    PremiumUI.vibrate('success');
+
+    if (Notification.permission === "granted") {
+        const reg = await navigator.serviceWorker.ready;
+        reg.showNotification(title, {
+            body: message,
+            icon: 'https://cdn-icons-png.flaticon.com/512/13594/13594876.png',
+            badge: 'https://cdn-icons-png.flaticon.com/512/13594/13594876.png',
+            vibrate: [100, 50, 100],
+            data: { url: window.location.href }, // Pour rouvrir l'app au bon endroit
+            actions: [
+                { action: 'open', title: 'Voir maintenant' }
+            ]
+        });
     }
+}
+
+
 
 
     async function fetchData(forceUpdate = false) {
@@ -1708,54 +1703,50 @@ async function fetchEmployeeLeaveBalances() {
     }
 }
 
+
+
 function switchView(v) { 
-    // --- NOUVEAU : Nettoyage du timer Chat ---
+    // --- 1. INITIALISATION DE L'ANIMATION (FADE OUT) ---
+    const mainContainer = document.getElementById('main-scroll-container');
+    if (mainContainer) {
+        mainContainer.style.opacity = '0';
+        mainContainer.style.transform = 'translateY(10px)';
+        mainContainer.style.transition = 'none'; // On cache instantanément pour préparer l'entrée
+    }
+
+    // --- TES LOGIQUES EXISTANTES (Nettoyage & Mémorisation) ---
     if (window.chatIntervalId) {
         clearInterval(window.chatIntervalId);
         window.chatIntervalId = null;
     }
 
-    // --- MODIFICATION : On mémorise la vue active ---
     currentView = v;
     console.log("Vue active :", currentView);
 
-    // 1. Arrêt des caméras (Nettoyage)
     if(videoStream) { videoStream.getTracks().forEach(t => t.stop()); videoStream = null; }
     if(contractStream) { contractStream.getTracks().forEach(t => t.stop()); contractStream = null; }
     
-
-    // 2. Masquer TOUTES les sections
     document.querySelectorAll('.view-section').forEach(section => {
         section.classList.remove('active');
     });
 
-    // 3. Afficher la section demandée
     const target = document.getElementById('view-' + v);
     if(target) target.classList.add('active');
 
-    // 4. Gestion des boutons du menu (Style actif)
     document.querySelectorAll('.nav-btn').forEach(b => {
         b.classList.remove('bg-blue-600', 'text-white');
-        // On remet le style par défaut
     });
     
-    // On active le bouton cliqué (celui qui a switchView('v') dans son onclick)
     const activeBtn = document.querySelector(`button[onclick="switchView('${v}')"]`);
     if(activeBtn) activeBtn.classList.add('bg-blue-600', 'text-white');
 
-    // --- CORRECTION MAJEURE ICI : RESET DU SCROLL ---
-    // On force le conteneur principal à remonter tout en haut
-    const mainContainer = document.getElementById('main-scroll-container');
-
-    container.style.opacity = '0';
-    container.style.transform = 'translateY(10px)';
-            
+    // Reset du scroll
     if(mainContainer) {
-        mainContainer.scrollTo(0, 0); // Remonte instantanément
+        mainContainer.scrollTo(0, 0); 
     }
-    window.scrollTo(0, 0); // Sécurité pour le body aussi
+    window.scrollTo(0, 0); 
 
-    // 5. Logique spécifique par vue
+    // Logique de recherche et accounting
     const searchContainer = document.getElementById('global-search-container');
     if(v === 'employees' || v === 'logs') { 
         if(currentUser && currentUser.role !== 'EMPLOYEE') { 
@@ -1769,23 +1760,17 @@ function switchView(v) {
     
     if (v === 'accounting') loadAccountingView();
 
-
     if(v === 'add-new') { 
         const form = document.getElementById('form-onboarding');
-        if(form) form.reset(); // Sécurité si le formulaire n'est pas encore chargé
+        if(form) form.reset(); 
         resetCamera(); 
     }
 
-    // --- NOUVEAU : Chargement et rafraîchissement auto du Chat ---
-// --- NOUVEAU : Logique Realtime Chat ---
-
-
-
-            if (v === 'chat') {
-        fetchMessages(); // On charge les anciens messages une fois
-        initChatRealtime(); // On active l'écoute en direct
+    // Logique Realtime Chat
+    if (v === 'chat') {
+        fetchMessages(); 
+        initChatRealtime();
     } else {
-        // Si on quitte la page chat, on coupe la connexion pour économiser les ressources
         if (chatSubscription) {
             supabaseClient.removeChannel(chatSubscription);
             chatSubscription = null;
@@ -1793,12 +1778,8 @@ function switchView(v) {
         }
     }
 
-
-
+    // Chargements automatiques
     if(v === 'settings') fetchZones(); 
-
-            
-    // --- CORRECTION : Chargement automatique des données selon l'onglet ---
     if(v === 'logs') fetchLogs(); 
     if(v === 'recruitment') fetchCandidates();
     if(v === 'my-profile') {
@@ -1807,12 +1788,29 @@ function switchView(v) {
         fetchLeaveRequests(); 
     }
 
-    // 6. Fermer sidebar on mobile
+    // Fermeture sidebar mobile
     if(window.innerWidth < 768) { 
         const sb = document.getElementById('sidebar'); 
         if(!sb.classList.contains('-translate-x-full')) toggleSidebar(); 
     }
+
+    // --- 2. DÉCLENCHEMENT DE L'ANIMATION (FADE IN) ---
+    // Un petit délai de 50ms permet au navigateur de valider le changement de vue
+    setTimeout(() => {
+        if (mainContainer) {
+            mainContainer.style.transition = 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)';
+            mainContainer.style.opacity = '1';
+            mainContainer.style.transform = 'translateY(0)';
+        }
+        // Micro-vibration haptique pour le ressenti "App Native"
+        if ("vibrate" in navigator) navigator.vibrate(8);
+    }, 50);
 }
+
+
+
+
+
 
 
             function toggleSidebar(){const sb=document.getElementById('sidebar'), o=document.getElementById('sidebar-overlay'); if(sb.classList.contains('-translate-x-full')){sb.classList.remove('-translate-x-full');o.classList.remove('hidden');}else{sb.classList.add('-translate-x-full');o.classList.add('hidden');}}
@@ -4545,7 +4543,16 @@ function applyPermissionsUI(perms) {
 }
 
 
-         
+         // Simple détection de "Pull" sur mobile
+let touchStart = 0;
+document.addEventListener('touchstart', e => touchStart = e.touches[0].pageY);
+document.addEventListener('touchend', e => {
+    const touchEnd = e.changedTouches[0].pageY;
+    if (window.scrollY === 0 && touchEnd > touchStart + 150) {
+        PremiumUI.vibrate('click');
+        refreshAllData(true);
+    }
+});
 
 
 
@@ -4558,6 +4565,7 @@ function applyPermissionsUI(perms) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
