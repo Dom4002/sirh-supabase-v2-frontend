@@ -3958,8 +3958,8 @@ async function fetchPayrollData() {
 
 
 // CONFIGURATION DES LIENS DU FORMULAIRE
-const AIRTABLE_FORM_PUBLIC_LINK = "https://airtable.com/appMZ85rH1jnHtiyo/pagaxgodARPVOvib4/form"; // Remplacez par votre lien de partage
-const AIRTABLE_FORM_EDIT_LINK = "https://airtable.com/appMZ85rH1jnHtiyo/pagaxgodARPVOvib4/edit"; // Remplacez par le lien de votre vue formulaire sur Airtable
+const AIRTABLE_FORM_PUBLIC_LINK = "https://dom4002.github.io/recrutement_page/?shared=1&hdob=0&hlm=0&hdip=0&hid=0"; // Remplacez par votre lien de partage
+const AIRTABLE_FORM_EDIT_LINK = "https://dom4002.github.io/recrutement_page/"; // Remplacez par le lien de votre vue formulaire sur Airtable
 
 // Fonction pour copier le lien public
 function copyFormLink() {
@@ -4366,6 +4366,7 @@ function closeEditor() {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
