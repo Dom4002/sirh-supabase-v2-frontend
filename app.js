@@ -346,13 +346,10 @@ async function secureFetch(url, options = {}) {
     }
 }
 
-    async function handleLogin(e) { 
+   async function handleLogin(e) { 
                 e.preventDefault(); 
                 // Déverrouille l'audio pour mobile
                 NOTIF_SOUND.play().then(() => { NOTIF_SOUND.pause(); NOTIF_SOUND.currentTime = 0; }).catch(() => {});
-                
-                // On tente quand même, même si le navigateur dit hors ligne (parfois il se trompe)
-                // if(!navigator.onLine) ... <-- SUPPRIMÉ
                 
                 const u = document.getElementById('login-user').value.trim();
                 const p = document.getElementById('login-pass').value.trim();
@@ -373,24 +370,26 @@ async function secureFetch(url, options = {}) {
                     const d = await response.json();
                     
                     if(d.status === "success") { 
-                             
-                        await setSession(userData.nom, userData.role, userData.id, d.permissions);
-       
+                        // 1. Stockage du token
                         if(d.token) localStorage.setItem('sirh_token', d.token);
-                        let r = d.role || "EMPLOYEE"; if(Array.isArray(r)) r = r[0]; 
                         
+                        // 2. Préparation des données utilisateur
+                        let r = d.role || "EMPLOYEE"; if(Array.isArray(r)) r = r[0]; 
                         const userData = { nom: d.nom || u, role: String(r).toUpperCase(), id: d.id };
+                        
+                        // 3. Sauvegarde de la session
                         localStorage.setItem('sirh_user_session', JSON.stringify(userData));
 
+                        // 4. Notification visuelle
                         const Toast = Swal.mixin({toast: true, position: 'top-end', showConfirmButton: false, timer: 2000});
                         Toast.fire({icon: 'success', title: 'Bienvenue ' + userData.nom});
                         
-                    await setSession(userData.nom, userData.role, userData.id); 
+                        // 5. Initialisation de l'application avec permissions
+                        await setSession(userData.nom, userData.role, userData.id, d.permissions); 
                     } else { 
                         Swal.fire('Refusé', 'Identifiant ou mot de passe incorrect', 'error'); 
                     }
                 } catch (error) {
-                    // C'est ICI qu'on gère vraiment l'erreur de connexion
                     console.error(error);
                     if (error.name === 'AbortError') { 
                         Swal.fire('Délai dépassé', 'Le serveur met du temps à répondre. Vérifiez votre connexion.', 'warning'); 
@@ -404,10 +403,8 @@ async function secureFetch(url, options = {}) {
                 }
             }
 
-
-
-async function setSession(n, r, id) {
-    currentUser = { nom: n, role: r, id: id };
+async function setSession(n, r, id, perms) {
+    currentUser = { nom: n, role: r, id: id, permissions: perms };
     applyBranding();
     
     // 1. Cacher le login, mais GARDER le loader affiché et actif
@@ -442,10 +439,10 @@ async function setSession(n, r, id) {
         console.warn("Erreur chargement:", e);
     }
 
-    // --- CORRECTION DU BLOC CI-DESSOUS ---
-
+    // --- APPLICATION DES PERMISSIONS ---
     applyPermissionsUI(perms);
-            // --- DANS app.js (fonction setSession) ---
+
+    // --- LOGIQUE DE VUE PAR DÉFAUT ---
     if (r === 'EMPLOYEE') {
         // L'employé ne voit pas la recherche
         const searchContainer = document.getElementById('global-search-container');
@@ -454,11 +451,6 @@ async function setSession(n, r, id) {
     } else {
         switchView('dash');
     }
-
-
-
-            
-    // -------------------------------------
 
     applyWidgetPreferences(); 
     
@@ -480,8 +472,6 @@ async function setSession(n, r, id) {
     initDarkMode();
     syncClockInterface(); 
 }
-
-
 
 async function triggerManualContractUpload(employeeId) {
     const { value: file } = await Swal.fire({
@@ -4440,18 +4430,17 @@ function initChatRealtime() {
 
 
 
-
-
 function applyPermissionsUI(perms) {
-    console.log("🛠️ Application des permissions UI...", perms);
+    const safePerms = perms || {}; // Évite les erreurs si perms est vide
+    console.log("🛠️ Application des permissions UI...", safePerms);
     
-    // On cherche tous les éléments qui ont besoin d'une permission
     document.querySelectorAll('[data-perm]').forEach(el => {
         const key = el.getAttribute('data-perm');
         
-        // Si la permission existe et qu'elle est à TRUE, on montre. Sinon on cache.
-        if (perms && perms[key] === true) {
-            el.style.display = 'flex'; // ou 'block' selon ton CSS
+        // Si la permission est à TRUE, on laisse l'affichage par défaut du CSS
+        // Sinon, on cache l'élément
+        if (safePerms[key] === true) {
+            el.style.display = ''; 
         } else {
             el.style.display = 'none';
         }
@@ -4460,15 +4449,8 @@ function applyPermissionsUI(perms) {
 
 
 
-else if (action === 'read-settings') {
-    const { data, error } = await supabase
-        .from('app_settings')
-        .select('*')
-        .order('label', { ascending: true });
 
-    if (error) throw error;
-    return res.json(data);
-}            
+         
 
 
 
@@ -4481,6 +4463,7 @@ else if (action === 'read-settings') {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
