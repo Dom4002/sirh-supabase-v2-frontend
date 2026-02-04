@@ -127,64 +127,60 @@
 
 
 
-                      <!-- SECTION 2 : GESTION (Management Only) -->
-<div class="menu-group management-only">
-    <div class="flex justify-between items-center px-4 mb-2 cursor-pointer group" onclick="toggleWidget('m-gestion')">
-        <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Gestion RH</p>
-        <i id="m-gestion-icon" class="fa-solid fa-chevron-up text-[8px] text-slate-600 group-hover:text-blue-500 transition-colors"></i>
-    </div>
-    <div id="m-gestion-content" class="space-y-1">
-        <button onclick="switchView('dash')" class="nav-btn w-full flex items-center gap-4 p-4 rounded-xl transition-all hover:text-white group">
-            <i class="fa-solid fa-chart-pie w-5"></i> <span class="font-semibold">Tableau de Bord</span>
-        </button>
-        <button onclick="openFlashModal()" class="nav-btn w-full flex items-center gap-4 p-4 rounded-xl transition-all hover:text-white group">
-            <i class="fa-solid fa-bullhorn w-5 text-orange-500"></i> 
-            <span class="font-semibold text-orange-400 group-hover:text-white">Diffuser Une Annonce</span>
-        </button>
-        
-        <!-- Collaborateurs lié à can_see_employees -->
-        <button data-perm="can_see_employees" onclick="switchView('employees')" class="nav-btn w-full flex items-center gap-4 p-4 rounded-xl transition-all hover:text-white group">
-            <i class="fa-solid fa-user-group w-5"></i> <span class="font-semibold">Collaborateurs</span>
-        </button>
-        
-        <!-- Nouveau Profil lié à can_see_employees -->
-        <button data-perm="can_see_employees" onclick="switchView('add-new')" class="nav-btn w-full flex items-center gap-4 p-4 rounded-xl transition-all hover:text-white group rh-only">
-            <i class="fa-solid fa-user-plus w-5"></i> <span class="font-semibold">Nouveau Profil</span>
-        </button>
-        
-        <!-- Recrutement lié à can_see_recruitment -->
-        <button data-perm="can_see_recruitment" onclick="switchView('recruitment')" class="nav-btn w-full flex items-center gap-4 p-4 rounded-xl transition-all hover:text-white group rh-only">
-            <i class="fa-solid fa-briefcase w-5"></i> <span class="font-semibold">Recrutement</span>
-        </button>
-    </div>
-</div>
+<!-- SECTION 2 : GESTION (Nettoyée pour Neville) -->
+                    <div class="menu-group" data-perm="can_see_employees">
+                        <div class="flex justify-between items-center px-4 mb-2 cursor-pointer group" onclick="toggleWidget('m-gestion')">
+                            <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Gestion RH</p>
+                            <i id="m-gestion-icon" class="fa-solid fa-chevron-up text-[8px] text-slate-600 group-hover:text-blue-500 transition-colors"></i>
+                        </div>
+                        <div id="m-gestion-content" class="space-y-1">
+                            <button onclick="switchView('dash')" class="nav-btn w-full flex items-center gap-4 p-4 rounded-xl transition-all hover:text-white group">
+                                <i class="fa-solid fa-chart-pie w-5"></i> <span class="font-semibold">Tableau de Bord</span>
+                            </button>
+                            <button onclick="openFlashModal()" class="nav-btn w-full flex items-center gap-4 p-4 rounded-xl transition-all hover:text-white group">
+                                <i class="fa-solid fa-bullhorn w-5 text-orange-500"></i> 
+                                <span class="font-semibold text-orange-400 group-hover:text-white">Diffuser Une Annonce</span>
+                            </button>
+                            <!-- Serrure Collaborateurs -->
+                            <button data-perm="can_see_employees" onclick="switchView('employees')" class="nav-btn w-full flex items-center gap-4 p-4 rounded-xl transition-all hover:text-white group">
+                                <i class="fa-solid fa-user-group w-5"></i> <span class="font-semibold">Collaborateurs</span>
+                            </button>
+                            <!-- Serrure Nouveau Profil -->
+                            <button data-perm="can_see_employees" onclick="switchView('add-new')" class="nav-btn w-full flex items-center gap-4 p-4 rounded-xl transition-all hover:text-white group">
+                                <i class="fa-solid fa-user-plus w-5"></i> <span class="font-semibold">Nouveau Profil</span>
+                            </button>
+                            <!-- Serrure Recrutement -->
+                            <button data-perm="can_see_recruitment" onclick="switchView('recruitment')" class="nav-btn w-full flex items-center gap-4 p-4 rounded-xl transition-all hover:text-white group">
+                                <i class="fa-solid fa-briefcase w-5"></i> <span class="font-semibold">Recrutement</span>
+                            </button>
+                        </div>
+                    </div>
+                    
 
-<!-- SECTION 3 : ADMIN & FINANCE (Management Only) -->
-<div class="menu-group management-only">
-    <div class="flex justify-between items-center px-4 mb-2 cursor-pointer group" onclick="toggleWidget('m-admin')">
-        <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Finance & Système</p>
-        <i id="m-admin-icon" class="fa-solid fa-chevron-up text-[8px] text-slate-600 group-hover:text-blue-500 transition-colors"></i>
-    </div>
-    <div id="m-admin-content" class="space-y-1">
-        
-        <!-- Paie lié à can_see_payroll -->
-        <button data-perm="can_see_payroll" onclick="switchView('accounting')" class="nav-btn w-full flex items-center gap-4 p-4 rounded-xl transition-all hover:text-white group">
-            <i class="fa-solid fa-calculator w-5 text-emerald-500"></i> 
-            <span class="font-semibold text-emerald-400 group-hover:text-white">Paie & Comptabilité</span>
-        </button>
-        
-        <!-- Paramètres lié à can_manage_config -->
-        <button data-perm="can_manage_config" onclick="switchView('settings')" class="nav-btn w-full flex items-center gap-4 p-4 rounded-xl transition-all hover:text-white group admin-only">
-            <i class="fa-solid fa-gears w-5 text-slate-400"></i> 
-            <span class="font-semibold text-slate-400 group-hover:text-white">Paramètres Sièges</span>
-        </button>
-        
-        <!-- Audit lié à can_see_audit -->
-        <button data-perm="can_see_audit" onclick="switchView('logs')" class="nav-btn w-full flex items-center gap-4 p-4 rounded-xl transition-all hover:text-white group admin-only">
-            <i class="fa-solid fa-list-check w-5"></i> <span class="font-semibold">Audit Sécurité</span>
-        </button>
-    </div>
-</div>
+<!-- SECTION 3 : FINANCE (Nettoyée pour Neville) -->
+                    <div class="menu-group" data-perm="can_see_payroll">
+                        <div class="flex justify-between items-center px-4 mb-2 cursor-pointer group" onclick="toggleWidget('m-admin')">
+                            <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Finance & Système</p>
+                            <i id="m-admin-icon" class="fa-solid fa-chevron-up text-[8px] text-slate-600 group-hover:text-blue-500 transition-colors"></i>
+                        </div>
+                        <div id="m-admin-content" class="space-y-1">
+                            <!-- Serrure Paie -->
+                            <button data-perm="can_see_payroll" onclick="switchView('accounting')" class="nav-btn w-full flex items-center gap-4 p-4 rounded-xl transition-all hover:text-white group">
+                                <i class="fa-solid fa-calculator w-5 text-emerald-500"></i> 
+                                <span class="font-semibold text-emerald-400 group-hover:text-white">Paie & Comptabilité</span>
+                            </button>
+                            <!-- Serrure Paramètres -->
+                            <button data-perm="can_manage_config" onclick="switchView('settings')" class="nav-btn w-full flex items-center gap-4 p-4 rounded-xl transition-all hover:text-white group">
+                                <i class="fa-solid fa-gears w-5 text-slate-400"></i> 
+                                <span class="font-semibold text-slate-400 group-hover:text-white">Paramètres Sièges</span>
+                            </button>
+                            <!-- Serrure Audit -->
+                            <button data-perm="can_see_audit" onclick="switchView('logs')" class="nav-btn w-full flex items-center gap-4 p-4 rounded-xl transition-all hover:text-white group">
+                                <i class="fa-solid fa-list-check w-5"></i> <span class="font-semibold">Audit Sécurité</span>
+                            </button>
+                        </div>
+                    </div>
+                    
                 </nav>
 
 
@@ -1232,5 +1228,6 @@
     </body>
 
     </html>
+
 
 
