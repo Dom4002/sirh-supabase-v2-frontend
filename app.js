@@ -2658,59 +2658,68 @@ async function fetchLeaveRequests() {
             };
         });
 
-        // ============================================================
+// ============================================================
         // PARTIE 1 : TABLEAU DE VALIDATION (POUR MANAGER / ADMIN / RH)
         // ============================================================
         if (currentUser.role !== 'EMPLOYEE') {
             const pending = allLeaves.filter(l => l.statut === 'en attente');
 
             if (body && section) {
+                // FORCE LE BLOC À RESTER VISIBLE
+                section.classList.remove('hidden'); 
                 body.innerHTML = '';
+
                 if (pending.length > 0) {
-                    section.classList.remove('hidden');
-pending.forEach(l => {
-    // On nettoie les textes pour éviter de casser le HTML (remplace les " par &quot;)
-    const cleanNom = (l.nom || 'Inconnu').replace(/"/g, '&quot;');
-    const cleanType = (l.type || 'Congé').replace(/"/g, '&quot;');
-    const cleanMotif = (l.motif || 'Aucun motif').replace(/"/g, '&quot;');
-    const cleanDoc = (l.doc || '').replace(/"/g, '&quot;');
+                    pending.forEach(l => {
+                        // ON GARDE EXACTEMENT TON CODE DE NETTOYAGE
+                        const cleanNom = (l.nom || 'Inconnu').replace(/"/g, '&quot;');
+                        const cleanType = (l.type || 'Congé').replace(/"/g, '&quot;');
+                        const cleanMotif = (l.motif || 'Aucun motif').replace(/"/g, '&quot;');
+                        const cleanDoc = (l.doc || '').replace(/"/g, '&quot;');
 
-    const dStart = l.debut ? l.debut.toLocaleDateString('fr-FR') : '?';
-    const dEnd = l.fin ? l.fin.toLocaleDateString('fr-FR') : '?';
-    
-    const diffTime = l.fin && l.debut ? Math.abs(l.fin.getTime() - l.debut.getTime()) : 0;
-    const daysDifference = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+                        const dStart = l.debut ? l.debut.toLocaleDateString('fr-FR') : '?';
+                        const dEnd = l.fin ? l.fin.toLocaleDateString('fr-FR') : '?';
+                        
+                        const diffTime = l.fin && l.debut ? Math.abs(l.fin.getTime() - l.debut.getTime()) : 0;
+                        const daysDifference = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
 
-    body.innerHTML += `
-        <tr class="border-b hover:bg-slate-50 transition-colors">
-            <td class="px-8 py-4">
-                <div class="font-bold text-sm text-slate-700">${l.nom || 'Inconnu'}</div>
-                <div class="text-[10px] text-slate-400 font-normal uppercase">${l.type || 'Congé'}</div>
-            </td>
-            <td class="px-8 py-4 text-xs text-slate-500">${dStart} ➔ ${dEnd}</td>
-            <td class="px-8 py-4 text-right flex justify-end items-center gap-2">
-                <!-- On passe 'this' pour que la fonction récupère les infos sur le bouton lui-même -->
-                <button onclick="showLeaveDetail(this)" 
-                        data-nom="${cleanNom}"
-                        data-type="${cleanType}"
-                        data-start="${dStart}"
-                        data-end="${dEnd}"
-                        data-motif="${cleanMotif}"
-                        data-doc="${cleanDoc}"
-                        class="p-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-600 hover:text-white transition-all shadow-sm mr-2">
-                    <i class="fa-solid fa-eye"></i>
-                </button>
-                <button onclick="processLeave('${l.id}', 'Validé', ${daysDifference})" class="bg-emerald-500 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase shadow-md shadow-emerald-200">OUI</button>
-                <button onclick="processLeave('${l.id}', 'Refusé', 0)" class="bg-white text-red-500 border border-red-100 px-4 py-2 rounded-xl text-[10px] font-black uppercase">NON</button>
-            </td>
-        </tr>`;
-});
+                        body.innerHTML += `
+                            <tr class="border-b hover:bg-slate-50 transition-colors">
+                                <td class="px-8 py-4">
+                                    <div class="font-bold text-sm text-slate-700">${l.nom || 'Inconnu'}</div>
+                                    <div class="text-[10px] text-slate-400 font-normal uppercase">${l.type || 'Congé'}</div>
+                                </td>
+                                <td class="px-8 py-4 text-xs text-slate-500">${dStart} ➔ ${dEnd}</td>
+                                <td class="px-8 py-4 text-right flex justify-end items-center gap-2">
+                                    <button onclick="showLeaveDetail(this)" 
+                                            data-nom="${cleanNom}"
+                                            data-type="${cleanType}"
+                                            data-start="${dStart}"
+                                            data-end="${dEnd}"
+                                            data-motif="${cleanMotif}"
+                                            data-doc="${cleanDoc}"
+                                            class="p-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-600 hover:text-white transition-all shadow-sm mr-2">
+                                        <i class="fa-solid fa-eye"></i>
+                                    </button>
+                                    <button onclick="processLeave('${l.id}', 'Validé', ${daysDifference})" class="bg-emerald-500 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase shadow-md shadow-emerald-200">OUI</button>
+                                    <button onclick="processLeave('${l.id}', 'Refusé', 0)" class="bg-white text-red-500 border border-red-100 px-4 py-2 rounded-xl text-[10px] font-black uppercase">NON</button>
+                                </td>
+                            </tr>`;
+                    });
                 } else {
-                    section.classList.add('hidden');
+                    // AU LIEU DE CACHER LE BLOC, ON AFFICHE CE MESSAGE DANS LE TABLEAU
+                    body.innerHTML = `
+                        <tr>
+                            <td colspan="3" class="px-8 py-10 text-center text-slate-400">
+                                <div class="flex flex-col items-center gap-2">
+                                    <i class="fa-solid fa-check-double text-2xl opacity-20"></i>
+                                    <p class="text-xs font-bold uppercase tracking-widest">Aucune demande en attente</p>
+                                </div>
+                            </td>
+                        </tr>`;
                 }
             }
         }
-
         // ============================================================
         // PARTIE 2 : HISTORIQUE PERSONNEL (POUR TOUT LE MONDE)
         // ============================================================
@@ -4516,6 +4525,7 @@ function applyPermissionsUI(perms) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
