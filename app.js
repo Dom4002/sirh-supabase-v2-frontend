@@ -446,17 +446,19 @@ async function setSession(n, r, id, perms) {
     // --- APPLICATION DES PERMISSIONS ---
     applyPermissionsUI(perms);
 
-    // --- LOGIQUE DE VUE PAR DÉFAUT (CORRIGÉE) ---
+// --- LOGIQUE DE VUE PAR DÉFAUT (Version Finale SAAS) ---
+    
+    // La recherche s'affiche si on a le droit de voir les employés
     const searchContainer = document.getElementById('global-search-container');
     if (searchContainer) {
-        // La recherche n'apparaît que si on a le droit de voir les employés
         searchContainer.style.display = perms?.can_see_employees ? 'block' : 'none';
     }
 
-    // Si on a accès aux employés OU à la paie, on va sur le Dashboard, sinon sur le profil
-    if (perms?.can_see_employees || perms?.can_see_payroll) {
+    // Si l'utilisateur a la permission de voir le dashboard, c'est sa page d'accueil.
+    if (perms?.can_see_dashboard) {
         switchView('dash');
     } else {
+        // Sinon (simple employé), il atterrit sur son profil.
         switchView('my-profile');
     }
 
@@ -4473,6 +4475,7 @@ function applyPermissionsUI(perms) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
