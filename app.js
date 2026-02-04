@@ -10,14 +10,6 @@
             };
 
 
-// On récupère la librairie Supabase chargée via CDN dans l'index.html
-const supabaseClient = window.supabase.createClient(
-    SIRH_CONFIG.apiBaseUrl.replace('/api', ''), // Ton URL Supabase (on enlève le /api)
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndkZnVxc3Fzc2FwY3J6aGpzZWxzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwMjQ3MDksImV4cCI6MjA4NTYwMDcwOX0.G8i83W0ZcdEd9Bnp3T8rbGjlBxRcpgFdwG5k_LPd0po" // Utilise ta clé 'anon public' (PAS la service_role)
-);
-
-let chatSubscription = null; // Contiendra l'écouteur en direct
-
 
     // ==========================================
     // CONFIGURATION DE PERSONNALISATION (SAAS)
@@ -79,6 +71,16 @@ let chatSubscription = null; // Contiendra l'écouteur en direct
     const URL_WRITE_FLASH = `${SIRH_CONFIG.apiBaseUrl}/write-flash`;
     const URL_READ_REPORT = `${SIRH_CONFIG.apiBaseUrl}/read-report`;
     const URL_GET_CONFIG = `${SIRH_CONFIG.apiBaseUrl}/read-config`;
+
+
+// On récupère la librairie Supabase chargée via CDN dans l'index.html
+const supabaseClient = window.supabase.createClient(
+    SIRH_CONFIG.apiBaseUrl.replace('/api', ''), // Ton URL Supabase (on enlève le /api)
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndkZnVxc3Fzc2FwY3J6aGpzZWxzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwMjQ3MDksImV4cCI6MjA4NTYwMDcwOX0.G8i83W0ZcdEd9Bnp3T8rbGjlBxRcpgFdwG5k_LPd0po" // Utilise ta clé 'anon public' (PAS la service_role)
+);
+
+
+
 
 
             const SCAN_KEY = "SIGD_SECURE_2025"; 
@@ -165,6 +167,19 @@ let chatSubscription = null; // Contiendra l'écouteur en direct
 
                     let chartStatusInstance = null;
                     let chartDeptInstance = null;
+
+
+
+
+
+
+
+let chatSubscription = null; // Contiendra l'écouteur en direct
+
+
+
+
+
 
             // Fonction mathématique pour calculer la distance entre deux points GPS
             function getDistance(lat1, lon1, lat2, lon2) {
@@ -4408,6 +4423,7 @@ function initChatRealtime() {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
