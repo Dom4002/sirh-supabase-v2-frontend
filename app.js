@@ -73,12 +73,15 @@
     const URL_GET_CONFIG = `${SIRH_CONFIG.apiBaseUrl}/read-config`;
 
 
-// On récupère la librairie Supabase chargée via CDN dans l'index.html
-const supabaseClient = window.supabase.createClient(
-    SIRH_CONFIG.apiBaseUrl.replace('/api', ''), // Ton URL Supabase (on enlève le /api)
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndkZnVxc3Fzc2FwY3J6aGpzZWxzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwMjQ3MDksImV4cCI6MjA4NTYwMDcwOX0.G8i83W0ZcdEd9Bnp3T8rbGjlBxRcpgFdwG5k_LPd0po" // Utilise ta clé 'anon public' (PAS la service_role)
-);
 
+
+// Initialisation du client Supabase Realtime
+const supabaseUrl = "https://wdfuqsqssapcrzhjsels.supabase.co";
+const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndkZnVxc3Fzc2FwY3J6aGpzZWxzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwMjQ3MDksImV4cCI6MjA4NTYwMDcwOX0.G8i83W0ZcdEd9Bnp3T8rbGjlBxRcpgFdwG5k_LPd0po";
+
+const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
+
+let chatSubscription = null;
 
 
 
@@ -174,7 +177,6 @@ const supabaseClient = window.supabase.createClient(
 
 
 
-let chatSubscription = null; // Contiendra l'écouteur en direct
 
 
 
@@ -1719,17 +1721,26 @@ function switchView(v) {
 
     // --- NOUVEAU : Chargement et rafraîchissement auto du Chat ---
 // --- NOUVEAU : Logique Realtime Chat ---
-    if (v === 'chat') {
-        fetchMessages(); // Charge l'historique une seule fois
-        initChatRealtime(); // Lance l'écouteur en direct
+
+
+
+            if (v === 'chat') {
+        fetchMessages(); // On charge les anciens messages une fois
+        initChatRealtime(); // On active l'écoute en direct
     } else {
-        // On coupe l'écouteur quand on quitte le chat pour économiser la batterie
+        // Si on quitte la page chat, on coupe la connexion pour économiser les ressources
         if (chatSubscription) {
             supabaseClient.removeChannel(chatSubscription);
             chatSubscription = null;
+            console.log("🔌 Déconnexion du Chat Realtime");
         }
     }
-    
+
+
+
+
+
+            
     // --- CORRECTION : Chargement automatique des données selon l'onglet ---
     if(v === 'logs') fetchLogs(); 
     if(v === 'recruitment') fetchCandidates();
@@ -4387,24 +4398,35 @@ function closeEditor() {
 
 
 
+
+
 function initChatRealtime() {
-    if (chatSubscription) return; // Évite de créer 10 écouteurs
+    if (chatSubscription) return; // On n'ouvre pas deux fois la connexion
+
+    console.log("📡 Connexion au Chat Realtime...");
 
     chatSubscription = supabaseClient
         .channel('public:messages')
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, payload => {
-            console.log('Nouveau message reçu en direct !', payload.new);
+        .on('postgres_changes', { 
+            event: 'INSERT', 
+            schema: 'public', 
+            table: 'messages' 
+        }, (payload) => {
+            console.log('✨ Nouveau message reçu :', payload.new);
             
-            // On ne rafraîchit pas tout le chat (trop lourd), on ajoute juste le nouveau message
-            // Mais pour rester simple avec ton code actuel, on appelle fetchMessages
+            // On recharge les messages pour afficher le nouveau
             fetchMessages(); 
-            
-            // Petit son de notification si ce n'est pas nous qui avons envoyé le message
+
+            // Jouer le son si ce n'est pas nous l'expéditeur
             if (String(payload.new.sender_id) !== String(currentUser.id)) {
                 NOTIF_SOUND.play().catch(() => {});
             }
         })
-        .subscribe();
+        .subscribe((status) => {
+            if (status === 'SUBSCRIBED') {
+                console.log('✅ Chat en direct activé !');
+            }
+        });
 }
 
 
@@ -4423,6 +4445,7 @@ function initChatRealtime() {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
