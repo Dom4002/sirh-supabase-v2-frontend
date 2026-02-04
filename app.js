@@ -45,7 +45,7 @@
         },
 
         // 5. SERVEUR (BASE API)
-        apiBaseUrl: "https://sirh-secure-backend.onrender.com"
+        apiBaseUrl: "https://sirh-secure-backend.onrender.com/api"
     };
 
     // --- GÉNÉRATION AUTOMATIQUE DES LIENS ---
@@ -4366,6 +4366,7 @@ function closeEditor() {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
