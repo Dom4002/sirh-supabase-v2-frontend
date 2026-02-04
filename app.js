@@ -369,24 +369,24 @@ async function secureFetch(url, options = {}) {
                     
                     const d = await response.json();
                     
-                    if(d.status === "success") { 
-                        // 1. Stockage du token
-                        if(d.token) localStorage.setItem('sirh_token', d.token);
+              // --- DANS app.js (handleLogin) ---
+                        if(d.status === "success") { 
+                            // 1. On enregistre le token
+                            if(d.token) localStorage.setItem('sirh_token', d.token);
+                            
+                            // 2. On prépare les données de session
+                            let r = d.role || "EMPLOYEE"; if(Array.isArray(r)) r = r[0]; 
+                            const userData = { nom: d.nom || u, role: String(r).toUpperCase(), id: d.id };
+                            localStorage.setItem('sirh_user_session', JSON.stringify(userData));
                         
-                        // 2. Préparation des données utilisateur
-                        let r = d.role || "EMPLOYEE"; if(Array.isArray(r)) r = r[0]; 
-                        const userData = { nom: d.nom || u, role: String(r).toUpperCase(), id: d.id };
-                        
-                        // 3. Sauvegarde de la session
-                        localStorage.setItem('sirh_user_session', JSON.stringify(userData));
-
-                        // 4. Notification visuelle
-                        const Toast = Swal.mixin({toast: true, position: 'top-end', showConfirmButton: false, timer: 2000});
-                        Toast.fire({icon: 'success', title: 'Bienvenue ' + userData.nom});
-                        
-                        // 5. Initialisation de l'application avec permissions
-                        await setSession(userData.nom, userData.role, userData.id, d.permissions); 
-                    } else { 
+                            const Toast = Swal.mixin({toast: true, position: 'top-end', showConfirmButton: false, timer: 2000});
+                            Toast.fire({icon: 'success', title: 'Bienvenue ' + userData.nom});
+                            
+                            // 3. ON APPELLE setSession UNE SEULE FOIS AVEC LES PERMISSIONS
+                            await setSession(userData.nom, userData.role, userData.id, d.permissions); 
+                        }
+                    
+                    else { 
                         Swal.fire('Refusé', 'Identifiant ou mot de passe incorrect', 'error'); 
                     }
                 } catch (error) {
@@ -4463,6 +4463,7 @@ function applyPermissionsUI(perms) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
