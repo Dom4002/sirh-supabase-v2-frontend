@@ -403,6 +403,10 @@ async function secureFetch(url, options = {}) {
                 }
             }
 
+
+
+
+
 async function setSession(n, r, id, perms) {
     currentUser = { nom: n, role: r, id: id, permissions: perms };
     applyBranding();
@@ -442,14 +446,18 @@ async function setSession(n, r, id, perms) {
     // --- APPLICATION DES PERMISSIONS ---
     applyPermissionsUI(perms);
 
-    // --- LOGIQUE DE VUE PAR DÉFAUT ---
-    if (r === 'EMPLOYEE') {
-        // L'employé ne voit pas la recherche
-        const searchContainer = document.getElementById('global-search-container');
-        if (searchContainer) searchContainer.style.display = 'none';
-        switchView('my-profile');
-    } else {
+    // --- LOGIQUE DE VUE PAR DÉFAUT (CORRIGÉE) ---
+    const searchContainer = document.getElementById('global-search-container');
+    if (searchContainer) {
+        // La recherche n'apparaît que si on a le droit de voir les employés
+        searchContainer.style.display = perms?.can_see_employees ? 'block' : 'none';
+    }
+
+    // Si on a accès aux employés OU à la paie, on va sur le Dashboard, sinon sur le profil
+    if (perms?.can_see_employees || perms?.can_see_payroll) {
         switchView('dash');
+    } else {
+        switchView('my-profile');
     }
 
     applyWidgetPreferences(); 
@@ -472,6 +480,8 @@ async function setSession(n, r, id, perms) {
     initDarkMode();
     syncClockInterface(); 
 }
+
+
 
 async function triggerManualContractUpload(employeeId) {
     const { value: file } = await Swal.fire({
@@ -4463,6 +4473,7 @@ function applyPermissionsUI(perms) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
