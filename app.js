@@ -373,6 +373,9 @@ async function secureFetch(url, options = {}) {
                     const d = await response.json();
                     
                     if(d.status === "success") { 
+                             
+                        await setSession(userData.nom, userData.role, userData.id, d.permissions);
+       
                         if(d.token) localStorage.setItem('sirh_token', d.token);
                         let r = d.role || "EMPLOYEE"; if(Array.isArray(r)) r = r[0]; 
                         
@@ -441,19 +444,15 @@ async function setSession(n, r, id) {
 
     // --- CORRECTION DU BLOC CI-DESSOUS ---
 
-
+    applyPermissionsUI(perms);
             // --- DANS app.js (fonction setSession) ---
-    if (r === 'EMPLOYEE') { 
-        // On cache la barre de recherche globale pour les employés
+    if (r === 'EMPLOYEE') {
+        // L'employé ne voit pas la recherche
         const searchContainer = document.getElementById('global-search-container');
         if (searchContainer) searchContainer.style.display = 'none';
-
-        // On masque les groupes de menu réservés au management
-        document.querySelectorAll('.management-only').forEach(el => el.style.display = 'none');
-        
-        switchView('my-profile'); 
-    } else { 
-        switchView('dash'); 
+        switchView('my-profile');
+    } else {
+        switchView('dash');
     }
 
 
@@ -4441,6 +4440,26 @@ function initChatRealtime() {
 
 
 
+
+
+function applyPermissionsUI(perms) {
+    console.log("🛠️ Application des permissions UI...", perms);
+    
+    // On cherche tous les éléments qui ont besoin d'une permission
+    document.querySelectorAll('[data-perm]').forEach(el => {
+        const key = el.getAttribute('data-perm');
+        
+        // Si la permission existe et qu'elle est à TRUE, on montre. Sinon on cache.
+        if (perms && perms[key] === true) {
+            el.style.display = 'flex'; // ou 'block' selon ton CSS
+        } else {
+            el.style.display = 'none';
+        }
+    });
+}
+
+
+
 else if (action === 'read-settings') {
     const { data, error } = await supabase
         .from('app_settings')
@@ -4462,6 +4481,7 @@ else if (action === 'read-settings') {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
