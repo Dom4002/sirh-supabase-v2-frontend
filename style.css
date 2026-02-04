@@ -200,3 +200,34 @@
         }
 
 
+
+
+
+/* Carte de pointage Premium */
+#view-my-profile .bg-slate-900 {
+    background: linear-gradient(145deg, #0f172a, #1e293b);
+    border: 1px solid rgba(255,255,255,0.1);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(10px);
+}
+
+/* Effet au survol des boutons */
+.nav-btn {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.nav-btn:active {
+    transform: scale(0.95);
+    background-color: rgba(255,255,255,0.05);
+}
+
+/* Badge de statut pulsant */
+#clock-status-dot.bg-emerald-500 {
+    box-shadow: 0 0 15px #10b981;
+    animation: pulse-green 2s infinite;
+}
+
+@keyframes pulse-green {
+    0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+    70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
