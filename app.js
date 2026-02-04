@@ -440,16 +440,25 @@ async function setSession(n, r, id) {
     }
 
     // --- CORRECTION DU BLOC CI-DESSOUS ---
+
+
+            // --- DANS app.js (fonction setSession) ---
     if (r === 'EMPLOYEE') { 
-        // Suppression de la ligne nav-admin-section qui causait l'erreur
+        // On cache la barre de recherche globale pour les employés
         const searchContainer = document.getElementById('global-search-container');
-        if (searchContainer) {
-            searchContainer.style.display = 'none';
-        }
+        if (searchContainer) searchContainer.style.display = 'none';
+
+        // On masque les groupes de menu réservés au management
+        document.querySelectorAll('.management-only').forEach(el => el.style.display = 'none');
+        
         switchView('my-profile'); 
     } else { 
         switchView('dash'); 
     }
+
+
+
+            
     // -------------------------------------
 
     applyWidgetPreferences(); 
@@ -4445,6 +4454,7 @@ function initChatRealtime() {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
