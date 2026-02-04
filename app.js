@@ -174,7 +174,26 @@ let chatSubscription = null;
 
 
 
-
+const PremiumUI = {
+    // Vibrations haptiques (Standard iPhone/Android)
+    vibrate: (type) => {
+        if (!("vibrate" in navigator)) return;
+        if (type === 'success') navigator.vibrate([50, 30, 50]); // Double tap léger
+        if (type === 'error') navigator.vibrate([100, 50, 100, 50, 100]); // Alerte forte
+        if (type === 'click') navigator.vibrate(10); // Micro-vibration tactile
+    },
+    
+    // Sons discrets et pros
+    play: (soundName) => {
+        const sounds = {
+            success: 'https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3',
+            notification: 'https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3'
+        };
+        const audio = new Audio(sounds[soundName]);
+        audio.volume = 0.3;
+        audio.play().catch(e => console.log("Audio bloqué"));
+    }
+};
 
 
 
@@ -1307,7 +1326,17 @@ async function handleClockInOut() {
 
         if (response.ok) {
             // SUCCÈS STANDARD
-            const nowStr = new Date().toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'});
+
+                    
+                const nowStr = new Date().toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'});
+
+                PremiumUI.vibrate('success');
+                PremiumUI.play('success');
+                
+                // Animation visuelle de confettis ou flash vert
+                const btn = document.getElementById('btn-clock');
+                btn.classList.add('scale-110', 'brightness-125');
+                setTimeout(() => btn.classList.remove('scale-110', 'brightness-125'), 300);       
             
             if (action === 'CLOCK_IN') {
                 localStorage.setItem(`clock_status_${userId}`, 'IN');
@@ -1717,6 +1746,10 @@ function switchView(v) {
     // --- CORRECTION MAJEURE ICI : RESET DU SCROLL ---
     // On force le conteneur principal à remonter tout en haut
     const mainContainer = document.getElementById('main-scroll-container');
+
+    container.style.opacity = '0';
+    container.style.transform = 'translateY(10px)';
+            
     if(mainContainer) {
         mainContainer.scrollTo(0, 0); // Remonte instantanément
     }
@@ -4525,6 +4558,7 @@ function applyPermissionsUI(perms) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
