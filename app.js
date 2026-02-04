@@ -1762,7 +1762,7 @@ function switchView(v) {
 
 
 
-
+    if(v === 'settings') fetchZones(); 
 
             
     // --- CORRECTION : Chargement automatique des données selon l'onglet ---
@@ -4516,6 +4516,7 @@ function applyPermissionsUI(perms) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
