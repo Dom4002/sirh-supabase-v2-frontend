@@ -4441,7 +4441,15 @@ function initChatRealtime() {
 
 
 
+else if (action === 'read-settings') {
+    const { data, error } = await supabase
+        .from('app_settings')
+        .select('*')
+        .order('label', { ascending: true });
 
+    if (error) throw error;
+    return res.json(data);
+}            
 
 
 
@@ -4454,6 +4462,7 @@ function initChatRealtime() {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
