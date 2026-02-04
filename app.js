@@ -10,6 +10,14 @@
             };
 
 
+// On récupère la librairie Supabase chargée via CDN dans l'index.html
+const supabaseClient = window.supabase.createClient(
+    SIRH_CONFIG.apiBaseUrl.replace('/api', ''), // Ton URL Supabase (on enlève le /api)
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndkZnVxc3Fzc2FwY3J6aGpzZWxzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwMjQ3MDksImV4cCI6MjA4NTYwMDcwOX0.G8i83W0ZcdEd9Bnp3T8rbGjlBxRcpgFdwG5k_LPd0po" // Utilise ta clé 'anon public' (PAS la service_role)
+);
+
+let chatSubscription = null; // Contiendra l'écouteur en direct
+
 
     // ==========================================
     // CONFIGURATION DE PERSONNALISATION (SAAS)
@@ -1695,9 +1703,16 @@ function switchView(v) {
     }
 
     // --- NOUVEAU : Chargement et rafraîchissement auto du Chat ---
+// --- NOUVEAU : Logique Realtime Chat ---
     if (v === 'chat') {
-        fetchMessages();
-        window.chatIntervalId = setInterval(fetchMessages, 3000);
+        fetchMessages(); // Charge l'historique une seule fois
+        initChatRealtime(); // Lance l'écouteur en direct
+    } else {
+        // On coupe l'écouteur quand on quitte le chat pour économiser la batterie
+        if (chatSubscription) {
+            supabaseClient.removeChannel(chatSubscription);
+            chatSubscription = null;
+        }
     }
     
     // --- CORRECTION : Chargement automatique des données selon l'onglet ---
@@ -4357,6 +4372,33 @@ function closeEditor() {
 
 
 
+function initChatRealtime() {
+    if (chatSubscription) return; // Évite de créer 10 écouteurs
+
+    chatSubscription = supabaseClient
+        .channel('public:messages')
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, payload => {
+            console.log('Nouveau message reçu en direct !', payload.new);
+            
+            // On ne rafraîchit pas tout le chat (trop lourd), on ajoute juste le nouveau message
+            // Mais pour rester simple avec ton code actuel, on appelle fetchMessages
+            fetchMessages(); 
+            
+            // Petit son de notification si ce n'est pas nous qui avons envoyé le message
+            if (String(payload.new.sender_id) !== String(currentUser.id)) {
+                NOTIF_SOUND.play().catch(() => {});
+            }
+        })
+        .subscribe();
+}
+
+
+
+
+
+
+
+
 
 
                 if ('serviceWorker' in navigator) {
@@ -4366,6 +4408,7 @@ function closeEditor() {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
