@@ -1,223 +1,185 @@
-        /* ============================================================
-        1. VARIABLES DE MARQUE & CONFIGURATION (ROOT)
-        ============================================================ */
-        :root {
-            --primary: #0f172a;
-            --accent: #2563eb;
-            --font-main: 'Plus Jakarta Sans', sans-serif;
-            --base-size: 14px;
-            /* Variables de contraste calculées par le JS */
-            --text-on-primary: #ffffff;
-            --text-on-accent: #ffffff;
-        }
-
-
-        /* ============================================================
-        2. DARK MODE ULTRA-CLEAN
-        ============================================================ */
-        body.dark-mode { background-color: #020617 !important; color: #f1f5f9 !important; }
-        body.dark-mode aside { background-color: #020617 !important; border-right: 1px solid #1e293b !important; }
-        body.dark-mode header, body.dark-mode .glass { background: rgba(2, 6, 23, 0.9) !important; border-bottom: 1px solid #1e293b !important; box-shadow: none !important; color: white !important; }
-        
-        /* Cartes et Sections en Dark Mode */
-        body.dark-mode .bg-white, body.dark-mode section, body.dark-mode .rounded-3xl, 
-        body.dark-mode .rounded-2xl, body.dark-mode .shadow-xl, body.dark-mode .bg-slate-50, 
-        body.dark-mode .bg-slate-100 {
-            background-color: #0f172a !important; border: 1px solid #1e293b !important; box-shadow: none !important; color: #f1f5f9 !important;
-        }
-
-        /* Tableaux Dark Mode */
-        body.dark-mode table thead { background-color: #1e293b !important; }
-        body.dark-mode table thead th { color: #94a3b8 !important; border-bottom: 1px solid #334155 !important; }
-        body.dark-mode table tbody tr { background-color: transparent !important; border-bottom: 1px solid #1e293b !important; }
-        body.dark-mode table tbody tr:hover { background-color: #1e293b !important; }
-        body.dark-mode td { color: #cbd5e1 !important; }
-
-        /* Inputs Dark Mode */
-        body.dark-mode input, body.dark-mode select, body.dark-mode textarea {
-            background-color: #1e293b !important; border: 1px solid #334155 !important; color: #ffffff !important; box-shadow: none !important;
-        }
-
-        /* Textes Dark Mode */
-        body.dark-mode h1, body.dark-mode h2, body.dark-mode h3, body.dark-mode h4, body.dark-mode .text-slate-800, body.dark-mode .text-slate-900 { color: #f8fafc !important; }
-        body.dark-mode .text-slate-500, body.dark-mode .text-slate-400 { color: #94a3b8 !important; }
-
-        /* SweetAlert Dark Mode */
-        body.dark-mode .swal2-popup { background-color: #0f172a !important; color: #f1f5f9 !important; border: 1px solid #334155 !important; }
-        body.dark-mode .swal2-title, body.dark-mode .swal2-html-container, body.dark-mode .swal2-content { color: #f1f5f9 !important; }
-        body.dark-mode .swal2-timer-progress-bar { background: #2563eb !important; }
-
-        /* ============================================================
-        3. STYLES DE BASE & LAYOUT
-        ============================================================ */
-        /* FIX: Fond sombre par défaut pour éviter le flash blanc au démarrage */
-        html, body { background-color: #0f172a !important; font-family: var(--font-main); font-size: var(--base-size); }
-        
+/* ============================================================
+   1. VARIABLES DE MARQUE & CONFIGURATION (PREMIUM)
+   ============================================================ */
+:root {
+    /* Nouvelle palette "Deep Night" & "Neon" */
+    --primary: #020617; /* Bleu nuit profond */
+    --accent: #4f46e5;  /* Indigo vibrant */
+    --font-main: 'Plus Jakarta Sans', sans-serif;
+    --base-size: 14px;
     
-    /* ============================================================
-    STYLE DE LA BARRE DE SCROLL "PROFESSIONNEL"
-    ============================================================ */
+    /* Variables de contraste (calculées par JS, valeurs par défaut ici) */
+    --text-on-primary: #ffffff;
+    --text-on-accent: #ffffff;
 
-    /* 1. Largeur de la barre (très fine) */
-    ::-webkit-scrollbar {
-        width: 5px;
-        height: 5px;
+    /* Glassmorphism Variables */
+    --card-bg: rgba(255, 255, 255, 0.85);
+    --glass: rgba(255, 255, 255, 0.65);
+    --glass-border: 1px solid rgba(255, 255, 255, 0.4);
+    --shadow-premium: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+}
+
+/* ============================================================
+   2. STYLES DE BASE & LAYOUT (AMÉLIORÉ)
+   ============================================================ */
+/* Fond général avec dégradé subtil pour faire ressortir le verre */
+html, body { 
+    background: radial-gradient(circle at top right, #f8fafc, #e2e8f0) !important; 
+    font-family: var(--font-main); 
+    font-size: var(--base-size); 
+    color: #1e293b;
+    /* Optimisation mobile */
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* ============================================================
+   3. DARK MODE ULTRA-CLEAN (GARDÉ & ADAPTÉ)
+   ============================================================ */
+body.dark-mode { 
+    background: radial-gradient(circle at top right, #0f172a, #020617) !important; 
+    color: #f1f5f9 !important; 
+}
+body.dark-mode aside { 
+    background-color: #020617 !important; 
+    border-right: 1px solid #1e293b !important; 
+}
+body.dark-mode header, body.dark-mode .glass { 
+    background: rgba(2, 6, 23, 0.8) !important; 
+    border-bottom: 1px solid #1e293b !important; 
+    box-shadow: none !important; 
+    color: white !important; 
+}
+
+/* Cartes et Sections en Dark Mode */
+body.dark-mode .bg-white, body.dark-mode section, body.dark-mode .rounded-3xl, 
+body.dark-mode .rounded-2xl, body.dark-mode .shadow-xl, body.dark-mode .bg-slate-50, 
+body.dark-mode .bg-slate-100 {
+    background-color: #0f172a !important; 
+    border: 1px solid #1e293b !important; 
+    box-shadow: none !important; 
+    color: #f1f5f9 !important;
+}
+
+/* Tableaux Dark Mode */
+body.dark-mode table thead { background-color: #1e293b !important; }
+body.dark-mode table thead th { color: #94a3b8 !important; border-bottom: 1px solid #334155 !important; }
+body.dark-mode table tbody tr { background-color: transparent !important; }
+body.dark-mode table tbody tr:hover { background-color: #1e293b !important; }
+body.dark-mode td { color: #cbd5e1 !important; }
+
+/* Inputs Dark Mode */
+body.dark-mode input, body.dark-mode select, body.dark-mode textarea {
+    background-color: #1e293b !important; 
+    border: 1px solid #334155 !important; 
+    color: #ffffff !important; 
+    box-shadow: none !important;
+}
+
+/* Textes Dark Mode */
+body.dark-mode h1, body.dark-mode h2, body.dark-mode h3, body.dark-mode h4, 
+body.dark-mode .text-slate-800, body.dark-mode .text-slate-900 { color: #f8fafc !important; }
+body.dark-mode .text-slate-500, body.dark-mode .text-slate-400 { color: #94a3b8 !important; }
+
+/* SweetAlert Dark Mode */
+body.dark-mode .swal2-popup { 
+    background-color: #0f172a !important; 
+    color: #f1f5f9 !important; 
+    border: 1px solid #334155 !important; 
+}
+body.dark-mode .swal2-title, body.dark-mode .swal2-html-container, body.dark-mode .swal2-content { color: #f1f5f9 !important; }
+body.dark-mode .swal2-timer-progress-bar { background: #2563eb !important; }
+
+/* ============================================================
+   4. GLASSMORPHISM & UI DE LUXE (NOUVEAU)
+   ============================================================ */
+
+/* Transformation des cartes blanches en verre dépoli */
+.bg-white {
+    background: var(--glass) !important;
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+    border: var(--glass-border) !important;
+    box-shadow: var(--shadow-premium) !important;
+    border-radius: 24px !important;
+}
+
+/* Boutons avec effet de relief et dégradé */
+.bg-blue-600, #btn-login, .bg-slate-900 {
+    background: linear-gradient(135deg, var(--accent), #3730a3) !important;
+    border: none !important;
+    box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.3) !important;
+    transition: all 0.3s ease !important;
+}
+
+.bg-blue-600:hover, #btn-login:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 20px 25px -5px rgba(79, 70, 229, 0.4) !important;
+}
+
+/* Sidebar "Flottante" */
+#sidebar {
+    background: var(--primary) !important;
+    color: var(--text-on-primary) !important;
+    /* Sur desktop, on la détache du bord */
+    @media (min-width: 768px) {
+        margin: 15px 0 15px 15px;
+        border-radius: 30px !important;
+        height: calc(100vh - 30px) !important;
+        box-shadow: 20px 0 50px rgba(0,0,0,0.2) !important;
     }
+}
 
-    /* 2. Fond de la barre (Transparent pour ne pas faire de bande moche) */
-    ::-webkit-scrollbar-track {
-        background: transparent;
-    }
+/* Tableaux "Ghost Style" (Plus aérés) */
+table {
+    border-collapse: separate !important;
+    border-spacing: 0 8px !important; /* Espace entre les lignes */
+}
+table tr {
+    background: rgba(255,255,255,0.5) !important;
+    border-radius: 12px !important;
+    transition: transform 0.2s;
+}
+table tr:hover {
+    transform: scale(1.005);
+    background: white !important;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+}
+table td {
+    border: none !important;
+    padding: 16px !important;
+}
+table thead th {
+    background: transparent !important;
+    text-transform: uppercase;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    color: #64748b !important;
+    border: none !important;
+}
 
-    /* 3. Le curseur (la partie qui bouge) */
-    ::-webkit-scrollbar-thumb {
-        background: rgba(255, 255, 255, 0.1); /* Couleur discrète par défaut */
-        border-radius: 20px;
-        transition: background 0.3s;
-    }
+/* Inputs Modernes */
+input, select, textarea {
+    background: #f1f5f9 !important;
+    border: 2px solid transparent !important;
+    transition: all 0.3s ease !important;
+    border-radius: 12px !important;
+}
+input:focus, select:focus, textarea:focus {
+    background: white !important;
+    border-color: var(--accent) !important;
+    box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1) !important;
+}
 
-    /* 4. Au survol du menu, on rend la barre un peu plus visible */
-    aside:hover ::-webkit-scrollbar-thumb {
-        background: rgba(255, 255, 255, 0.25);
-    }
-
-    /* 5. Style spécifique pour le mode clair (Main content) */
-    main ::-webkit-scrollbar-thumb {
-        background: rgba(15, 23, 42, 0.1);
-    }
-
-    main:hover ::-webkit-scrollbar-thumb {
-        background: rgba(15, 23, 42, 0.2);
-    }
-
-
-        /* Gestion des vues */
-        .view-section { display: none !important; opacity: 0; }
-        .view-section.active { display: block !important; opacity: 1; animation: fadeIn 0.3s ease-out; }
-        
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-
-        /* Squelettes et Progressions */
-        .skeleton { background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%); background-size: 200% 100%; animation: skeleton-loading 1.5s infinite linear; }
-        @keyframes skeleton-loading { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
-        
-        /* FIX: Animation renommée pour correspondre au HTML progress_1.5s */
-
-
-    /* Animation de la barre de chargement (va et vient infini) */
-    @keyframes bar-slide {
-        0% { left: -40%; width: 30%; }
-        50% { width: 60%; }
-        100% { left: 100%; width: 30%; }
-    }
-
-    .loading-bar-active {
-        position: relative;
-        left: -40%;
-        width: 30%;
-        height: 100%;
-        background: linear-gradient(90deg, #2563eb, #818cf8);
-        border-radius: 9999px;
-        animation: barProgress 1.8s ease-in-out infinite;
-    }
-
-    /* État initial de l'application : invisible */
-    #app-layout {
-        opacity: 0;
-        transition: opacity 0.8s ease-in-out;
-        visibility: hidden;
-    }
-
-    /* Quand l'application est prête */
-    #app-layout.ready {
-        opacity: 1;
-        visibility: visible;
-    }
-
-
-
-        /* Rôles et visibilité */
-        .admin-only, .rh-only, .management-only { display: none !important; }
-        body.role-admin .admin-only, body.role-admin .rh-only, body.role-admin .management-only { display: block !important; } 
-        body.role-rh .rh-only, body.role-rh .management-only { display: block !important; }       
-        body.role-manager .management-only { display: block !important; }
-
-        /* Éléments fixes */
-        .glass { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); }
-        main header { position: sticky; top: 0; z-index: 40; backdrop-filter: blur(12px); background: rgba(255, 255, 255, 0.85); }
-        #reader { width: 100%; border-radius: 12px; overflow: hidden; }
-
-        /* ============================================================
-        4. BRANDING DYNAMIQUE ET COMPOSANTS
-        ============================================================ */
-        
-        /* Couleurs de marque appliquées aux éléments clés */
-        aside { background-color: var(--primary) !important; color: var(--text-on-primary) !important; }
-        .nav-btn.bg-blue-600, #btn-login, .bg-blue-600 { background-color: var(--accent) !important; color: var(--text-on-accent) !important; }
-
-        /* Correction du nom de l'entreprise (Ellipsis) */
-        .company-name-display {
-            display: inline-block;
-            max-width: 150px; 
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            vertical-align: middle;
-        }
-
-        /* Dashboard et Header */
-        #main-scroll-container { padding-top: 1.5rem !important; }
-        #login-screen img { filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1)); }
-
-        /* Filtres et Chips */
-        .filter-chip { background-color: white; border-color: #e2e8f0; color: #64748b; }
-        .filter-chip:hover { border-color: #3b82f6; color: #3b82f6; }
-        .filter-chip.active-chip { background-color: var(--accent) !important; border-color: var(--accent) !important; color: var(--text-on-accent) !important; }
-        body.dark-mode .filter-chip { background-color: #1e293b; border-color: #334155; color: #94a3b8; }
-
-
-
-
-        .custom-scroll {
-            overflow-y: auto;
-            scrollbar-width: thin; /* Firefox */
-            scrollbar-color: #cbd5e1 transparent; /* Couleur / Fond */
-        }
-        .custom-scroll::-webkit-scrollbar {
-            width: 6px;
-        }
-        .custom-scroll::-webkit-scrollbar-track {
-            background: transparent;
-        }
-        .custom-scroll::-webkit-scrollbar-thumb {
-            background-color: #cbd5e1;
-            border-radius: 20px;
-            border: 2px solid transparent;
-            background-clip: content-box;
-        }
-        .custom-scroll:hover::-webkit-scrollbar-thumb {
-            background-color: #94a3b8;
-        }
-
-
-
-
+/* ============================================================
+   5. ÉLÉMENTS SPÉCIFIQUES (GARDÉS & STYLISÉS)
+   ============================================================ */
 
 /* Carte de pointage Premium */
 #view-my-profile .bg-slate-900 {
-    background: linear-gradient(145deg, #0f172a, #1e293b);
-    border: 1px solid rgba(255,255,255,0.1);
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    background: linear-gradient(145deg, #0f172a, #1e293b) !important;
+    border: 1px solid rgba(255,255,255,0.1) !important;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5) !important;
     backdrop-filter: blur(10px);
-}
-
-/* Effet au survol des boutons */
-.nav-btn {
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-.nav-btn:active {
-    transform: scale(0.95);
-    background-color: rgba(255,255,255,0.05);
 }
 
 /* Badge de statut pulsant */
@@ -225,41 +187,91 @@
     box-shadow: 0 0 15px #10b981;
     animation: pulse-green 2s infinite;
 }
-
 @keyframes pulse-green {
     0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
     70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
     100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
 }
 
+/* Boutons Sidebar */
+.nav-btn {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    border-radius: 12px !important;
+    margin: 4px 0;
+}
+.nav-btn:active {
+    transform: scale(0.95);
+    background-color: rgba(255,255,255,0.05);
+}
+.nav-btn.bg-blue-600 {
+    background: rgba(255, 255, 255, 0.15) !important; /* Effet translucide */
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    color: white !important;
+    box-shadow: none !important;
+}
 
+/* Loader & Squelettes */
+.skeleton { background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%); background-size: 200% 100%; animation: skeleton-loading 1.5s infinite linear; }
+@keyframes skeleton-loading { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 
-/* Amélioration Mobile pour les Tableaux */
+@keyframes bar-slide {
+    0% { left: -40%; width: 30%; } 50% { width: 60%; } 100% { left: 100%; width: 30%; }
+}
+
+/* Gestion des vues (Transition) */
+.view-section { display: none !important; opacity: 0; }
+.view-section.active { display: block !important; opacity: 1; animation: fadeIn 0.4s ease-out; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+#app-layout { opacity: 0; transition: opacity 0.8s ease-in-out; visibility: hidden; }
+#app-layout.ready { opacity: 1; visibility: visible; }
+
+/* Scrollbars "Finesse" */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.3); border-radius: 20px; }
+aside:hover ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); }
+
+.custom-scroll { overflow-y: auto; scrollbar-width: thin; scrollbar-color: #cbd5e1 transparent; }
+
+/* Utilitaires de Rôle */
+.admin-only, .rh-only, .management-only { display: none !important; }
+body.role-admin .admin-only, body.role-admin .rh-only, body.role-admin .management-only { display: block !important; } 
+body.role-rh .rh-only, body.role-rh .management-only { display: block !important; }       
+body.role-manager .management-only { display: block !important; }
+
+/* Header Fixe */
+.glass { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(255,255,255,0.5); }
+main header { position: sticky; top: 0; z-index: 40; backdrop-filter: blur(12px); background: rgba(255, 255, 255, 0.7); }
+
+/* Filtres (Chips) */
+.filter-chip { background-color: white; border-color: #e2e8f0; color: #64748b; transition: all 0.2s; }
+.filter-chip:hover { border-color: var(--accent); color: var(--accent); transform: translateY(-1px); }
+.filter-chip.active-chip { background-color: var(--accent) !important; border-color: var(--accent) !important; color: white !important; box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.3); }
+body.dark-mode .filter-chip { background-color: #1e293b; border-color: #334155; color: #94a3b8; }
+
+/* Nom Entreprise */
+.company-name-display { display: inline-block; max-width: 150px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; vertical-align: middle; }
+
+/* Dashboard Padding */
+#main-scroll-container { padding-top: 1.5rem !important; }
+
+/* RESPONSIVE MOBILE */
 @media (max-width: 768px) {
-    /* Cache les colonnes moins importantes sur mobile */
-    th:nth-child(2), td:nth-child(2) { display: none; } /* Cache le poste */
+    /* Tableaux : Cache colonnes inutiles */
+    th:nth-child(2), td:nth-child(2) { display: none; }
     
-    /* Rend la première colonne (Nom) plus visible */
-    td:first-child {
-        position: sticky;
-        left: 0;
-        background: white;
-        z-index: 10;
-        box-shadow: 2px 0 5px rgba(0,0,0,0.05);
-    }
+    /* Colonne Nom Sticky */
+    td:first-child { position: sticky; left: 0; background: white; z-index: 10; box-shadow: 2px 0 5px rgba(0,0,0,0.05); }
     body.dark-mode td:first-child { background: #0f172a; }
 
-    /* Modales plein écran sur mobile */
-    .swal2-popup {
-        width: 100% !important;
-        border-radius: 20px 20px 0 0 !important;
-        margin: 0 !important;
-        position: fixed !important;
-        bottom: 0 !important;
-    }
+    /* Modales Fullscreen */
+    .swal2-popup { width: 100% !important; border-radius: 24px 24px 0 0 !important; margin: 0 !important; position: fixed !important; bottom: 0 !important; animation: slideUp 0.3s ease-out; }
+    @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
+    /* Sidebar Pleine page */
+    #sidebar { margin: 0; height: 100%; border-radius: 0 !important; }
 }
 
-/* Fix pour les inputs de paie sur mobile */
-.pay-base, .pay-prime, .pay-tax {
-    min-width: 80px; /* Évite que l'input ne devienne invisible */
-}
+/* Fix Inputs Paie */
+.pay-base, .pay-prime, .pay-tax { min-width: 80px; }
