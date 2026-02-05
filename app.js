@@ -470,7 +470,7 @@ async function setSession(n, r, id, perms) {
 
     // 4. CHARGEMENT RÉEL DES DONNÉES
     try {
-        await refreshAllData(true); 
+        await refreshAllData(false); 
         await new Promise(resolve => setTimeout(resolve, 500)); 
     } catch (e) {
         console.warn("Erreur chargement:", e);
@@ -4578,6 +4578,7 @@ document.addEventListener('touchend', e => {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
