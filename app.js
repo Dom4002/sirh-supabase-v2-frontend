@@ -479,20 +479,30 @@ async function setSession(n, r, id, perms) {
     // --- APPLICATION DES PERMISSIONS ---
     applyPermissionsUI(perms);
 
+
+            
 // --- LOGIQUE DE VUE PAR DÉFAUT (Version Finale SAAS) ---
     
-    // La recherche s'affiche si on a le droit de voir les employés
+// --- LOGIQUE DE VUE INTELLIGENTE (MÉMOIRE D'ONGLET) ---
     const searchContainer = document.getElementById('global-search-container');
     if (searchContainer) {
         searchContainer.style.display = perms?.can_see_employees ? 'block' : 'none';
     }
 
-    // Si l'utilisateur a la permission de voir le dashboard, c'est sa page d'accueil.
-    if (perms?.can_see_dashboard) {
-        switchView('dash');
-    } else {
-        // Sinon (simple employé), il atterrit sur son profil.
-        switchView('my-profile');
+    // 1. On regarde si on a un onglet sauvegardé en mémoire
+    const savedView = localStorage.getItem('sirh_last_view');
+    
+    // 2. On vérifie si l'onglet sauvegardé existe bien dans le HTML
+    if (savedView && document.getElementById('view-' + savedView)) {
+        switchView(savedView);
+    } 
+    // 3. Sinon, on applique la règle par défaut selon le rôle
+    else {
+        if (perms?.can_see_dashboard) {
+            switchView('dash');
+        } else {
+            switchView('my-profile');
+        }
     }
 
     applyWidgetPreferences(); 
@@ -1706,6 +1716,8 @@ async function fetchEmployeeLeaveBalances() {
 
 
 function switchView(v) { 
+
+     localStorage.setItem('sirh_last_view', v);       
     // --- 1. INITIALISATION DE L'ANIMATION (FADE OUT) ---
     const mainContainer = document.getElementById('main-scroll-container');
     if (mainContainer) {
@@ -2586,11 +2598,12 @@ function showLeaveDetail(btn) {
     function handleLogout() {
                 if(videoStream) videoStream.getTracks().forEach(t => t.stop());
                 if(contractStream) contractStream.getTracks().forEach(t => t.stop());
-                
+
+
+                localStorage.removeItem('sirh_last_view');
                 // NETTOYAGE COMPLET
                 localStorage.removeItem('sirh_token');
                 localStorage.removeItem('sirh_user_session'); // Supprime l'identité sauvegardée
-                
                 location.reload();
             }
 
@@ -4565,6 +4578,7 @@ document.addEventListener('touchend', e => {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
