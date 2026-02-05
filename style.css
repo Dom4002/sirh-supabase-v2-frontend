@@ -211,3 +211,79 @@ aside { background-color: var(--primary) !important; color: var(--text-on-primar
 .pay-base, .pay-prime, .pay-tax { min-width: 80px; }
 
 .custom-scroll { overflow-y: auto; scrollbar-width: thin; scrollbar-color: #cbd5e1 transparent; }
+
+
+
+
+
+/* ============================================================
+   DESIGN SPÉCIFIQUE : MODALE DOSSIER (Le "Big Man" Folder)
+   ============================================================ */
+
+/* 1. Le fond de la partie droite (Documents) */
+#folder-modal .bg-slate-50 {
+    background: radial-gradient(circle at top left, #f8fafc, #e2e8f0) !important;
+}
+
+/* 2. Les cartes de documents (Transformation en tuiles 3D) */
+#folder-docs-grid .group {
+    background: rgba(255, 255, 255, 0.6) !important; /* Plus transparent */
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.5) !important;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: default;
+}
+
+/* Effet au survol de la carte */
+#folder-docs-grid .group:hover {
+    transform: translateY(-3px) scale(1.02);
+    background: rgba(255, 255, 255, 0.95) !important;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+    border-color: var(--accent) !important;
+}
+
+/* 3. Les icônes des documents (Cercle coloré) */
+#folder-docs-grid .rounded-xl {
+    transition: transform 0.3s ease;
+}
+#folder-docs-grid .group:hover .rounded-xl {
+    transform: scale(1.1) rotate(5deg); /* Petite animation fun */
+}
+
+/* 4. Les boutons d'action (Oeil / Stylo) */
+#folder-docs-grid button {
+    background-color: #f1f5f9;
+    border-radius: 50%; /* Boutons ronds */
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+#folder-docs-grid button:hover {
+    background-color: var(--accent);
+    color: white !important;
+    transform: rotate(15deg);
+}
+
+/* 5. Partie Gauche (Identité) : Un vrai dégradé sombre */
+#folder-modal .bg-slate-900 {
+    background: linear-gradient(160deg, #0f172a 0%, #1e293b 100%) !important;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Un petit effet de lumière sur le profil */
+#folder-modal .bg-slate-900::before {
+    content: '';
+    position: absolute;
+    top: -50px;
+    left: -50px;
+    width: 200px;
+    height: 200px;
+    background: radial-gradient(circle, rgba(59, 130, 246, 0.15) 0%, transparent 70%);
+    pointer-events: none;
+}
