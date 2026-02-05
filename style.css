@@ -231,3 +231,36 @@
     70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
     100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
 }
+
+
+
+/* Amélioration Mobile pour les Tableaux */
+@media (max-width: 768px) {
+    /* Cache les colonnes moins importantes sur mobile */
+    th:nth-child(2), td:nth-child(2) { display: none; } /* Cache le poste */
+    
+    /* Rend la première colonne (Nom) plus visible */
+    td:first-child {
+        position: sticky;
+        left: 0;
+        background: white;
+        z-index: 10;
+        box-shadow: 2px 0 5px rgba(0,0,0,0.05);
+    }
+    body.dark-mode td:first-child { background: #0f172a; }
+
+    /* Modales plein écran sur mobile */
+    .swal2-popup {
+        width: 100% !important;
+        border-radius: 20px 20px 0 0 !important;
+        margin: 0 !important;
+        position: fixed !important;
+        bottom: 0 !important;
+    }
+}
+
+/* Fix pour les inputs de paie sur mobile */
+.pay-base, .pay-prime, .pay-tax {
+    min-width: 80px; /* Évite que l'input ne devienne invisible */
+}
+
