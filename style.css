@@ -8,7 +8,7 @@
     --font-main: 'Plus Jakarta Sans', sans-serif;
     --base-size: 14px;
     
-    /* Variables de contraste (calculées par JS, valeurs par défaut ici) */
+    /* Variables de contraste */
     --text-on-primary: #ffffff;
     --text-on-accent: #ffffff;
 
@@ -20,20 +20,37 @@
 }
 
 /* ============================================================
-   2. STYLES DE BASE & LAYOUT (AMÉLIORÉ)
+   2. STYLES DE BASE & LAYOUT
    ============================================================ */
-/* Fond général avec dégradé subtil pour faire ressortir le verre */
 html, body { 
     background: radial-gradient(circle at top right, #f8fafc, #e2e8f0) !important; 
     font-family: var(--font-main); 
     font-size: var(--base-size); 
     color: #1e293b;
-    /* Optimisation mobile */
     -webkit-tap-highlight-color: transparent;
 }
 
+/* FIX: Le Loader passe au-dessus de tout (Z-Index 10000) */
+#initial-loader {
+    z-index: 10000 !important;
+}
+
+/* FIX: Les notifications SweetAlert au-dessus du loader */
+.swal2-container {
+    z-index: 10001 !important; 
+}
+
+/* Force la position des toasts en haut à droite */
+body.swal2-toast-shown .swal2-container.swal2-top-end, 
+body.swal2-toast-shown .swal2-container.swal2-top-right {
+    top: 20px !important;
+    right: 20px !important;
+    bottom: auto !important;
+    left: auto !important;
+}
+
 /* ============================================================
-   3. DARK MODE ULTRA-CLEAN (GARDÉ & ADAPTÉ)
+   3. DARK MODE ULTRA-CLEAN
    ============================================================ */
 body.dark-mode { 
     background: radial-gradient(circle at top right, #0f172a, #020617) !important; 
@@ -89,32 +106,11 @@ body.dark-mode .swal2-popup {
 body.dark-mode .swal2-title, body.dark-mode .swal2-html-container, body.dark-mode .swal2-content { color: #f1f5f9 !important; }
 body.dark-mode .swal2-timer-progress-bar { background: #2563eb !important; }
 
-
-
-/* FIX: Le Loader passe au-dessus de tout (Z-Index 10000) */
-#initial-loader {
-    z-index: 10000 !important;
-}
-
-/* FIX: Les notifications SweetAlert (Toasts) */
-.swal2-container {
-    z-index: 10001 !important; /* Juste au-dessus du loader si besoin, mais on va le masquer en JS */
-}
-
-/* On force la position en haut à droite si ce n'est pas le cas */
-body.swal2-toast-shown .swal2-container.swal2-top-end, 
-body.swal2-toast-shown .swal2-container.swal2-top-right {
-    top: 20px !important;
-    right: 20px !important;
-    bottom: auto !important;
-    left: auto !important;
-}
-
 /* ============================================================
-   4. GLASSMORPHISM & UI DE LUXE (NOUVEAU)
+   4. UI DE LUXE (GLASSMORPHISM & COMPOSANTS)
    ============================================================ */
 
-/* Transformation des cartes blanches en verre dépoli */
+/* Cartes "Verre" */
 .bg-white {
     background: var(--glass) !important;
     backdrop-filter: blur(12px) !important;
@@ -124,14 +120,13 @@ body.swal2-toast-shown .swal2-container.swal2-top-right {
     border-radius: 24px !important;
 }
 
-/* Boutons avec effet de relief et dégradé */
+/* Boutons Action (Relief & Dégradé) */
 .bg-blue-600, #btn-login, .bg-slate-900 {
     background: linear-gradient(135deg, var(--accent), #3730a3) !important;
     border: none !important;
     box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.3) !important;
     transition: all 0.3s ease !important;
 }
-
 .bg-blue-600:hover, #btn-login:hover {
     transform: translateY(-2px);
     box-shadow: 0 20px 25px -5px rgba(79, 70, 229, 0.4) !important;
@@ -141,8 +136,9 @@ body.swal2-toast-shown .swal2-container.swal2-top-right {
 #sidebar {
     background: var(--primary) !important;
     color: var(--text-on-primary) !important;
-    /* Sur desktop, on la détache du bord */
-    @media (min-width: 768px) {
+}
+@media (min-width: 768px) {
+    #sidebar {
         margin: 15px 0 15px 15px;
         border-radius: 30px !important;
         height: calc(100vh - 30px) !important;
@@ -150,11 +146,8 @@ body.swal2-toast-shown .swal2-container.swal2-top-right {
     }
 }
 
-/* Tableaux "Ghost Style" (Plus aérés) */
-table {
-    border-collapse: separate !important;
-    border-spacing: 0 8px !important; /* Espace entre les lignes */
-}
+/* Tableaux "Ghost Style" */
+table { border-collapse: separate !important; border-spacing: 0 8px !important; }
 table tr {
     background: rgba(255,255,255,0.5) !important;
     border-radius: 12px !important;
@@ -165,10 +158,7 @@ table tr:hover {
     background: white !important;
     box-shadow: 0 4px 6px rgba(0,0,0,0.05);
 }
-table td {
-    border: none !important;
-    padding: 16px !important;
-}
+table td { border: none !important; padding: 16px !important; }
 table thead th {
     background: transparent !important;
     text-transform: uppercase;
@@ -192,10 +182,10 @@ input:focus, select:focus, textarea:focus {
 }
 
 /* ============================================================
-   5. ÉLÉMENTS SPÉCIFIQUES (GARDÉS & STYLISÉS)
+   5. ÉLÉMENTS SPÉCIFIQUES & UTILITAIRES
    ============================================================ */
 
-/* Carte de pointage Premium */
+/* Carte Profil */
 #view-my-profile .bg-slate-900 {
     background: linear-gradient(145deg, #0f172a, #1e293b) !important;
     border: 1px solid rgba(255,255,255,0.1) !important;
@@ -203,7 +193,7 @@ input:focus, select:focus, textarea:focus {
     backdrop-filter: blur(10px);
 }
 
-/* Badge de statut pulsant */
+/* Bouton Vert Pulsant */
 #clock-status-dot.bg-emerald-500 {
     box-shadow: 0 0 15px #10b981;
     animation: pulse-green 2s infinite;
@@ -214,118 +204,79 @@ input:focus, select:focus, textarea:focus {
     100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
 }
 
-/* Boutons Sidebar */
+/* Boutons Menu */
 .nav-btn {
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     border-radius: 12px !important;
     margin: 4px 0;
 }
-.nav-btn:active {
-    transform: scale(0.95);
-    background-color: rgba(255,255,255,0.05);
-}
+.nav-btn:active { transform: scale(0.95); background-color: rgba(255,255,255,0.05); }
 .nav-btn.bg-blue-600 {
-    background: rgba(255, 255, 255, 0.15) !important; /* Effet translucide */
+    background: rgba(255, 255, 255, 0.15) !important;
     border: 1px solid rgba(255, 255, 255, 0.1) !important;
     color: white !important;
     box-shadow: none !important;
 }
 
-/* Loader & Squelettes */
+/* Loader Bar */
+@keyframes bar-slide { 0% { left: -40%; width: 30%; } 50% { width: 60%; } 100% { left: 100%; width: 30%; } }
 
-#initial-loader {
-    z-index: 10000 !important;
-}
-
-
-.skeleton { background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%); background-size: 200% 100%; animation: skeleton-loading 1.5s infinite linear; }
-@keyframes skeleton-loading { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
-
-@keyframes bar-slide {
-    0% { left: -40%; width: 30%; } 50% { width: 60%; } 100% { left: 100%; width: 30%; }
-}
-
-/* Gestion des vues (Transition) */
+/* Transitions Vues */
 .view-section { display: none !important; opacity: 0; }
 .view-section.active { display: block !important; opacity: 1; animation: fadeIn 0.4s ease-out; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
+/* État App */
 #app-layout { opacity: 0; transition: opacity 0.8s ease-in-out; visibility: hidden; }
 #app-layout.ready { opacity: 1; visibility: visible; }
 
-/* Scrollbars "Finesse" */
+/* Scrollbars */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.3); border-radius: 20px; }
 aside:hover ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); }
-
 .custom-scroll { overflow-y: auto; scrollbar-width: thin; scrollbar-color: #cbd5e1 transparent; }
-
-/* Utilitaires de Rôle */
-.admin-only, .rh-only, .management-only { display: none !important; }
-body.role-admin .admin-only, body.role-admin .rh-only, body.role-admin .management-only { display: block !important; } 
-body.role-rh .rh-only, body.role-rh .management-only { display: block !important; }       
-body.role-manager .management-only { display: block !important; }
 
 /* Header Fixe */
 .glass { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(255,255,255,0.5); }
 main header { position: sticky; top: 0; z-index: 40; backdrop-filter: blur(12px); background: rgba(255, 255, 255, 0.7); }
 
-/* Filtres (Chips) */
+/* Filtres Chips */
 .filter-chip { background-color: white; border-color: #e2e8f0; color: #64748b; transition: all 0.2s; }
 .filter-chip:hover { border-color: var(--accent); color: var(--accent); transform: translateY(-1px); }
 .filter-chip.active-chip { background-color: var(--accent) !important; border-color: var(--accent) !important; color: white !important; box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.3); }
 body.dark-mode .filter-chip { background-color: #1e293b; border-color: #334155; color: #94a3b8; }
 
-/* Nom Entreprise */
+/* Utilitaires Texte et Mise en page */
 .company-name-display { display: inline-block; max-width: 150px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; vertical-align: middle; }
-
-/* Dashboard Padding */
 #main-scroll-container { padding-top: 1.5rem !important; }
 
-/* RESPONSIVE MOBILE */
-@media (max-width: 768px) {
-    /* Tableaux : Cache colonnes inutiles */
-    th:nth-child(2), td:nth-child(2) { display: none; }
-    
-    /* Colonne Nom Sticky */
-    td:first-child { position: sticky; left: 0; background: white; z-index: 10; box-shadow: 2px 0 5px rgba(0,0,0,0.05); }
-    body.dark-mode td:first-child { background: #0f172a; }
-
-    /* Modales Fullscreen */
-    .swal2-popup { width: 100% !important; border-radius: 24px 24px 0 0 !important; margin: 0 !important; position: fixed !important; bottom: 0 !important; animation: slideUp 0.3s ease-out; }
-    @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
-
-    /* Sidebar Pleine page */
-    #sidebar { margin: 0; height: 100%; border-radius: 0 !important; }
-}
-
-/* Fix Inputs Paie */
-.pay-base, .pay-prime, .pay-tax { min-width: 80px; }
-
-/* FIX: Empêcher le texte de dépasser */
-.truncate-text {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 100%;
-    display: block;
-}
-
-/* Dans le modal dossier, on force le retour à la ligne pour les emails longs */
-#folder-email, #folder-address {
-    word-break: break-all; /* Coupe l'email s'il est trop long */
+/* FIX: Gestion du texte qui dépasse (Emails, Adresses) */
+.truncate-text, #folder-email, #folder-address {
+    word-break: break-all;
     white-space: normal;
 }
 
-
-/* FIX: Boutons d'actions secondaires (Voir, Modifier) */
+/* FIX: Visibilité des icônes d'action */
 button i.fa-eye, button i.fa-pen, button i.fa-print {
-    color: var(--accent) !important; /* Force le bleu indigo */
+    color: var(--accent) !important;
     opacity: 1 !important;
 }
+.group:hover button i { transform: scale(1.1); }
 
-/* Si le bouton a un fond blanc/transparent, on le rend plus visible au survol */
-.group:hover button i {
-    transform: scale(1.1);
+/* Permissions */
+.admin-only, .rh-only, .management-only { display: none !important; }
+body.role-admin .admin-only, body.role-admin .rh-only, body.role-admin .management-only { display: block !important; } 
+body.role-rh .rh-only, body.role-rh .management-only { display: block !important; }       
+body.role-manager .management-only { display: block !important; }
+
+/* RESPONSIVE MOBILE */
+@media (max-width: 768px) {
+    th:nth-child(2), td:nth-child(2) { display: none; }
+    td:first-child { position: sticky; left: 0; background: white; z-index: 10; box-shadow: 2px 0 5px rgba(0,0,0,0.05); }
+    body.dark-mode td:first-child { background: #0f172a; }
+    .swal2-popup { width: 100% !important; border-radius: 24px 24px 0 0 !important; margin: 0 !important; position: fixed !important; bottom: 0 !important; animation: slideUp 0.3s ease-out; }
+    @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+    #sidebar { margin: 0; height: 100%; border-radius: 0 !important; }
+    .pay-base, .pay-prime, .pay-tax { min-width: 80px; }
 }
