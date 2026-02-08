@@ -282,6 +282,266 @@ async function downloadMyBadge() {
         }
     }
 
+
+
+
+
+
+
+
+
+// ============================================================
+// MODULE MOBILE : LOGIQUE FRONTEND
+// ============================================================
+
+// --- 1. GESTION DES LIEUX ---
+async function fetchMobileLocations() {
+    const grid = document.getElementById('locations-grid');
+    if (!grid) return;
+    
+    try {
+        const r = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/list-mobile-locations`);
+        const data = await r.json();
+        
+        grid.innerHTML = '';
+        if (data.length === 0) grid.innerHTML = '<div class="col-span-full text-center text-slate-400 py-10">Aucun lieu configuré.</div>';
+
+        data.forEach(loc => {
+            grid.innerHTML += `
+                <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all group relative">
+                    <button onclick="deleteMobileLocation('${loc.id}')" class="absolute top-4 right-4 text-slate-300 hover:text-red-500"><i class="fa-solid fa-trash"></i></button>
+                    <div class="flex items-center gap-3 mb-3">
+                        <div class="w-10 h-10 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center text-lg"><i class="fa-solid fa-location-dot"></i></div>
+                        <div>
+                            <h3 class="font-bold text-slate-800">${loc.name}</h3>
+                            <p class="text-[10px] font-black text-slate-400 uppercase">${loc.type_location}</p>
+                        </div>
+                    </div>
+                    <p class="text-xs text-slate-500 mb-2"><i class="fa-solid fa-map-pin mr-1"></i> ${loc.address || 'Coordonnées GPS'}</p>
+                    <div class="flex gap-2 text-[10px] font-mono bg-slate-50 p-2 rounded-lg text-slate-500">
+                        <span>Lat: ${loc.latitude.toFixed(4)}</span>
+                        <span>Lon: ${loc.longitude.toFixed(4)}</span>
+                        <span>Rayon: ${loc.radius}m</span>
+                    </div>
+                </div>
+            `;
+        });
+    } catch (e) { console.error(e); }
+}
+
+async function openAddLocationModal() {
+    // On demande la position actuelle pour faciliter la saisie
+    let lat = '', lon = '';
+    try {
+        const pos = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej));
+        lat = pos.coords.latitude;
+        lon = pos.coords.longitude;
+    } catch (e) {}
+
+    const { value: form } = await Swal.fire({
+        title: 'Nouveau Lieu',
+        html: `
+            <input id="loc-name" class="swal2-input" placeholder="Nom du lieu (ex: Pharmacie X)">
+            <input id="loc-addr" class="swal2-input" placeholder="Adresse (facultatif)">
+            <select id="loc-type" class="swal2-input">
+                <option value="PHARMACIE">Pharmacie</option>
+                <option value="CENTRE_SANTE">Centre de Santé</option>
+                <option value="CLIENT">Client / Partenaire</option>
+                <option value="SITE_GARDE">Site de Garde (Sécurité)</option>
+            </select>
+            <div class="grid grid-cols-2 gap-2">
+                <input id="loc-lat" class="swal2-input" placeholder="Latitude" value="${lat}">
+                <input id="loc-lon" class="swal2-input" placeholder="Longitude" value="${lon}">
+            </div>
+            <input id="loc-radius" type="number" class="swal2-input" placeholder="Rayon (mètres)" value="50">
+        `,
+        focusConfirm: false,
+        showCancelButton: true,
+        preConfirm: () => {
+            return {
+                name: document.getElementById('loc-name').value,
+                address: document.getElementById('loc-addr').value,
+                type_location: document.getElementById('loc-type').value,
+                latitude: document.getElementById('loc-lat').value,
+                longitude: document.getElementById('loc-lon').value,
+                radius: document.getElementById('loc-radius').value
+            }
+        }
+    });
+
+    if (form) {
+        await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/add-mobile-location`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(form)
+        });
+        fetchMobileLocations();
+        Swal.fire('Ajouté !', '', 'success');
+    }
+}
+
+async function deleteMobileLocation(id) {
+    if(await Swal.fire({title:'Supprimer ?', icon:'warning', showCancelButton:true}).then(r => r.isConfirmed)) {
+        await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/delete-mobile-location`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({id})
+        });
+        fetchMobileLocations();
+    }
+}
+
+// --- 2. GESTION DES PLANNINGS ---
+async function fetchMobileSchedules() {
+    const tbody = document.getElementById('planning-body');
+    if (!tbody) return;
+
+    try {
+        const r = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/list-schedules`);
+        const data = await r.json();
+
+        tbody.innerHTML = '';
+        if (data.length === 0) tbody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-slate-400">Aucune mission planifiée.</td></tr>';
+
+        data.forEach(s => {
+            let statusColor = 'bg-slate-100 text-slate-500';
+            if (s.status === 'CHECKED_IN') statusColor = 'bg-blue-100 text-blue-700 animate-pulse';
+            if (s.status === 'COMPLETED') statusColor = 'bg-emerald-100 text-emerald-700';
+            if (s.status === 'MISSED') statusColor = 'bg-red-100 text-red-700';
+
+            tbody.innerHTML += `
+                <tr class="border-b hover:bg-slate-50">
+                    <td class="px-6 py-4">
+                        <div class="font-bold text-sm text-slate-800">${new Date(s.schedule_date).toLocaleDateString()}</div>
+                        <div class="text-xs text-slate-500">${s.start_time.slice(0,5)} - ${s.end_time.slice(0,5)}</div>
+                    </td>
+                    <td class="px-6 py-4 text-sm font-medium">${s.employee_name}</td>
+                    <td class="px-6 py-4 text-sm text-slate-600">
+                        <i class="fa-solid fa-location-dot mr-1 text-blue-400"></i> ${s.location_name}
+                    </td>
+                    <td class="px-6 py-4 text-center">
+                        <span class="px-2 py-1 rounded-md text-[10px] font-black uppercase ${statusColor}">${s.status}</span>
+                    </td>
+                    <td class="px-6 py-4 text-right">
+                        <button onclick="deleteSchedule('${s.id}')" class="text-slate-300 hover:text-red-500"><i class="fa-solid fa-trash"></i></button>
+                    </td>
+                </tr>
+            `;
+        });
+    } catch (e) { console.error(e); }
+}
+
+async function openAddScheduleModal() {
+    // On charge les listes pour les dropdowns
+    const [empsRes, locsRes] = await Promise.all([
+        secureFetch(`${SIRH_CONFIG.apiBaseUrl}/read`),
+        secureFetch(`${SIRH_CONFIG.apiBaseUrl}/list-mobile-locations`)
+    ]);
+    const emps = await empsRes.json();
+    const locs = await locsRes.json();
+
+    // Filtrer pour ne garder que les employés "mobiles" (si tu utilises le type)
+    // const mobileEmps = emps.filter(e => e.employee_type !== 'OFFICE'); 
+    const mobileEmps = emps; // Pour l'instant on affiche tout le monde
+
+    let empOptions = mobileEmps.map(e => `<option value="${e.id}">${e.nom} (${e.matricule})</option>`).join('');
+    let locOptions = locs.map(l => `<option value="${l.id}">${l.name}</option>`).join('');
+
+    const { value: form } = await Swal.fire({
+        title: 'Nouvelle Mission',
+        html: `
+            <label class="block text-left text-xs font-bold text-slate-500 mb-1">Agent</label>
+            <select id="sched-emp" class="swal2-input mb-3">${empOptions}</select>
+            
+            <label class="block text-left text-xs font-bold text-slate-500 mb-1">Lieu</label>
+            <select id="sched-loc" class="swal2-input mb-3">${locOptions}</select>
+            
+            <div class="grid grid-cols-2 gap-2">
+                <div><label class="text-xs">Date</label><input id="sched-date" type="date" class="swal2-input"></div>
+                <div><label class="text-xs">Début</label><input id="sched-start" type="time" class="swal2-input"></div>
+            </div>
+            <label class="block text-left text-xs font-bold text-slate-500 mt-2 mb-1">Notes</label>
+            <input id="sched-notes" class="swal2-input" placeholder="Ex: Livrer échantillon A">
+        `,
+        focusConfirm: false,
+        showCancelButton: true,
+        preConfirm: () => {
+            return {
+                employee_id: document.getElementById('sched-emp').value,
+                location_id: document.getElementById('sched-loc').value,
+                schedule_date: document.getElementById('sched-date').value,
+                start_time: document.getElementById('sched-start').value,
+                end_time: '18:00', // Valeur par défaut ou ajouter un input
+                notes: document.getElementById('sched-notes').value
+            }
+        }
+    });
+
+    if (form) {
+        await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/add-schedule`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(form)
+        });
+        fetchMobileSchedules();
+        Swal.fire('Planifié !', '', 'success');
+    }
+}
+
+async function deleteSchedule(id) {
+    if(await Swal.fire({title:'Annuler cette mission ?', icon:'warning', showCancelButton:true}).then(r => r.isConfirmed)) {
+        await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/delete-schedule`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({id})
+        });
+        fetchMobileSchedules();
+    }
+}
+
+// --- 3. GESTION DES RAPPORTS ---
+async function fetchMobileReports(type = 'visits') {
+    const container = document.getElementById('reports-container');
+    container.innerHTML = '<div class="text-center p-4"><i class="fa-solid fa-circle-notch fa-spin"></i></div>';
+
+    if (type === 'visits') {
+        // On réutilise la liste des schedules car elle contient les résultats de visite
+        const r = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/list-schedules`);
+        const data = await r.json();
+        
+        // On ne garde que ceux qui sont COMPLETED avec un rapport
+        const reports = data.filter(d => d.status === 'COMPLETED' || d.visit_report);
+
+        container.innerHTML = '';
+        if (reports.length === 0) container.innerHTML = '<div class="text-center text-slate-400">Aucun rapport de visite récent.</div>';
+        
+        reports.forEach(r => {
+            container.innerHTML += `
+                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                    <div class="flex justify-between items-start mb-2">
+                        <div>
+                            <h4 class="font-bold text-slate-800">${r.location_name}</h4>
+                            <p class="text-xs text-slate-500">Agent: ${r.employee_name} • Le ${new Date(r.schedule_date).toLocaleDateString()}</p>
+                        </div>
+                        <span class="bg-emerald-100 text-emerald-700 px-2 py-1 rounded text-[10px] font-black uppercase">${r.visit_outcome || 'TERMINÉ'}</span>
+                    </div>
+                    <div class="bg-slate-50 p-3 rounded-lg text-sm text-slate-700 italic border border-slate-100">
+                        "${r.visit_report || 'Aucun commentaire'}"
+                    </div>
+                </div>
+            `;
+        });
+    } else {
+        // TODO : Ajouter la route pour lire les daily_reports si besoin
+        container.innerHTML = '<div class="text-center text-slate-400">Fonctionnalité Bilans Journaliers à venir.</div>';
+    }
+}
+
+
+
+
+
+
     async function requestNotificationPermission() {
         if (!("Notification" in window)) {
             console.log("Ce navigateur ne supporte pas les notifications.");
@@ -1791,6 +2051,9 @@ function switchView(v) {
     }
 
     // Chargements automatiques
+    if (v === 'mobile-locations') fetchMobileLocations();
+    if (v === 'mobile-planning') fetchMobileSchedules();
+    if (v === 'mobile-reports') fetchMobileReports();
     if(v === 'settings') fetchZones(); 
     if(v === 'logs') fetchLogs(); 
     if(v === 'recruitment') fetchCandidates();
@@ -4604,6 +4867,7 @@ document.addEventListener('touchend', e => {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
