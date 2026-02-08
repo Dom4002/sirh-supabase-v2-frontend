@@ -4930,6 +4930,41 @@ async function handleCSVFile(event) {
 }
 
 
+async function openDailyReportModal() {
+    const { value: formValues } = await Swal.fire({
+        title: 'Bilan de la journée',
+        html: `
+            <p class="text-[10px] text-slate-400 uppercase font-black mb-2">Résumé global de vos activités</p>
+            <textarea id="daily-summary" class="swal2-textarea" style="height: 150px" placeholder="Nombre de visites, difficultés rencontrées, opportunités..."></textarea>
+            <div class="flex items-center gap-2 mt-4">
+                <input type="checkbox" id="daily-restock" class="w-5 h-5">
+                <label for="daily-restock" class="text-sm font-bold text-slate-600">Besoin de réapprovisionnement (échantillons/stock)</label>
+            </div>
+        `,
+        confirmButtonText: 'Envoyer le rapport',
+        showCancelButton: true,
+        preConfirm: () => {
+            return {
+                summary: document.getElementById('daily-summary').value,
+                needs_restock: document.getElementById('daily-restock').checked
+            }
+        }
+    });
+
+    if (formValues) {
+        Swal.fire({ title: 'Envoi...', didOpen: () => Swal.showLoading() });
+        await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/submit-daily-report`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                employee_id: currentUser.id,
+                ...formValues
+            })
+        });
+        Swal.fire('Envoyé !', 'Votre bilan a été transmis à la direction.', 'success');
+    }
+}
+
 
                 if ('serviceWorker' in navigator) {
                     window.addEventListener('load', () => {
@@ -4938,6 +4973,7 @@ async function handleCSVFile(event) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
