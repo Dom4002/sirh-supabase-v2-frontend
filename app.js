@@ -4870,6 +4870,65 @@ document.addEventListener('touchend', e => {
 
 
 
+// --- IMPORT DE MASSE (CSV) ---
+
+function triggerCSVImport() {
+    document.getElementById('csv-file-input').click();
+}
+
+async function handleCSVFile(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    Swal.fire({ title: 'Analyse du fichier...', didOpen: () => Swal.showLoading() });
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+        const text = e.target.result;
+        const lines = text.split('\n');
+        const locations = [];
+
+        // On saute la première ligne (en-têtes : Nom;Latitude;Longitude;Zone;Adresse)
+        for (let i = 1; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (!line) continue;
+
+            const columns = line.split(';'); // Utilise le point-virgule (Excel FR)
+            if (columns.length >= 3) {
+                locations.push({
+                    name: columns[0].trim(),
+                    latitude: parseFloat(columns[1].replace(',', '.')),
+                    longitude: parseFloat(columns[2].replace(',', '.')),
+                    zone_name: columns[3] ? columns[3].trim() : 'GENERALE',
+                    address: columns[4] ? columns[4].trim() : '',
+                    is_active: true,
+                    radius: 50
+                });
+            }
+        }
+
+        if (locations.length > 0) {
+            try {
+                const response = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/import-locations`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ locations })
+                });
+
+                if (response.ok) {
+                    Swal.fire('Succès !', `${locations.length} lieux ont été importés.`, 'success');
+                    fetchMobileLocations();
+                }
+            } catch (err) {
+                Swal.fire('Erreur', "Échec de l'import : " + err.message, 'error');
+            }
+        } else {
+            Swal.fire('Fichier vide', 'Aucune donnée valide trouvée.', 'warning');
+        }
+    };
+    reader.readAsText(file);
+}
+
 
 
                 if ('serviceWorker' in navigator) {
@@ -4879,6 +4938,7 @@ document.addEventListener('touchend', e => {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
