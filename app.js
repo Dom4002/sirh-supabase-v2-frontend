@@ -2254,6 +2254,32 @@ async function triggerRobotCheck() {
 
 
 
+
+
+
+async function applyModulesUI() {
+    // 1. On récupère la config de l'entreprise
+    const response = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/read-modules`);
+    const modules = await response.json();
+
+    // 2. On boucle sur chaque module
+    modules.forEach(mod => {
+        // On cherche tous les éléments liés à ce module
+        document.querySelectorAll(`[data-module="${mod.module_key}"]`).forEach(el => {
+            if (mod.is_active) {
+                el.classList.remove('hidden-module'); // On laisse l'affichage (géré ensuite par les permissions)
+            } else {
+                el.classList.add('hidden-module'); // On force le masquage, même si l'utilisateur est Admin
+                el.style.display = 'none !important';
+            }
+        });
+    });
+}
+
+// Appelle cette fonction dans setSession(), juste avant applyPermissionsUI()
+
+
+
         async function fetchLogs() {
                 const tbody = document.getElementById('logs-body');
                 tbody.innerHTML = '<tr><td colspan="4" class="p-6 text-center italic text-slate-400">Chargement...</td></tr>';
@@ -4578,6 +4604,7 @@ document.addEventListener('touchend', e => {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
