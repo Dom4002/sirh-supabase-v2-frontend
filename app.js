@@ -499,41 +499,91 @@ async function deleteSchedule(id) {
     }
 }
 
-// --- 3. GESTION DES RAPPORTS ---
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 async function fetchMobileReports(type = 'visits') {
     const container = document.getElementById('reports-container');
-    container.innerHTML = '<div class="text-center p-4"><i class="fa-solid fa-circle-notch fa-spin"></i></div>';
+    if (!container) return;
+    
+    container.innerHTML = '<div class="text-center p-10"><i class="fa-solid fa-circle-notch fa-spin text-blue-500 text-2xl"></i></div>';
 
-    if (type === 'visits') {
-        // On réutilise la liste des schedules car elle contient les résultats de visite
-        const r = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/list-schedules`);
-        const data = await r.json();
-        
-        // On ne garde que ceux qui sont COMPLETED avec un rapport
-        const reports = data.filter(d => d.status === 'COMPLETED' || d.visit_report);
+    try {
+        if (type === 'visits') {
+            // --- LOGIQUE VISITES (Inchangée) ---
+            const r = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/list-schedules`);
+            const data = await r.json();
+            const reports = data.filter(d => d.status === 'COMPLETED' || d.visit_report);
 
-        container.innerHTML = '';
-        if (reports.length === 0) container.innerHTML = '<div class="text-center text-slate-400">Aucun rapport de visite récent.</div>';
-        
-        reports.forEach(r => {
-            container.innerHTML += `
-                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                    <div class="flex justify-between items-start mb-2">
-                        <div>
-                            <h4 class="font-bold text-slate-800">${r.location_name}</h4>
-                            <p class="text-xs text-slate-500">Agent: ${r.employee_name} • Le ${new Date(r.schedule_date).toLocaleDateString()}</p>
+            container.innerHTML = '';
+            if (reports.length === 0) {
+                container.innerHTML = '<div class="text-center text-slate-400 py-10">Aucun rapport de visite.</div>';
+                return;
+            }
+
+            reports.forEach(r => {
+                container.innerHTML += `
+                    <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm animate-fadeIn">
+                        <div class="flex justify-between items-start mb-3">
+                            <div>
+                                <h4 class="font-black text-slate-800 uppercase text-sm">${r.location_name}</h4>
+                                <p class="text-[10px] font-bold text-slate-400 uppercase">${r.employee_name} • ${new Date(r.schedule_date).toLocaleDateString()}</p>
+                            </div>
+                            <span class="bg-blue-50 text-blue-600 px-2 py-1 rounded text-[9px] font-black uppercase">${r.visit_outcome || 'RAS'}</span>
                         </div>
-                        <span class="bg-emerald-100 text-emerald-700 px-2 py-1 rounded text-[10px] font-black uppercase">${r.visit_outcome || 'TERMINÉ'}</span>
-                    </div>
-                    <div class="bg-slate-50 p-3 rounded-lg text-sm text-slate-700 italic border border-slate-100">
-                        "${r.visit_report || 'Aucun commentaire'}"
-                    </div>
-                </div>
-            `;
-        });
-    } else {
-        // TODO : Ajouter la route pour lire les daily_reports si besoin
-        container.innerHTML = '<div class="text-center text-slate-400">Fonctionnalité Bilans Journaliers à venir.</div>';
+                        <div class="bg-slate-50 p-4 rounded-xl text-xs text-slate-600 italic border border-slate-100">
+                            "${r.visit_report || 'Aucun commentaire.'}"
+                        </div>
+                    </div>`;
+            });
+        } 
+        else if (type === 'daily') {
+            // --- NOUVELLE LOGIQUE : BILANS JOURNALIERS ---
+            const r = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/read-daily-reports`);
+            const data = await r.json();
+
+            container.innerHTML = '';
+            if (data.length === 0) {
+                container.innerHTML = '<div class="text-center text-slate-400 py-10">Aucun bilan journalier envoyé.</div>';
+                return;
+            }
+
+            data.forEach(rep => {
+                const empName = rep.employees ? rep.employees.nom : 'Anonyme';
+                const dateStr = new Date(rep.report_date).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+                const needsStock = rep.needs_restock ? 
+                    '<span class="bg-orange-100 text-orange-600 px-2 py-1 rounded text-[9px] font-black uppercase"><i class="fa-solid fa-box-open mr-1"></i> Réappro. Requis</span>' : '';
+
+                container.innerHTML += `
+                    <div class="bg-white p-6 rounded-2xl border-l-4 border-l-indigo-500 shadow-sm animate-fadeIn">
+                        <div class="flex justify-between items-center mb-4">
+                            <div>
+                                <h4 class="font-black text-slate-800 text-base uppercase tracking-tighter">${empName}</h4>
+                                <p class="text-[10px] font-bold text-indigo-500 uppercase">${dateStr}</p>
+                            </div>
+                            ${needsStock}
+                        </div>
+                        <div class="text-sm text-slate-600 leading-relaxed bg-slate-50 p-4 rounded-xl border border-slate-100">
+                            ${rep.summary.replace(/\n/g, '<br>')}
+                        </div>
+                    </div>`;
+            });
+        }
+    } catch (e) {
+        console.error(e);
+        container.innerHTML = '<div class="text-center text-red-500 py-10 font-bold">Erreur de chargement des rapports.</div>';
     }
 }
 
@@ -5019,6 +5069,7 @@ async function openDailyReportModal() {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
