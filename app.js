@@ -1512,7 +1512,6 @@ async function handleClockInOut() {
     const lastActionDate = localStorage.getItem(`clock_date_${userId}`);
     
     if (lastActionDate !== today) {
-        // C'est un nouveau jour, on remet tout à zéro
         localStorage.setItem(`clock_date_${userId}`, today);
         localStorage.setItem(`clock_status_${userId}`, 'OUT');
         localStorage.setItem(`clock_in_done_${userId}`, 'false');
@@ -1520,16 +1519,46 @@ async function handleClockInOut() {
         updateClockUI(false); 
     }
 
-    // --- 2. DÉCISION BASÉE SUR LE STATUT ACTUEL (Plus fiable) ---
-    // Si le téléphone pense qu'on est OUT, on tente d'entrer.
-    // Si le téléphone pense qu'on est IN, on tente de sortir.
     const currentStatus = localStorage.getItem(`clock_status_${userId}`) || 'OUT';
     const action = (currentStatus === 'OUT') ? 'CLOCK_IN' : 'CLOCK_OUT';
 
-    // Petite sécurité pour éviter de re-pointer si la journée est finie
     const outDone = localStorage.getItem(`clock_out_done_${userId}`) === 'true';
     if (action === 'CLOCK_IN' && outDone && currentStatus === 'OUT') {
          return Swal.fire('Journée terminée', 'Vous avez déjà fait votre sortie aujourd\'hui.', 'info');
+    }
+
+    // --- 2. NOUVEAU : RAPPORT DE VISITE (Uniquement pour la SORTIE) ---
+    let outcome = null;
+    let report = null;
+
+    if (action === 'CLOCK_OUT') {
+        const { value: formValues } = await Swal.fire({
+            title: 'Bilan de la mission',
+            html: `
+                <select id="swal-outcome" class="swal2-input">
+                    <option value="VU">Médecin / Client Vu</option>
+                    <option value="ABSENT">Absent / Fermé</option>
+                    <option value="COMMANDE">Commande Prise</option>
+                    <option value="RAS">Rien à signaler</option>
+                </select>
+                <textarea id="swal-report" class="swal2-textarea" style="height: 100px" placeholder="Détails de la visite (facultatif)..."></textarea>
+            `,
+            confirmButtonText: 'Valider ma sortie',
+            cancelButtonText: 'Annuler',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444',
+            focusConfirm: false,
+            preConfirm: () => {
+                return [
+                    document.getElementById('swal-outcome').value,
+                    document.getElementById('swal-report').value
+                ]
+            }
+        });
+
+        if (!formValues) return; // Si l'utilisateur annule le popup, on arrête tout
+        outcome = formValues[0];
+        report = formValues[1];
     }
 
     // --- 3. DÉBUT DU POINTAGE ---
@@ -1541,7 +1570,6 @@ async function handleClockInOut() {
     });
 
     try {
-        // Récupération IP & GPS (Code standard)
         const ipResponse = await fetch('https://api.ipify.org?format=json');
         const ipData = await ipResponse.json();
         const userIp = ipData.ip;
@@ -1552,7 +1580,6 @@ async function handleClockInOut() {
             });
         });
 
-        // Vérification Zone
         let validatedZone = "Hors Zone";
         let isInside = false;
         let dist = 0;
@@ -1566,21 +1593,23 @@ async function handleClockInOut() {
             }
         });
         
-        if (SIRH_CONFIG.gps.strictMode && !isInside) {
+        if (SIRH_CONFIG.gps.strictMode && !isInside && currentUser.role === 'EMPLOYEE') {
             return Swal.fire({icon: 'error', title: 'Hors Zone', text: 'Rapprochez-vous du bureau.'});
         }
 
-        // --- 4. ENVOI AU SERVEUR ---
+        // --- 4. ENVOI AU SERVEUR (PAYLOAD ENRICHI) ---
         const payload = {
             id: userId,
             nom: currentUser.nom,
-            action: action, // On envoie l'action déterminée
+            action: action,
             time: new Date().toISOString(),
             gps: `${pos.coords.latitude},${pos.coords.longitude}`,
             distance_bureau: dist,
             zone: validatedZone,
             ip: userIp,
-            agent: currentUser.nom
+            agent: currentUser.nom,
+            outcome: outcome, // Ajouté pour le CRM
+            report: report    // Ajouté pour le CRM
         };
 
         const response = await secureFetch(URL_CLOCK_ACTION, { 
@@ -1590,27 +1619,28 @@ async function handleClockInOut() {
         });
 
         if (response.ok) {
-            // SUCCÈS STANDARD
+            const nowStr = new Date().toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'});
 
-                    
-                const nowStr = new Date().toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'});
-
+            // Logique PremiumUI maintenue
+            if (typeof PremiumUI !== 'undefined') {
                 PremiumUI.vibrate('success');
                 PremiumUI.play('success');
-                
-                // Animation visuelle de confettis ou flash vert
-                const btn = document.getElementById('btn-clock');
+            }
+            
+            const btn = document.getElementById('btn-clock');
+            if (btn) {
                 btn.classList.add('scale-110', 'brightness-125');
                 setTimeout(() => btn.classList.remove('scale-110', 'brightness-125'), 300);       
+            }
             
             if (action === 'CLOCK_IN') {
                 localStorage.setItem(`clock_status_${userId}`, 'IN');
                 localStorage.setItem(`clock_in_done_${userId}`, 'true');
-                updateClockUI(true); // Passe au ROUGE (Sortie)
+                updateClockUI(true);
             } else {
                 localStorage.setItem(`clock_status_${userId}`, 'OUT');
                 localStorage.setItem(`clock_out_done_${userId}`, 'true');
-                updateClockUI(false); // Passe au VERT (Entrée)
+                updateClockUI(false);
             }
             
             document.getElementById('clock-last-action').innerText = `Validé : ${action==='CLOCK_IN'?'Entrée':'Sortie'} à ${nowStr}`;
@@ -1618,51 +1648,33 @@ async function handleClockInOut() {
         }
 
     } catch (e) { 
-        // --- 5. L'INTELLIGENCE ARTIFICIELLE DE RÉPARATION ---
-        // C'est ici que ça se joue. On analyse l'erreur du serveur.
-        
         const errorMsg = e.message || "";
-
-        // Si Make/Airtable dit "Refusé" ou si le message d'erreur contient des indices de doublon
-        // (Adaptez les mots clés selon vos messages d'erreur Make exacts)
         const isDuplicateError = errorMsg.includes("déjà") || errorMsg.includes("Refus") || errorMsg.includes("exist");
 
         if (isDuplicateError) {
-            // LE SERVEUR DIT QU'ON EST DÉJÀ DANS L'ÉTAT VOULU
-            // Donc le téléphone se trompait. On corrige le téléphone.
-
             if (action === 'CLOCK_IN') {
-                // On a essayé d'entrer, mais le serveur dit "Déjà fait". 
-                // Conclusion : On est DÉJÀ À L'INTÉRIEUR.
                 localStorage.setItem(`clock_status_${userId}`, 'IN');
                 localStorage.setItem(`clock_in_done_${userId}`, 'true');
-                updateClockUI(true); // On force l'affichage "EN POSTE"
-                
+                updateClockUI(true);
                 Swal.fire({
                     icon: 'warning',
                     title: 'Synchronisation',
-                    text: 'Le serveur indique que vous êtes déjà pointé. Votre interface a été corrigée. Vous pouvez maintenant pointer la Sortie.',
+                    text: 'Le serveur indique que vous êtes déjà pointé. Votre interface a été corrigée.',
                     confirmButtonText: 'Compris'
                 });
-
             } else if (action === 'CLOCK_OUT') {
-                // On a essayé de sortir, mais erreur (rare, mais possible si double clic).
                 localStorage.setItem(`clock_status_${userId}`, 'OUT');
                 localStorage.setItem(`clock_out_done_${userId}`, 'true');
                 updateClockUI(false);
                 Swal.fire('Info', 'Sortie déjà enregistrée.', 'info');
             }
-
         } else if (errorMsg.startsWith("AUTH_ERROR_SPECIFIC:")) {
-            // Autres erreurs spécifiques de Make
             Swal.fire('Refusé', errorMsg.replace("AUTH_ERROR_SPECIFIC:", ""), 'warning');
         } else {
-            // Erreur technique vraie (Réseau, Timeout)
             Swal.fire('Erreur Technique', errorMsg, 'error');
         }
     }
 }
-
 
     function openFullFolder(id) {
         const e = employees.find(x => x.id === id); if(!e) return;
@@ -4867,6 +4879,7 @@ document.addEventListener('touchend', e => {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
