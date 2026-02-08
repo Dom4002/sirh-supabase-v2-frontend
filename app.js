@@ -4876,37 +4876,66 @@ function triggerCSVImport() {
     document.getElementById('csv-file-input').click();
 }
 
+
+
+
+
+
 async function handleCSVFile(event) {
     const file = event.target.files[0];
     if (!file) return;
 
-    Swal.fire({ title: 'Analyse du fichier...', didOpen: () => Swal.showLoading() });
+    Swal.fire({ title: 'Analyse intelligente...', text: 'Mappage des colonnes en cours', didOpen: () => Swal.showLoading() });
 
     const reader = new FileReader();
     reader.onload = async (e) => {
         const text = e.target.result;
-        const lines = text.split('\n');
+        const lines = text.split(/\r?\n/).filter(l => l.trim() !== "");
+        if (lines.length < 2) return Swal.fire('Erreur', 'Le fichier est vide ou mal formé.', 'error');
+
+        // 1. Détection du délimiteur (; ou ,)
+        const firstLine = lines[0];
+        const delimiter = firstLine.includes(';') ? ';' : ',';
+        const headers = firstLine.split(delimiter).map(h => h.trim().toLowerCase());
+
+        // 2. Mapping automatique (On cherche les index des colonnes)
+        const map = {
+            name: headers.findIndex(h => h.includes('nom') || h.includes('name') || h.includes('lieu') || h.includes('pharmacie')),
+            lat: headers.findIndex(h => h.includes('lat')),
+            lon: headers.findIndex(h => h.includes('lon') || h.includes('long')),
+            zone: headers.findIndex(h => h.includes('zone') || h.includes('secteur')),
+            addr: headers.findIndex(h => h.includes('adresse') || h.includes('addr'))
+        };
+
+        // Vérification minimale : il faut au moins Nom, Lat et Lon
+        if (map.name === -1 || map.lat === -1 || map.lon === -1) {
+            return Swal.fire('Erreur de format', 'Impossible de trouver les colonnes obligatoires (Nom, Latitude, Longitude).', 'error');
+        }
+
         const locations = [];
 
-        // On saute la première ligne (en-têtes : Nom;Latitude;Longitude;Zone;Adresse)
+        // 3. Lecture des données
         for (let i = 1; i < lines.length; i++) {
-            const line = lines[i].trim();
-            if (!line) continue;
+            const cols = lines[i].split(delimiter);
+            if (cols.length < 3) continue;
 
-            const columns = line.split(';'); // Utilise le point-virgule (Excel FR)
-            if (columns.length >= 3) {
+            const lat = parseFloat(cols[map.lat]?.replace(',', '.'));
+            const lon = parseFloat(cols[map.lon]?.replace(',', '.'));
+
+            if (!isNaN(lat) && !isNaN(lon)) {
                 locations.push({
-                    name: columns[0].trim(),
-                    latitude: parseFloat(columns[1].replace(',', '.')),
-                    longitude: parseFloat(columns[2].replace(',', '.')),
-                    zone_name: columns[3] ? columns[3].trim() : 'GENERALE',
-                    address: columns[4] ? columns[4].trim() : '',
+                    name: cols[map.name].trim(),
+                    latitude: lat,
+                    longitude: lon,
+                    zone_name: map.zone !== -1 ? (cols[map.zone]?.trim() || 'GENERALE') : 'GENERALE',
+                    address: map.addr !== -1 ? (cols[map.addr]?.trim() || '') : '',
                     is_active: true,
-                    radius: 50
+                    radius: 50 // Rayon par défaut
                 });
             }
         }
 
+        // 4. Envoi au serveur
         if (locations.length > 0) {
             try {
                 const response = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/import-locations`, {
@@ -4915,30 +4944,32 @@ async function handleCSVFile(event) {
                     body: JSON.stringify({ locations })
                 });
 
+                Swal.close();
                 if (response.ok) {
-                    Swal.fire('Succès !', `${locations.length} lieux ont été importés.`, 'success');
-                    fetchMobileLocations();
+                    Swal.fire('Succès !', `${locations.length} lieux importés avec succès.`, 'success');
+                    fetchMobileLocations(); // Rafraîchit la grille
                 }
             } catch (err) {
-                Swal.fire('Erreur', "Échec de l'import : " + err.message, 'error');
+                Swal.fire('Échec', err.message, 'error');
             }
         } else {
-            Swal.fire('Fichier vide', 'Aucune donnée valide trouvée.', 'warning');
+            Swal.fire('Oups', 'Aucune donnée valide trouvée dans le fichier.', 'warning');
         }
     };
     reader.readAsText(file);
+    // On reset l'input pour pouvoir ré-importer le même fichier si besoin
+    event.target.value = "";
 }
-
 
 async function openDailyReportModal() {
     const { value: formValues } = await Swal.fire({
         title: 'Bilan de la journée',
         html: `
             <p class="text-[10px] text-slate-400 uppercase font-black mb-2">Résumé global de vos activités</p>
-            <textarea id="daily-summary" class="swal2-textarea" style="height: 150px" placeholder="Nombre de visites, difficultés rencontrées, opportunités..."></textarea>
+            <textarea id="daily-summary" class="swal2-textarea" style="height: 150px" placeholder="Nombre de visites, difficultés..."></textarea>
             <div class="flex items-center gap-2 mt-4">
                 <input type="checkbox" id="daily-restock" class="w-5 h-5">
-                <label for="daily-restock" class="text-sm font-bold text-slate-600">Besoin de réapprovisionnement (échantillons/stock)</label>
+                <label for="daily-restock" class="text-sm font-bold text-slate-600">Besoin de stock / échantillons ?</label>
             </div>
         `,
         confirmButtonText: 'Envoyer le rapport',
@@ -4952,18 +4983,33 @@ async function openDailyReportModal() {
     });
 
     if (formValues) {
-        Swal.fire({ title: 'Envoi...', didOpen: () => Swal.showLoading() });
-        await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/submit-daily-report`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                employee_id: currentUser.id,
-                ...formValues
-            })
-        });
-        Swal.fire('Envoyé !', 'Votre bilan a été transmis à la direction.', 'success');
+        Swal.fire({ title: 'Envoi...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+        
+        try {
+            const response = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/submit-daily-report`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    employee_id: currentUser.id,
+                    ...formValues
+                })
+            });
+
+            // ICI ON FERME LE CHARGEMENT
+            Swal.close(); 
+
+            if (response.ok) {
+                Swal.fire('Succès !', 'Votre bilan a été transmis.', 'success');
+            } else {
+                throw new Error("Erreur serveur");
+            }
+        } catch (e) {
+            Swal.close();
+            Swal.fire('Erreur', "Le rapport n'a pas pu être envoyé.", 'error');
+        }
     }
 }
+
 
 
                 if ('serviceWorker' in navigator) {
@@ -4973,6 +5019,7 @@ async function openDailyReportModal() {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
