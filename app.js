@@ -2773,25 +2773,20 @@ async function triggerRobotCheck() {
 
 
 async function applyModulesUI() {
-    // 1. On récupère la config de l'entreprise
     const response = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/read-modules`);
     const modules = await response.json();
 
-    // 2. On boucle sur chaque module
     modules.forEach(mod => {
-        // On cherche tous les éléments liés à ce module
+        // On cherche tous les éléments liés au module (ex: MOD_MOBILE_WORKFORCE)
         document.querySelectorAll(`[data-module="${mod.module_key}"]`).forEach(el => {
             if (mod.is_active) {
-                el.classList.remove('hidden-module'); // On laisse l'affichage (géré ensuite par les permissions)
+                el.style.display = ''; // Montre
             } else {
-                el.classList.add('hidden-module'); // On force le masquage, même si l'utilisateur est Admin
-                el.style.display = 'none !important';
+                el.remove(); // SUPPRIME carrément l'élément du menu (plus propre que 'none')
             }
         });
     });
 }
-
-// Appelle cette fonction dans setSession(), juste avant applyPermissionsUI()
 
 
 
@@ -5282,6 +5277,7 @@ async function openDailyReportModal() {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
