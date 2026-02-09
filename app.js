@@ -1151,7 +1151,7 @@ async function triggerGlobalPush(title, message) {
                     id: x.id, // ID UUID de Supabase
                     nom: x.nom, 
                     date: x.date_embauche, 
-                    employee_type: x.employee_type || 'OFFICE', // <--- AJOUTE CETTE LIGNE
+                    employee_type: x.employee_type || 'OFFICE', 
                     poste: x.poste, 
                     dept: x.departement || "Non défini", 
                     Solde_Conges: parseFloat(x.solde_conges) || 0,
@@ -2125,7 +2125,7 @@ function loadMyProfile() {
         if (dailyReportBtn) {
             // Le bouton orange n'apparaît que pour les profils MOBILE (Délégués Nomades)
             if (myData.employee_type === 'MOBILE') {
-                dailyReportBtn.style.display = ''; // Visible
+                dailyReportBtn.style.display = 'flex'; // Visible
             } else {
                 dailyReportBtn.style.display = 'none'; // Caché pour OFFICE et FIXED
             }
@@ -5245,6 +5245,7 @@ async function openDailyReportModal() {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
