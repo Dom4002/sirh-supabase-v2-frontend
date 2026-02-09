@@ -2311,9 +2311,7 @@ function switchView(v) {
             // 1. Afficher la modale
             document.getElementById('edit-modal').classList.remove('hidden');
             document.getElementById('edit-id-hidden').value = id;
-            // Dans openEditModal
             document.getElementById('edit-type').value = e.employee_type || 'OFFICE';
-            // 2. Pré-remplir les champs standards
             document.getElementById('edit-statut').value = e.statut || 'Actif';
             
             const roleSelect = document.getElementById('edit-role');
@@ -5238,6 +5236,7 @@ async function openDailyReportModal() {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
