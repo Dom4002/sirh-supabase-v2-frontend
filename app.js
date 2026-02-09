@@ -513,22 +513,6 @@ let currentReportTab = 'visits';
 let lastAuditData = []; // Stocke les données pour l'export Excel
 
 // 1. CHANGER D'ONGLET
-function changeReportTab(tab) {
-    currentReportTab = tab;
-    // Visuel des boutons d'onglets
-    document.querySelectorAll('.report-tab-btn').forEach(btn => {
-        btn.classList.remove('text-blue-600', 'border-blue-600');
-        btn.classList.add('text-slate-400', 'border-transparent');
-    });
-    const activeBtn = document.getElementById('tab-' + tab);
-    if(activeBtn) {
-        activeBtn.classList.remove('text-slate-400', 'border-transparent');
-        activeBtn.classList.add('text-blue-600', 'border-blue-600');
-    }
-    
-    // On recharge la liste correspondante
-    fetchMobileReports();
-}
 
 
 
@@ -741,34 +725,62 @@ async function fetchMobileReports() {
 
 
 
+// 1. Mise à jour de la fonction de changement d'onglet
+function changeReportTab(tab) {
+    currentReportTab = tab;
+    
+    // Mise à jour visuelle des boutons
+    document.querySelectorAll('.report-tab-btn').forEach(btn => {
+        btn.classList.remove('text-blue-600', 'border-blue-600');
+        btn.classList.add('text-slate-400', 'border-transparent');
+    });
+    
+    const activeBtn = document.getElementById('tab-' + tab);
+    if(activeBtn) {
+        activeBtn.classList.remove('text-slate-400', 'border-transparent');
+        activeBtn.classList.add('text-blue-600', 'border-blue-600');
+    }
+
+    // CHARGEMENT INTELLIGENT
+    if (tab === 'audit') {
+        fetchGlobalAudit(); // Si on clique sur l'onglet Audit, on lance la synthèse
+    } else {
+        fetchMobileReports(); // Sinon on charge les listes (Visites ou Bilans)
+    }
+}
+
+// 2. Assurer que le compteur bleu se met à jour aussi pour l'audit
 async function fetchGlobalAudit() {
+    const container = document.getElementById('reports-list-container');
+    const counterEl = document.getElementById('stat-visites-total');
+    const labelEl = document.getElementById('stat-report-label');
+    
     const now = new Date();
-    const month = now.getMonth() + 1; // 2 pour Février
+    const month = now.getMonth() + 1;
     const year = now.getFullYear();
 
-    Swal.fire({ 
-        title: 'Compilation...', 
-        text: 'Analyse des données de Février 2026', 
-        allowOutsideClick: false,
-        didOpen: () => Swal.showLoading() 
-    });
+    container.innerHTML = '<div class="col-span-full text-center p-10"><i class="fa-solid fa-circle-notch fa-spin text-blue-500 text-3xl"></i></div>';
 
     try {
-        // IMPORTANT : Utiliser secureFetch pour passer le token de sécurité
         const r = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/get-global-audit?month=${month}&year=${year}`);
         const data = await r.json();
-        
-        lastAuditData = data; // On stocke pour Excel
-        Swal.close();
+        lastAuditData = data;
 
-        // On affiche le tableau
+        if(labelEl) labelEl.innerText = "VISITES CUMULÉES (ÉQUIPE)";
+        
+        // On calcule le total des visites de toute l'équipe pour le compteur bleu
+        const totalEquipe = data.reduce((acc, row) => acc + row.total_visites, 0);
+        if(counterEl) counterEl.innerText = totalEquipe;
+
+        // On affiche le grand tableau de synthèse
         renderAuditTable(data);
         
     } catch (e) {
-        console.error(e);
-        Swal.fire('Erreur', 'Le serveur a rencontré un problème de calcul : ' + e.message, 'error');
+        container.innerHTML = '<div class="col-span-full text-center text-red-500 py-10 font-bold">Erreur lors du calcul de la synthèse.</div>';
     }
 }
+
+
 
 // 4. AFFICHAGE DU TABLEAU D'AUDIT
 function renderAuditTable(data) {
@@ -5638,6 +5650,7 @@ async function handleZonesCSVFile(event) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
