@@ -535,17 +535,21 @@ function changeReportTab(tab) {
 
 async function fetchMobileReports() {
     const container = document.getElementById('reports-list-container');
-    const counterEl = document.getElementById('stat-visites-total'); // Le compteur bleu
+    const counterEl = document.getElementById('stat-visites-total');
+    const labelEl = document.getElementById('stat-report-label'); // Le texte "Total Visites"
+    
     if (!container) return;
     
     container.innerHTML = '<div class="col-span-full text-center p-10"><i class="fa-solid fa-circle-notch fa-spin text-blue-500 text-3xl"></i></div>';
 
     try {
         if (currentReportTab === 'visits') {
+            // --- ONGLET VISITES ---
             const r = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/read-visit-reports`);
             const data = await r.json();
 
-            // --- MISE À JOUR DU COMPTEUR BLEU EN DIRECT ---
+            // Mise à jour du compteur bleu pour les VISITES
+            if(labelEl) labelEl.innerText = "TOTAL VISITES (MOIS)";
             if(counterEl) counterEl.innerText = data.length; 
 
             container.innerHTML = '';
@@ -577,13 +581,15 @@ async function fetchMobileReports() {
             });
         } 
         else {
-            // Onglet Bilans Journaliers
+            // --- ONGLET BILANS JOURNALIERS ---
             const r = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/read-daily-reports`);
             const data = await r.json();
+
+            // Mise à jour du compteur bleu pour les BILANS
+            if(labelEl) labelEl.innerText = "TOTAL BILANS JOURNALIERS";
+            if(counterEl) counterEl.innerText = data.length; // Sera 0 si la liste est vide
+
             container.innerHTML = '';
-            
-            // On ne change pas le compteur visites ici (ce sont des bilans)
-            
             if (!data || data.length === 0) {
                 container.innerHTML = '<div class="col-span-full text-center text-slate-400 py-10">Aucun bilan trouvé.</div>';
                 return;
@@ -591,13 +597,18 @@ async function fetchMobileReports() {
 
             data.forEach(rep => {
                 const photoBilan = rep.photo_url ? 
-                    `<button onclick="viewDocument('${rep.photo_url}', 'Bilan')" class="mt-3 w-full py-2 bg-emerald-50 text-emerald-600 rounded-xl text-[10px] font-black uppercase hover:bg-emerald-600 hover:text-white transition-all">Voir Photo</button>` : '';
+                    `<button onclick="viewDocument('${rep.photo_url}', 'Photo du Cahier')" class="mt-3 w-full py-2 bg-emerald-50 text-emerald-600 rounded-xl text-[10px] font-black uppercase hover:bg-emerald-600 hover:text-white transition-all">
+                        <i class="fa-solid fa-camera mr-1"></i> Voir la photo du cahier
+                    </button>` : '';
 
                 container.innerHTML += `
                     <div class="bg-white p-6 rounded-[2rem] border shadow-sm animate-fadeIn">
-                        <h4 class="font-black text-slate-800 text-sm uppercase">${rep.employees?.nom || 'Agent'}</h4>
-                        <p class="text-[10px] font-bold text-indigo-500 uppercase mb-3">${new Date(rep.report_date).toLocaleDateString()}</p>
-                        <div class="text-xs text-slate-600">${rep.summary}</div>
+                        <div class="flex justify-between">
+                            <h4 class="font-black text-slate-800 text-sm uppercase">${rep.employees?.nom || 'Agent'}</h4>
+                            ${rep.needs_restock ? '<span class="text-orange-500"><i class="fa-solid fa-box-open"></i></span>' : ''}
+                        </div>
+                        <p class="text-[10px] font-bold text-indigo-500 uppercase mb-3">${new Date(rep.report_date).toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long'})}</p>
+                        <div class="text-xs text-slate-600 bg-slate-50 p-3 rounded-xl border border-slate-100">${rep.summary}</div>
                         ${photoBilan}
                     </div>`;
             });
@@ -607,7 +618,6 @@ async function fetchMobileReports() {
         container.innerHTML = '<div class="col-span-full text-center text-red-500 py-10 font-bold">Erreur de chargement.</div>';
     }
 }
-
 
 async function fetchGlobalAudit() {
     const now = new Date();
@@ -5486,6 +5496,7 @@ async function openDailyReportModal() {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
