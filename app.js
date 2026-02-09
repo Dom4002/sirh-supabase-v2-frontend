@@ -1149,6 +1149,7 @@ async function triggerGlobalPush(title, message) {
                     id: x.id, // ID UUID de Supabase
                     nom: x.nom, 
                     date: x.date_embauche, 
+                    employee_type: x.employee_type || 'OFFICE', // <--- AJOUTE CETTE LIGNE
                     poste: x.poste, 
                     dept: x.departement || "Non défini", 
                     Solde_Conges: parseFloat(x.solde_conges) || 0,
@@ -1676,14 +1677,16 @@ function syncClockInterface() {
 
 
 
-
 async function handleClockInOut() {
     const userId = currentUser.id;
     const today = new Date().toLocaleDateString('fr-CA');
     
+    // On récupère le type d'employé (on vérifie dans la liste globale ET dans la session)
+    const empData = employees.find(e => e.id === userId);
+    const isMobile = (empData && empData.employee_type === 'MOBILE') || (currentUser.employee_type === 'MOBILE');
+    
     // --- 1. NETTOYAGE INTELLIGENT DU JOUR ---
     const lastActionDate = localStorage.getItem(`clock_date_${userId}`);
-    
     if (lastActionDate !== today) {
         localStorage.setItem(`clock_date_${userId}`, today);
         localStorage.setItem(`clock_status_${userId}`, 'OUT');
@@ -1695,18 +1698,23 @@ async function handleClockInOut() {
     const currentStatus = localStorage.getItem(`clock_status_${userId}`) || 'OUT';
     const action = (currentStatus === 'OUT') ? 'CLOCK_IN' : 'CLOCK_OUT';
 
-    const outDone = localStorage.getItem(`clock_out_done_${userId}`) === 'true';
-    if (action === 'CLOCK_IN' && outDone && currentStatus === 'OUT') {
-         return Swal.fire('Journée terminée', 'Vous avez déjà fait votre sortie aujourd\'hui.', 'info');
+    // --- 2. SÉCURITÉ : BLOCAGE DES DOUBLONS POUR LES FIXES ---
+    if (!isMobile) {
+        const inDone = localStorage.getItem(`clock_in_done_${userId}`) === 'true';
+        const outDone = localStorage.getItem(`clock_out_done_${userId}`) === 'true';
+
+        if (action === 'CLOCK_IN' && inDone) {
+            return Swal.fire('Action impossible', 'Vous avez déjà validé votre entrée aujourd\'hui.', 'info');
+        }
+        if (action === 'CLOCK_OUT' && outDone) {
+            return Swal.fire('Action impossible', 'Votre journée est déjà clôturée.', 'info');
+        }
     }
 
-    // --- NOUVEAU : LOGIQUE MÉTIR (MOBILE vs FIXE) ---
-    // On vérifie si l'employé est de type MOBILE (Délégué)
-    const isMobile = currentUser.employee_type === 'MOBILE' || currentUser.employee_type === 'MOBILE_DELEGATE';
+    // --- 3. RAPPORT DE VISITE (UNIQUEMENT POUR MOBILES ET UNIQUEMENT EN SORTIE) ---
     let outcome = null;
     let report = null;
 
-    // Si c'est une sortie d'un délégué, on demande le bilan de visite avant de lancer le GPS
     if (action === 'CLOCK_OUT' && isMobile) {
         const { value: formValues } = await Swal.fire({
             title: 'Bilan de la visite',
@@ -1717,9 +1725,9 @@ async function handleClockInOut() {
                     <option value="COMMANDE">💰 Commande Prise</option>
                     <option value="RAS">Rien à signaler</option>
                 </select>
-                <textarea id="swal-report" class="swal2-textarea" style="height: 100px" placeholder="Détails de la visite (échantillons, remarques...)"></textarea>
+                <textarea id="swal-report" class="swal2-textarea" style="height: 100px" placeholder="Détails de la visite (facultatif)..."></textarea>
             `,
-            confirmButtonText: 'Enregistrer & Sortir',
+            confirmButtonText: 'Valider ma sortie',
             showCancelButton: true,
             confirmButtonColor: '#ef4444',
             focusConfirm: false,
@@ -1729,12 +1737,12 @@ async function handleClockInOut() {
             ]
         });
 
-        if (!formValues) return; // Annulation du pointage
+        if (!formValues) return; 
         outcome = formValues[0];
         report = formValues[1];
     }
 
-    // --- 3. DÉBUT DU POINTAGE ---
+    // --- 4. DÉBUT DU POINTAGE GPS ---
     Swal.fire({ 
         title: 'Vérification...', 
         text: 'Analyse GPS et Serveur...', 
@@ -1758,7 +1766,6 @@ async function handleClockInOut() {
         let isInside = false;
         let dist = 0;
 
-        // On garde ta vérification locale pour les bureaux (FIXES)
         SIRH_CONFIG.gps.offices.forEach(office => {
             const d = getDistance(pos.coords.latitude, pos.coords.longitude, office.lat, office.lon);
             if (d <= office.radius) { 
@@ -1768,12 +1775,12 @@ async function handleClockInOut() {
             }
         });
         
-        // SÉCURITÉ : On ne bloque le "Hors Zone" local que si l'employé n'est PAS un délégué mobile
+        // Blocage strict du GPS pour les employés de bureau
         if (SIRH_CONFIG.gps.strictMode && !isInside && !isMobile && currentUser.role === 'EMPLOYEE') {
             return Swal.fire({icon: 'error', title: 'Hors Zone', text: 'Rapprochez-vous du bureau.'});
         }
 
-        // --- 4. ENVOI AU SERVEUR (PAYLOAD ENRICHI) ---
+        // --- 5. ENVOI AU SERVEUR ---
         const payload = {
             id: userId,
             nom: currentUser.nom,
@@ -1784,8 +1791,8 @@ async function handleClockInOut() {
             zone: validatedZone,
             ip: userIp,
             agent: currentUser.nom,
-            outcome: outcome, // Donnée CRM
-            report: report    // Donnée CRM
+            outcome: outcome,
+            report: report 
         };
 
         const response = await secureFetch(URL_CLOCK_ACTION, { 
@@ -1804,12 +1811,6 @@ async function handleClockInOut() {
                 PremiumUI.play('success');
             }
             
-            const btn = document.getElementById('btn-clock');
-            if (btn) {
-                btn.classList.add('scale-110', 'brightness-125');
-                setTimeout(() => btn.classList.remove('scale-110', 'brightness-125'), 300);       
-            }
-            
             if (action === 'CLOCK_IN') {
                 localStorage.setItem(`clock_status_${userId}`, 'IN');
                 localStorage.setItem(`clock_in_done_${userId}`, 'true');
@@ -1820,12 +1821,9 @@ async function handleClockInOut() {
                 updateClockUI(false);
             }
             
-            // On affiche le nom du lieu détecté par le serveur
             document.getElementById('clock-last-action').innerText = `Validé : ${action==='CLOCK_IN'?'Entrée':'Sortie'} à ${nowStr}`;
-            Swal.fire('Succès', `Pointage enregistré à : ${resData.zone}`, 'success');
+            Swal.fire('Succès', `Pointage enregistré : ${resData.zone || validatedZone}`, 'success');
         } else {
-            // --- OPTIONNEL : AUTO-APPRENTISSAGE GPS ---
-            // Si le serveur dit "Lieu inconnu" et que l'utilisateur est Admin, on propose l'enregistrement
             if (resData.error && resData.error.includes("Lieu inconnu") && currentUser.role === 'ADMIN') {
                 offerRegisterLocation(currentGps);
             } else {
@@ -1842,27 +1840,18 @@ async function handleClockInOut() {
                 localStorage.setItem(`clock_status_${userId}`, 'IN');
                 localStorage.setItem(`clock_in_done_${userId}`, 'true');
                 updateClockUI(true);
-                Swal.fire({
-                    icon: 'warning',
-                    title: 'Synchronisation',
-                    text: 'Le serveur indique que vous êtes déjà pointé. Votre interface a été corrigée.',
-                    confirmButtonText: 'Compris'
-                });
+                Swal.fire({ icon: 'warning', title: 'Info', text: 'Entrée déjà validée.' });
             } else if (action === 'CLOCK_OUT') {
                 localStorage.setItem(`clock_status_${userId}`, 'OUT');
                 localStorage.setItem(`clock_out_done_${userId}`, 'true');
                 updateClockUI(false);
-                Swal.fire('Info', 'Sortie déjà enregistrée.', 'info');
+                Swal.fire({ icon: 'info', title: 'Info', text: 'Sortie déjà validée.' });
             }
-        } else if (errorMsg.startsWith("AUTH_ERROR_SPECIFIC:")) {
-            Swal.fire('Refusé', errorMsg.replace("AUTH_ERROR_SPECIFIC:", ""), 'warning');
         } else {
             Swal.fire('Erreur Technique', errorMsg, 'error');
         }
     }
 }
-
-
 
 
 
@@ -1971,162 +1960,171 @@ function formatGoogleLink(link) {
 
 
 
-function loadMyProfile() {
-        console.log("🔍 --- DÉBUT DEBUG PROFIL ---");
-        console.log("👤 Utilisateur connecté :", currentUser);
-        console.log("📋 Données reçues (Employees) :", employees);
 
-        // 1. Sécurité : Si la liste est vide
-        if (!employees || employees.length === 0) {
-            console.warn("⚠️ Liste vide. En attente du chargement...");
+
+
+
+function loadMyProfile() {
+    console.log("🔍 --- DÉBUT DEBUG PROFIL ---");
+    console.log("👤 Utilisateur connecté :", currentUser);
+    console.log("📋 Données reçues (Employees) :", employees);
+
+    // 1. Sécurité : Si la liste est vide
+    if (!employees || employees.length === 0) {
+        console.warn("⚠️ Liste vide. En attente du chargement...");
+        return;
+    }
+
+    let myData = null;
+
+    // --- TENTATIVE 1 : PAR ID (Le plus fiable) ---
+    if (currentUser.id) {
+        myData = employees.find(e => String(e.id) === String(currentUser.id));
+    }
+
+    // --- TENTATIVE 2 : PAR NOM (Fallback) ---
+    if (!myData) {
+        const normalize = (s) => String(s || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+        const searchName = normalize(currentUser.nom);
+        
+        myData = employees.find(e => {
+            const empName = normalize(e.nom);
+            return empName.includes(searchName) || searchName.includes(empName);
+        });
+    }
+
+    // --- RÉSULTAT FINAL ---
+    if (!myData) {
+        console.error("❌ ÉCHEC TOTAL : Impossible de lier l'utilisateur aux données.");
+        if(employees.length > 0) {
+            myData = employees[0]; // Mode secours
+        } else {
             return;
         }
-
-        let myData = null;
-
-        // --- TENTATIVE 1 : PAR ID (Le plus fiable) ---
-        if (currentUser.id) {
-            myData = employees.find(e => String(e.id) === String(currentUser.id));
-        }
-
-        // --- TENTATIVE 2 : PAR NOM (Fallback) ---
-        if (!myData) {
-            const normalize = (s) => String(s || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-            const searchName = normalize(currentUser.nom);
-            
-            myData = employees.find(e => {
-                const empName = normalize(e.nom);
-                return empName.includes(searchName) || searchName.includes(empName);
-            });
-        }
-
-        // --- RÉSULTAT FINAL ---
-        if (!myData) {
-            console.error("❌ ÉCHEC TOTAL : Impossible de lier l'utilisateur aux données.");
-            if(employees.length > 0) {
-                myData = employees[0]; // Mode secours
-            } else {
-                return;
-            }
-        }
-        
-        // --- REMPLISSAGE DE L'INTERFACE ---
-        document.getElementById('emp-name').innerText = myData.nom || "Utilisateur"; 
-        document.getElementById('emp-job').innerText = myData.poste || "Poste non défini";
-        
-        // Sidebar & Avatar
-        const nameDisplay = document.getElementById('name-display');
-        if (nameDisplay) nameDisplay.innerText = myData.nom || currentUser.nom;
-        
-        const photoEl = document.getElementById('emp-photo-real');
-        const avatarEl = document.getElementById('emp-avatar');
-        
-        if(myData.photo && myData.photo.length > 10) { 
-            photoEl.src = formatGoogleLink(myData.photo); 
-            photoEl.classList.remove('hidden'); 
-            avatarEl.classList.add('hidden'); 
-        } else {
-            photoEl.classList.add('hidden'); 
-            avatarEl.classList.remove('hidden');
-            avatarEl.innerText = (myData.nom || "U").charAt(0).toUpperCase();
-        }
-
-        // Dates de contrat
-        if(myData.date) { 
-            let sD = parseDateSmart(myData.date); 
-            document.getElementById('emp-start-date').innerText = sD.toLocaleDateString('fr-FR'); 
-            let eD = new Date(sD); 
-            eD.setDate(eD.getDate() + (parseInt(myData.limit) || 365)); 
-            document.getElementById('emp-end-date').innerText = eD.toLocaleDateString('fr-FR'); 
-        }
-
-        // Formulaires (Infos personnelles toujours modifiables via toggleEditMode)
-        document.getElementById('emp-email').value = myData.email || ""; 
-        document.getElementById('emp-phone').value = myData.telephone || ""; 
-        document.getElementById('emp-address').value = myData.adresse || ""; 
-        document.getElementById('emp-dob').value = convertToInputDate(myData.date_naissance); 
-        
-        // --- GESTION DES DOCUMENTS AVEC DROITS D'ACCÈS ---
-        const dC = document.getElementById('doc-container'); 
-        if (dC) {
-            dC.innerHTML = '';
-            const allDocs = [ 
-                { label: 'Contrat Actuel', link: myData.doc, icon: 'fa-file-signature', color: 'blue', key: 'contrat' }, 
-                { label: 'Curriculum Vitae', link: myData.cv_link, icon: 'fa-file-pdf', color: 'indigo', key: 'cv' }, 
-                { label: 'Lettre Motivation', link: myData.lm_link, icon: 'fa-envelope-open-text', color: 'pink', key: 'lm' },
-                { label: 'Pièce d\'Identité', link: myData.id_card_link, icon: 'fa-id-card', color: 'slate', key: 'id_card' }, 
-                { label: 'Diplômes/Certifs', link: myData.diploma_link, icon: 'fa-graduation-cap', color: 'emerald', key: 'diploma' },
-                { label: 'Attestations', link: myData.attestation_link, icon: 'fa-file-invoice', color: 'orange', key: 'attestation' } 
-            ];
-
-            const VISIBLE_LIMIT = 4;
-    
-            // DANS LA FONCTION loadMyProfile()
-
-            let gridHtml = '<div class="grid grid-cols-1 md:grid-cols-4 gap-4">'; 
-
-            allDocs.forEach((doc, index) => {
-                const hasLink = doc.link && doc.link.length > 5;
-                const safeLabel = doc.label.replace(/'/g, "\\'");
-                const hiddenClass = index >= VISIBLE_LIMIT ? 'hidden more-docs' : '';
-
-                // --- RÈGLE DE GESTION ---
-                // 1. Les Admins/RH ont tous les droits
-                // 2. Les employés ne peuvent modifier QUE 'id_card' (Carte d'identité)
-                const isAdminOrRH = (currentUser.role === 'ADMIN' || currentUser.role === 'RH');
-                const canEdit = isAdminOrRH || (doc.key === 'id_card');
-
-                gridHtml += `
-                    <div class="${hiddenClass} flex flex-col justify-between p-4 border border-slate-100 bg-white rounded-2xl hover:shadow-md transition-all group h-full">
-                        <div class="flex items-center gap-3 mb-4">
-                            <div class="bg-${doc.color}-50 text-${doc.color}-600 p-3 rounded-xl shrink-0">
-                                <i class="fa-solid ${doc.icon} text-lg"></i>
-                            </div>
-                            <div class="overflow-hidden">
-                                <p class="text-xs font-bold text-slate-700 truncate" title="${doc.label}">${doc.label}</p>
-                                <p class="text-[9px] text-slate-400 font-bold uppercase tracking-wide">Document</p>
-                            </div>
-                        </div>
-                        <div class="flex gap-2 mt-auto">
-                            <!-- BOUTON VOIR (Toujours visible si le lien existe) -->
-                            ${hasLink ? `
-                            <button onclick="viewDocument('${doc.link}', '${safeLabel}')" class="flex-1 py-2 text-[10px] font-bold uppercase bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white transition-all">
-                                <i class="fa-solid fa-eye mr-1"></i> Voir
-                            </button>` : `
-                            <div class="flex-1 py-2 text-[10px] font-bold uppercase bg-slate-50 text-slate-300 rounded-lg text-center cursor-not-allowed">
-                                Vide
-                            </div>`}
-                            
-                            <!-- BOUTON MODIFIER (Selon la règle canEdit) -->
-                            ${canEdit ? `
-                            <button onclick="updateSingleDoc('${doc.key}', '${myData.id}')" class="w-10 flex items-center justify-center bg-slate-100 text-slate-500 rounded-lg hover:bg-slate-800 hover:text-white transition-all">
-                                <i class="fa-solid fa-pen"></i>
-                            </button>` : ''}
-                        </div>
-                    </div>`;
-            });
-            gridHtml += '</div>';
-            
-            
-            if (allDocs.length > VISIBLE_LIMIT) {
-                gridHtml += `<div class="text-center mt-4 pt-2 border-t border-slate-50"><button onclick="toggleMoreDocs(this)" class="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-full text-xs font-bold text-slate-500 hover:text-blue-600 hover:border-blue-200 transition-all shadow-sm"><i class="fa-solid fa-circle-plus"></i> Voir plus</button></div>`;
-            }
-            dC.innerHTML = gridHtml;
-
-            // --- AFFICHAGE DU SOLDE DE CONGÉS ---
-            const leaveBalanceEl = document.getElementById('leave-balance-display');
-            const solde = parseFloat(myData.Solde_Conges || myData.solde_conges) || 0; 
-            
-            if(leaveBalanceEl) {
-                leaveBalanceEl.innerText = `${solde} jours`;
-                if (solde <= 5) {
-                    leaveBalanceEl.className = "text-4xl font-black mt-2 text-orange-600";
-                } else {
-                    leaveBalanceEl.className = "text-4xl font-black mt-2 text-indigo-600";
-                }
-            }
-        }
     }
+    
+    // --- REMPLISSAGE DE L'INTERFACE ---
+    document.getElementById('emp-name').innerText = myData.nom || "Utilisateur"; 
+    document.getElementById('emp-job').innerText = myData.poste || "Poste non défini";
+    
+    // Sidebar & Avatar
+    const nameDisplay = document.getElementById('name-display');
+    if (nameDisplay) nameDisplay.innerText = myData.nom || currentUser.nom;
+    
+    const photoEl = document.getElementById('emp-photo-real');
+    const avatarEl = document.getElementById('emp-avatar');
+    
+    if(myData.photo && myData.photo.length > 10) { 
+        photoEl.src = formatGoogleLink(myData.photo); 
+        photoEl.classList.remove('hidden'); 
+        avatarEl.classList.add('hidden'); 
+    } else {
+        photoEl.classList.add('hidden'); 
+        avatarEl.classList.remove('hidden');
+        avatarEl.innerText = (myData.nom || "U").charAt(0).toUpperCase();
+    }
+
+    // Dates de contrat
+    if(myData.date) { 
+        let sD = parseDateSmart(myData.date); 
+        document.getElementById('emp-start-date').innerText = sD.toLocaleDateString('fr-FR'); 
+        let eD = new Date(sD); 
+        eD.setDate(eD.getDate() + (parseInt(myData.limit) || 365)); 
+        document.getElementById('emp-end-date').innerText = eD.toLocaleDateString('fr-FR'); 
+    }
+
+    // Formulaires (Infos personnelles toujours modifiables via toggleEditMode)
+    document.getElementById('emp-email').value = myData.email || ""; 
+    document.getElementById('emp-phone').value = myData.telephone || ""; 
+    document.getElementById('emp-address').value = myData.adresse || ""; 
+    document.getElementById('emp-dob').value = convertToInputDate(myData.date_naissance); 
+    
+    // --- GESTION DES DOCUMENTS AVEC DROITS D'ACCÈS ---
+    const dC = document.getElementById('doc-container'); 
+    if (dC) {
+        dC.innerHTML = '';
+        const allDocs = [ 
+            { label: 'Contrat Actuel', link: myData.doc, icon: 'fa-file-signature', color: 'blue', key: 'contrat' }, 
+            { label: 'Curriculum Vitae', link: myData.cv_link, icon: 'fa-file-pdf', color: 'indigo', key: 'cv' }, 
+            { label: 'Lettre Motivation', link: myData.lm_link, icon: 'fa-envelope-open-text', color: 'pink', key: 'lm' },
+            { label: 'Pièce d\'Identité', link: myData.id_card_link, icon: 'fa-id-card', color: 'slate', key: 'id_card' }, 
+            { label: 'Diplômes/Certifs', link: myData.diploma_link, icon: 'fa-graduation-cap', color: 'emerald', key: 'diploma' },
+            { label: 'Attestations', link: myData.attestation_link, icon: 'fa-file-invoice', color: 'orange', key: 'attestation' } 
+        ];
+
+        const VISIBLE_LIMIT = 4;
+
+        let gridHtml = '<div class="grid grid-cols-1 md:grid-cols-4 gap-4">'; 
+
+        allDocs.forEach((doc, index) => {
+            const hasLink = doc.link && doc.link.length > 5;
+            const safeLabel = doc.label.replace(/'/g, "\\'");
+            const hiddenClass = index >= VISIBLE_LIMIT ? 'hidden more-docs' : '';
+
+            const isAdminOrRH = (currentUser.role === 'ADMIN' || currentUser.role === 'RH');
+            const canEdit = isAdminOrRH || (doc.key === 'id_card');
+
+            gridHtml += `
+                <div class="${hiddenClass} flex flex-col justify-between p-4 border border-slate-100 bg-white rounded-2xl hover:shadow-md transition-all group h-full">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="bg-${doc.color}-50 text-${doc.color}-600 p-3 rounded-xl shrink-0">
+                            <i class="fa-solid ${doc.icon} text-lg"></i>
+                        </div>
+                        <div class="overflow-hidden">
+                            <p class="text-xs font-bold text-slate-700 truncate" title="${doc.label}">${doc.label}</p>
+                            <p class="text-[9px] text-slate-400 font-bold uppercase tracking-wide">Document</p>
+                        </div>
+                    </div>
+                    <div class="flex gap-2 mt-auto">
+                        ${hasLink ? `
+                        <button onclick="viewDocument('${doc.link}', '${safeLabel}')" class="flex-1 py-2 text-[10px] font-bold uppercase bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white transition-all">
+                            <i class="fa-solid fa-eye mr-1"></i> Voir
+                        </button>` : `
+                        <div class="flex-1 py-2 text-[10px] font-bold uppercase bg-slate-50 text-slate-300 rounded-lg text-center cursor-not-allowed">
+                            Vide
+                        </div>`}
+                        
+                        ${canEdit ? `
+                        <button onclick="updateSingleDoc('${doc.key}', '${myData.id}')" class="w-10 flex items-center justify-center bg-slate-100 text-slate-500 rounded-lg hover:bg-slate-800 hover:text-white transition-all">
+                            <i class="fa-solid fa-pen"></i>
+                        </button>` : ''}
+                    </div>
+                </div>`;
+        });
+        gridHtml += '</div>';
+        
+        if (allDocs.length > VISIBLE_LIMIT) {
+            gridHtml += `<div class="text-center mt-4 pt-2 border-t border-slate-50"><button onclick="toggleMoreDocs(this)" class="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-full text-xs font-bold text-slate-500 hover:text-blue-600 hover:border-blue-200 transition-all shadow-sm"><i class="fa-solid fa-circle-plus"></i> Voir plus</button></div>`;
+        }
+        dC.innerHTML = gridHtml;
+
+        // --- AFFICHAGE DU SOLDE DE CONGÉS ---
+        const leaveBalanceEl = document.getElementById('leave-balance-display');
+        const solde = parseFloat(myData.Solde_Conges || myData.solde_conges) || 0; 
+        
+        if(leaveBalanceEl) {
+            leaveBalanceEl.innerText = `${solde} jours`;
+            if (solde <= 5) {
+                leaveBalanceEl.className = "text-4xl font-black mt-2 text-orange-600";
+            } else {
+                leaveBalanceEl.className = "text-4xl font-black mt-2 text-indigo-600";
+            }
+        }
+
+        // --- LOGIQUE DE VISIBILITÉ DU BOUTON RAPPORT (MODIFIÉ) ---
+        const dailyReportBtn = document.querySelector('[onclick="openDailyReportModal()"]');
+        if (dailyReportBtn) {
+            // Le bouton orange n'apparaît que pour les profils MOBILE (Délégués Nomades)
+            if (myData.employee_type === 'MOBILE') {
+                dailyReportBtn.style.display = ''; // Visible
+            } else {
+                dailyReportBtn.style.display = 'none'; // Caché pour OFFICE et FIXED
+            }
+        }
+                
+    }
+}
+
 
 
 
@@ -2577,6 +2575,7 @@ async function triggerRobotCheck() {
                     fd.append('date', getVal('f-date'));
                     fd.append('poste', getVal('f-poste'));
                     fd.append('dept', getVal('f-dept'));
+                    fd.append('employee_type', getVal('f-type')); // <--- AJOUTE CETTE LIGNE
                     fd.append('limit', getVal('f-limit'));
                     fd.append('role', getVal('f-role'));
                     fd.append('agent', currentUser ? currentUser.nom : "Système");
@@ -5236,6 +5235,7 @@ async function openDailyReportModal() {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
