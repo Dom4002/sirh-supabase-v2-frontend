@@ -5322,6 +5322,7 @@ function changeReportTab(tab) {
     }
 }
 
+
 // 2. CHARGEMENT DES RAPPORTS
 async function fetchMobileReports() {
     const container = document.getElementById('reports-list-container');
@@ -5335,6 +5336,7 @@ async function fetchMobileReports() {
 
     try {
         if (currentReportTab === 'visits') {
+            // --- ONGLET VISITES ---
             const r = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/read-visit-reports?period=${periodFilter}`);
             let data = await r.json();
 
@@ -5347,38 +5349,109 @@ async function fetchMobileReports() {
 
             container.innerHTML = '';
             if (data.length === 0) {
-                container.innerHTML = '<div class="col-span-full text-center text-slate-400 py-10">Aucune visite trouvée.</div>';
+                container.innerHTML = '<div class="col-span-full text-center text-slate-400 py-10">Aucune visite certifiée.</div>';
                 return;
             }
 
             if (window.reportViewMode === 'list') {
-                let html = `<div class="col-span-full bg-white rounded-[2rem] shadow-sm border overflow-hidden"><table class="w-full text-left border-collapse"><thead class="bg-slate-50 border-b"><tr class="text-[10px] font-black text-slate-400 uppercase"><th class="p-4">Délégué</th><th class="p-4">Lieu</th><th class="p-4">Date</th><th class="p-4 text-center">Preuve</th><th class="p-4 text-right">Note</th></tr></thead><tbody class="divide-y divide-slate-100">`;
+                // --- VUE REGROUPÉE PAR PERSONNE (Évite les répétitions) ---
+                const grouped = {};
                 data.forEach(v => {
-                    html += `<tr class="hover:bg-blue-50/30 transition-colors"><td class="p-4 text-xs font-bold text-slate-700">${v.employees?.nom || 'Inconnu'}</td><td class="p-4 text-xs text-blue-600 font-semibold">${v.mobile_locations?.name || 'Site inconnu'}</td><td class="p-4 text-[11px] text-slate-500 font-mono">${v.check_out_time ? new Date(v.check_out_time).toLocaleString('fr-FR') : '--'}</td><td class="p-4 text-center">${v.proof_url ? `<button onclick="viewDocument('${v.proof_url}', 'Cachet')" class="text-emerald-500"><i class="fa-solid fa-camera-retro text-lg"></i></button>` : '<i class="fa-solid fa-ban text-slate-200"></i>'}</td><td class="p-4 text-right text-[10px] text-slate-400 italic truncate max-w-[150px]">${v.notes || '-'}</td></tr>`;
+                    const name = v.employees?.nom || "Inconnu";
+                    if (!grouped[name]) grouped[name] = [];
+                    grouped[name].push(v);
                 });
-                html += `</tbody></table></div>`;
+
+                let html = `<div class="col-span-full space-y-6">`;
+                for (const [name, visits] of Object.entries(grouped)) {
+                    html += `
+                        <div class="bg-white rounded-[2rem] shadow-sm border overflow-hidden animate-fadeIn">
+                            <div class="bg-slate-50 px-6 py-3 border-b flex justify-between items-center">
+                                <span class="font-black text-slate-800 text-xs uppercase tracking-widest">${name}</span>
+                                <span class="bg-blue-600 text-white px-2 py-0.5 rounded-lg text-[10px] font-bold">${visits.length} VISITES</span>
+                            </div>
+                            <table class="w-full text-left">
+                                <tbody class="divide-y divide-slate-100">
+                    `;
+                    visits.forEach(v => {
+                        html += `
+                            <tr class="hover:bg-blue-50/30 transition-colors">
+                                <td class="px-6 py-3 text-xs font-bold text-blue-600 w-1/3">${v.mobile_locations?.name || 'Site inconnu'}</td>
+                                <td class="px-6 py-3 text-[11px] text-slate-400 font-mono">${v.check_out_time ? new Date(v.check_out_time).toLocaleString('fr-FR') : '--'}</td>
+                                <td class="px-6 py-3 text-center">
+                                    ${v.proof_url ? `<button onclick="viewDocument('${v.proof_url}', 'Cachet')" class="text-emerald-500 hover:scale-110 transition-transform"><i class="fa-solid fa-camera-retro text-lg"></i></button>` : '<i class="fa-solid fa-ban text-slate-200"></i>'}
+                                </td>
+                                <td class="px-6 py-3 text-right text-[10px] text-slate-400 italic truncate max-w-[200px]">${v.notes || '-'}</td>
+                            </tr>
+                        `;
+                    });
+                    html += `</tbody></table></div>`;
+                }
+                html += `</div>`;
                 container.innerHTML = html;
             } else {
+                // VUE GALERIE (Cartes)
                 data.forEach(v => {
-                    const proofImg = v.proof_url ? `<div class="mt-3 cursor-pointer group relative" onclick="viewDocument('${v.proof_url}', 'Cachet')"><img src="${v.proof_url}" class="w-full h-32 object-cover rounded-xl border border-slate-200"></div>` : '';
-                    container.innerHTML += `<div class="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm animate-fadeIn"><div class="flex justify-between items-start mb-2"><span class="bg-blue-50 text-blue-600 px-2 py-1 rounded text-[9px] font-black uppercase">${v.outcome || 'VU'}</span><p class="text-[9px] font-bold text-slate-400">${v.check_out_time ? new Date(v.check_out_time).toLocaleString() : 'En cours'}</p></div><h4 class="font-black text-slate-800 uppercase text-sm truncate">${v.mobile_locations?.name || 'Lieu inconnu'}</h4><p class="text-[10px] font-bold text-blue-500 uppercase mb-2">${v.employees?.nom || 'Agent'}</p><div class="text-xs text-slate-600 italic bg-slate-50 p-3 rounded-xl border line-clamp-2">"${v.notes || 'Pas de commentaire.'}"</div>${proofImg}</div>`;
+                    const proofImg = v.proof_url ? `<div class="mt-3 cursor-pointer" onclick="viewDocument('${v.proof_url}', 'Cachet')"><img src="${v.proof_url}" class="w-full h-32 object-cover rounded-xl border border-slate-200"></div>` : '';
+                    container.innerHTML += `<div class="bg-white p-5 rounded-[2rem] border shadow-sm"><h4 class="font-black text-slate-800 text-sm truncate">${v.mobile_locations?.name || 'Inconnu'}</h4><p class="text-[10px] font-bold text-blue-500 uppercase mb-2">${v.employees?.nom}</p><div class="text-xs text-slate-600 italic bg-slate-50 p-2 rounded-xl border">"${v.notes || '...'}"</div>${proofImg}</div>`;
                 });
             }
         } else {
+            // --- ONGLET BILANS JOURNALIERS (DAILY) ---
             const r = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/read-daily-reports`);
             let data = await r.json();
-            if (nameFilter) data = data.filter(rep => rep.employees?.nom.toLowerCase().includes(nameFilter));
+
+            if (nameFilter) {
+                data = data.filter(rep => rep.employees?.nom.toLowerCase().includes(nameFilter));
+            }
+
             if(labelEl) labelEl.innerText = "TOTAL BILANS JOURNALIERS";
             if(counterEl) counterEl.innerText = data.length; 
+
             container.innerHTML = '';
             if (data.length === 0) {
                 container.innerHTML = '<div class="col-span-full text-center text-slate-400 py-10">Aucun bilan trouvé.</div>';
                 return;
             }
-            data.forEach(rep => {
-                const photoBilan = rep.photo_url ? `<button onclick="viewDocument('${rep.photo_url}', 'Cahier')" class="mt-3 w-full py-2 bg-emerald-50 text-emerald-600 rounded-xl text-[10px] font-black uppercase">Voir Photo</button>` : '';
-                container.innerHTML += `<div class="bg-white p-6 rounded-[2rem] border shadow-sm animate-fadeIn"><div class="flex justify-between"><h4 class="font-black text-slate-800 text-sm uppercase">${rep.employees?.nom || 'Agent'}</h4></div><p class="text-[10px] font-bold text-indigo-500 uppercase mb-3">${new Date(rep.report_date).toLocaleDateString()}</p><div class="text-xs text-slate-600 bg-slate-50 p-3 rounded-xl border h-24 overflow-y-auto">${rep.summary}</div>${photoBilan}</div>`;
-            });
+
+            if (window.reportViewMode === 'list') {
+                // --- VUE TABLEAU COMPACTE POUR LES BILANS (NOUVEAU) ---
+                let html = `
+                    <div class="col-span-full bg-white rounded-[2rem] shadow-sm border overflow-hidden animate-fadeIn">
+                        <table class="w-full text-left border-collapse">
+                            <thead class="bg-slate-50 border-b">
+                                <tr class="text-[10px] font-black text-slate-400 uppercase">
+                                    <th class="p-4">Agent</th>
+                                    <th class="p-4">Date</th>
+                                    <th class="p-4">Résumé</th>
+                                    <th class="p-4 text-center">Stock</th>
+                                    <th class="p-4 text-right">Preuve</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                `;
+                data.forEach(rep => {
+                    html += `
+                        <tr class="hover:bg-indigo-50/30 transition-colors">
+                            <td class="p-4 text-xs font-bold text-slate-700">${rep.employees?.nom || 'Inconnu'}</td>
+                            <td class="p-4 text-[11px] text-slate-500">${new Date(rep.report_date).toLocaleDateString()}</td>
+                            <td class="p-4 text-xs text-slate-600 italic max-w-md truncate" title="${rep.summary}">${rep.summary}</td>
+                            <td class="p-4 text-center">${rep.needs_restock ? '⚠️' : '✅'}</td>
+                            <td class="p-4 text-right">
+                                ${rep.photo_url ? `<button onclick="viewDocument('${rep.photo_url}', 'Cahier')" class="text-blue-500 hover:scale-110 transition-transform"><i class="fa-solid fa-file-image text-lg"></i></button>` : '-'}
+                            </td>
+                        </tr>
+                    `;
+                });
+                html += `</tbody></table></div>`;
+                container.innerHTML = html;
+            } else {
+                // VUE GALERIE (Cartes)
+                data.forEach(rep => {
+                    const photoBilan = rep.photo_url ? `<button onclick="viewDocument('${rep.photo_url}', 'Bilan')" class="mt-3 w-full py-2 bg-emerald-50 text-emerald-600 rounded-xl text-[10px] font-black uppercase">Voir Photo</button>` : '';
+                    container.innerHTML += `<div class="bg-white p-6 rounded-[2rem] border shadow-sm animate-fadeIn"><h4 class="font-black text-slate-800 text-sm uppercase">${rep.employees?.nom}</h4><p class="text-[10px] font-bold text-indigo-500 mb-3">${new Date(rep.report_date).toLocaleDateString()}</p><div class="text-xs text-slate-600 bg-slate-50 p-3 rounded-xl border h-24 overflow-y-auto">${rep.summary}</div>${photoBilan}</div>`;
+                });
+            }
         }
     } catch (e) {
         console.error(e);
@@ -5455,6 +5528,7 @@ function setReportView(mode) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
