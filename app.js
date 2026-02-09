@@ -715,6 +715,7 @@ if(d.status === "success") {
         nom: d.nom || u, 
         role: String(r).toUpperCase(), 
         id: d.id,
+        employee_type: d.employee_type || 'OFFICE', 
         permissions: d.permissions || {} // <--- C'EST CETTE LIGNE QUI MANQUAIT
     };
     
@@ -5244,6 +5245,7 @@ async function openDailyReportModal() {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
