@@ -633,8 +633,12 @@ async function fetchMobileReports() {
                 });
             }
         } 
-        else {
-            // --- ONGLET BILANS JOURNALIERS (Toujours filtré par nom) ---
+   
+
+
+
+                else {
+            // --- ONGLET BILANS JOURNALIERS (DAILY) ---
             const r = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/read-daily-reports`);
             let data = await r.json();
 
@@ -650,6 +654,65 @@ async function fetchMobileReports() {
                 container.innerHTML = '<div class="col-span-full text-center text-slate-400 py-10">Aucun bilan trouvé.</div>';
                 return;
             }
+
+            if (window.reportViewMode === 'list') {
+                // --- VUE TABLEAU COMPACT POUR LES BILANS ---
+                let html = `
+                    <div class="col-span-full bg-white rounded-[2rem] shadow-sm border overflow-hidden animate-fadeIn">
+                        <table class="w-full text-left border-collapse">
+                            <thead class="bg-slate-50 border-b">
+                                <tr class="text-[10px] font-black text-slate-400 uppercase">
+                                    <th class="p-4">Agent</th>
+                                    <th class="p-4">Date du Bilan</th>
+                                    <th class="p-4 text-center">Alerte Stock</th>
+                                    <th class="p-4">Résumé (Extrait)</th>
+                                    <th class="p-4 text-right">Photo Cahier</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                `;
+
+                data.forEach(rep => {
+                    html += `
+                        <tr class="hover:bg-indigo-50/30 transition-colors">
+                            <td class="p-4 text-xs font-bold text-slate-700">${rep.employees?.nom || 'Inconnu'}</td>
+                            <td class="p-4 text-xs text-indigo-600 font-medium">${new Date(rep.report_date).toLocaleDateString('fr-FR', {day:'2-digit', month:'2-digit', year:'numeric'})}</td>
+                            <td class="p-4 text-center">
+                                ${rep.needs_restock ? '<span class="bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full text-[9px] font-black">REAPPRO</span>' : '<span class="text-slate-200">RAS</span>'}
+                            </td>
+                            <td class="p-4 text-[11px] text-slate-500 italic max-w-md truncate" title="${rep.summary}">
+                                ${rep.summary}
+                            </td>
+                            <td class="p-4 text-right">
+                                ${rep.photo_url ? `<button onclick="viewDocument('${rep.photo_url}', 'Cahier')" class="text-blue-500 hover:scale-110 transition-transform"><i class="fa-solid fa-file-image text-lg"></i></button>` : '<i class="fa-solid fa-ban text-slate-200"></i>'}
+                            </td>
+                        </tr>
+                    `;
+                });
+                html += `</tbody></table></div>`;
+                container.innerHTML = html;
+
+            } else {
+                // --- VUE GALERIE / CARTES (Design Original) ---
+                data.forEach(rep => {
+                    const photoBilan = rep.photo_url ? 
+                        `<button onclick="viewDocument('${rep.photo_url}', 'Photo du Cahier')" class="mt-3 w-full py-2 bg-emerald-50 text-emerald-600 rounded-xl text-[10px] font-black uppercase hover:bg-emerald-600 hover:text-white transition-all">
+                            <i class="fa-solid fa-camera mr-1"></i> Voir la photo du cahier
+                        </button>` : '';
+
+                    container.innerHTML += `
+                        <div class="bg-white p-6 rounded-[2rem] border shadow-sm animate-fadeIn">
+                            <div class="flex justify-between">
+                                <h4 class="font-black text-slate-800 text-sm uppercase">${rep.employees?.nom || 'Agent'}</h4>
+                                ${rep.needs_restock ? '<span class="text-orange-500"><i class="fa-solid fa-box-open"></i></span>' : ''}
+                            </div>
+                            <p class="text-[10px] font-bold text-indigo-500 uppercase mb-3">${new Date(rep.report_date).toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long'})}</p>
+                            <div class="text-xs text-slate-600 bg-slate-50 p-3 rounded-xl border border-slate-100 h-24 overflow-y-auto">${rep.summary}</div>
+                            ${photoBilan}
+                        </div>`;
+                });
+            }
+        }
 
             data.forEach(rep => {
                 const photoBilan = rep.photo_url ? 
@@ -5575,6 +5638,7 @@ async function handleZonesCSVFile(event) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
