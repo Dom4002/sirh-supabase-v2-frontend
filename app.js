@@ -1677,6 +1677,10 @@ function syncClockInterface() {
 
 
 
+
+
+
+
 async function handleClockInOut() {
     const userId = currentUser.id;
     const today = new Date().toLocaleDateString('fr-CA');
@@ -1964,6 +1968,8 @@ function formatGoogleLink(link) {
 
 
 
+
+
 function loadMyProfile() {
     console.log("🔍 --- DÉBUT DEBUG PROFIL ---");
     console.log("👤 Utilisateur connecté :", currentUser);
@@ -2124,6 +2130,7 @@ function loadMyProfile() {
                 
     }
 }
+
 
 
 
@@ -5235,6 +5242,7 @@ async function openDailyReportModal() {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
