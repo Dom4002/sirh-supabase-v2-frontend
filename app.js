@@ -2311,7 +2311,8 @@ function switchView(v) {
             // 1. Afficher la modale
             document.getElementById('edit-modal').classList.remove('hidden');
             document.getElementById('edit-id-hidden').value = id;
-            
+            // Dans openEditModal
+            document.getElementById('edit-type').value = e.employee_type || 'OFFICE';
             // 2. Pré-remplir les champs standards
             document.getElementById('edit-statut').value = e.statut || 'Actif';
             
@@ -2354,6 +2355,8 @@ async function submitUpdate(e) {
         const role = document.getElementById('edit-role') ? document.getElementById('edit-role').value : 'EMPLOYEE';
         const dept = document.getElementById('edit-dept') ? document.getElementById('edit-dept').value : '';
         const typeContrat = document.getElementById('edit-type-contrat').value;
+        const typeActivité = document.getElementById('edit-type').value;
+
         
         // NOUVEAU : Récupération Date & Checkbox
         const newStartDate = document.getElementById('edit-start-date').value;
@@ -2370,6 +2373,7 @@ async function submitUpdate(e) {
             dept: dept,
             limit: typeContrat,
             start_date: newStartDate,
+            employee_type: typeActivité, 
             force_init: forceInit
         });
 
@@ -3975,7 +3979,7 @@ xt-[10px] font-bold shadow-sm border hover:text-blue-600 transition-all flex ite
 
 
 
-    
+
 async function handleCandidateAction(id, action) {
     const conf = {
         'VALIDER_POUR_ENTRETIEN': { t: 'Inviter en entretien ?', c: '#2563eb', txt: "Un email d'invitation sera envoyé automatiquement." },
@@ -3995,6 +3999,28 @@ async function handleCandidateAction(id, action) {
     });
     
     if (res.isConfirmed) {
+        // --- NOUVEAU : Sélection du type d'activité pour l'embauche ---
+        let employeeType = 'OFFICE'; // Valeur par défaut
+        
+        if (action === 'ACCEPTER_EMBAUCHE') {
+            const { value: typeChosen } = await Swal.fire({
+                title: 'Type d\'activité',
+                text: 'Comment ce collaborateur travaillera-t-il ?',
+                input: 'select',
+                inputOptions: {
+                    'OFFICE': '🏢 Bureau (Fixe)',
+                    'FIXED': '🏠 Agent de Site (Fixe)',
+                    'MOBILE': '🚗 Délégué (Nomade)'
+                },
+                inputPlaceholder: 'Sélectionnez un type',
+                showCancelButton: true,
+                confirmButtonColor: '#10b981'
+            });
+
+            if (!typeChosen) return; // Annule tout si on ferme la fenêtre
+            employeeType = typeChosen;
+        }
+
         // Affichage du loader persistant
         Swal.fire({ 
             title: 'Action en cours...', 
@@ -4007,25 +4033,26 @@ async function handleCandidateAction(id, action) {
     const response = await secureFetch(URL_CANDIDATE_ACTION, {
         method: 'POST', 
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ id: id, action: action, agent: currentUser.nom })
+        // On ajoute employee_type dans l'envoi au serveur
+        body: JSON.stringify({ 
+            id: id, 
+            action: action, 
+            agent: currentUser.nom,
+            employee_type: employeeType 
+        })
     });
 
-    // 1. On récupère le texte/JSON envoyé par Make
     const result = await response.json();
 
-    // 2. On vérifie si Make a envoyé le message de succès réel
     if (result && result.status === "success") {
         Swal.fire('Succès', 'Action effectuée avec succès.', 'success');
         fetchCandidates(); 
         if(action === 'ACCEPTER_EMBAUCHE') fetchData(true);
     } else {
-        // Si Make n'a pas de crédits, result.status ne sera pas "success"
-        // ou le JSON sera vide.
         throw new Error("Le serveur n'a pas confirmé l'action (Crédits épuisés ?)");
     }
 
 } catch(e) { 
-    // Ici, on affiche l'erreur réelle
     Swal.fire('Échec du traitement', e.message, 'error'); 
 }
     }
@@ -5211,6 +5238,7 @@ async function openDailyReportModal() {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
