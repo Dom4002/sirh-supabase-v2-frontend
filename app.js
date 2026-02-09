@@ -908,6 +908,126 @@ async function fetchCompanyConfig() {
 }
 
 
+// --- SYNTHÈSE GLOBALE POUR LE MANAGER ---
+async function renderPerformanceTable() {
+    const body = document.getElementById('performance-table-body');
+    if (!body) return;
+
+    // On définit la période (Mois en cours)
+    const now = new Date();
+    const month = now.getMonth() + 1;
+    const year = now.getFullYear();
+
+    body.innerHTML = '<tr><td colspan="4" class="p-10 text-center"><i class="fa-solid fa-circle-notch fa-spin text-blue-600"></i></td></tr>';
+
+    try {
+        const r = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/get-boss-summary?month=${month}&year=${year}`);
+        const data = await r.json();
+
+        body.innerHTML = '';
+        if (data.length === 0) {
+            body.innerHTML = '<tr><td colspan="4" class="p-10 text-center text-slate-400">Aucune activité ce mois-ci.</td></tr>';
+            return;
+        }
+
+        // Mise à jour de la stat rapide
+        let totalVisitesGlobal = 0;
+
+        data.forEach(emp => {
+            totalVisitesGlobal += emp.total;
+            const lieuxUniques = [...new Set(emp.details.map(d => d.lieu))].length;
+
+            body.innerHTML += `
+                <tr class="hover:bg-slate-50 transition-all">
+                    <td class="px-8 py-5">
+                        <div class="font-black text-slate-800 uppercase text-sm">${emp.nom}</div>
+                        <div class="text-[10px] text-slate-400 font-bold">${emp.matricule}</div>
+                    </td>
+                    <td class="px-8 py-5">
+                        <span class="bg-blue-50 text-blue-600 px-3 py-1 rounded-full font-black text-xs">${emp.total} visites</span>
+                    </td>
+                    <td class="px-8 py-5 text-sm font-bold text-slate-600">${lieuxUniques} sites visités</td>
+                    <td class="px-8 py-5 text-right">
+                        <button onclick="showDetailedEmpReport('${emp.nom}')" class="text-blue-600 font-black text-[10px] uppercase hover:underline">Détails par lieu</button>
+                    </td>
+                </tr>
+            `;
+        });
+
+        document.getElementById('stat-visites-total').innerText = totalVisitesGlobal;
+        
+        // On stocke les données pour pouvoir afficher le détail au clic
+        window.currentPerformanceData = data;
+
+    } catch (e) { console.error(e); }
+}
+
+// Fonction pour voir le détail d'un employé précis au clic
+function showDetailedEmpReport(empName) {
+    const empData = window.currentPerformanceData.find(e => e.nom === empName);
+    if (!empData) return;
+
+    let html = '<div class="text-left space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scroll">';
+    empData.details.forEach(visite => {
+        html += `
+            <div class="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                <div class="flex justify-between font-bold text-xs text-slate-800 mb-1">
+                    <span>${visite.lieu}</span>
+                    <span class="text-blue-600">${new Date(visite.date).toLocaleDateString()}</span>
+                </div>
+                <p class="text-[10px] text-slate-500 italic">"${visite.notes || 'Pas de commentaire'}"</p>
+                <div class="mt-2 text-[9px] font-black uppercase text-emerald-600">${visite.resultat}</div>
+            </div>
+        `;
+    });
+    html += '</div>';
+
+    Swal.fire({
+        title: `Activité de ${empName}`,
+        html: html,
+        width: '600px',
+        confirmButtonText: 'Fermer',
+        confirmButtonColor: '#0f172a'
+    });
+}
+
+
+async function offerRegisterLocation(gps) {
+    const { value: locName } = await Swal.fire({
+        title: 'Lieu non répertorié',
+        text: "Voulez-vous enregistrer ce point GPS comme un nouveau site ?",
+        input: 'text',
+        inputPlaceholder: 'Nom de la pharmacie / centre...',
+        showCancelButton: true,
+        confirmButtonText: 'Enregistrer le site'
+    });
+
+    if (locName) {
+        const [lat, lon] = gps.split(',');
+        await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/add-mobile-location`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                name: locName,
+                latitude: lat,
+                longitude: lon,
+                radius: 50,
+                type_location: 'AUTO_GEOLOC'
+            })
+        });
+        Swal.fire('Succès', 'Le lieu a été ajouté à la base de données.', 'success');
+    }
+}
+
+
+
+
+
+
+
+
+
+
     async function refreshAllData(force = false) {
         const now = Date.now();
         const icon = document.getElementById('refresh-icon'); 
@@ -1554,6 +1674,9 @@ function syncClockInterface() {
 
 
 
+
+
+
 async function handleClockInOut() {
     const userId = currentUser.id;
     const today = new Date().toLocaleDateString('fr-CA');
@@ -1577,36 +1700,36 @@ async function handleClockInOut() {
          return Swal.fire('Journée terminée', 'Vous avez déjà fait votre sortie aujourd\'hui.', 'info');
     }
 
-    // --- 2. NOUVEAU : RAPPORT DE VISITE (Uniquement pour la SORTIE) ---
+    // --- NOUVEAU : LOGIQUE MÉTIR (MOBILE vs FIXE) ---
+    // On vérifie si l'employé est de type MOBILE (Délégué)
+    const isMobile = currentUser.employee_type === 'MOBILE' || currentUser.employee_type === 'MOBILE_DELEGATE';
     let outcome = null;
     let report = null;
 
-    if (action === 'CLOCK_OUT') {
+    // Si c'est une sortie d'un délégué, on demande le bilan de visite avant de lancer le GPS
+    if (action === 'CLOCK_OUT' && isMobile) {
         const { value: formValues } = await Swal.fire({
-            title: 'Bilan de la mission',
+            title: 'Bilan de la visite',
             html: `
                 <select id="swal-outcome" class="swal2-input">
-                    <option value="VU">Médecin / Client Vu</option>
-                    <option value="ABSENT">Absent / Fermé</option>
-                    <option value="COMMANDE">Commande Prise</option>
+                    <option value="VU">✅ Médecin / Client Vu</option>
+                    <option value="ABSENT">❌ Absent / Fermé</option>
+                    <option value="COMMANDE">💰 Commande Prise</option>
                     <option value="RAS">Rien à signaler</option>
                 </select>
-                <textarea id="swal-report" class="swal2-textarea" style="height: 100px" placeholder="Détails de la visite (facultatif)..."></textarea>
+                <textarea id="swal-report" class="swal2-textarea" style="height: 100px" placeholder="Détails de la visite (échantillons, remarques...)"></textarea>
             `,
-            confirmButtonText: 'Valider ma sortie',
-            cancelButtonText: 'Annuler',
+            confirmButtonText: 'Enregistrer & Sortir',
             showCancelButton: true,
             confirmButtonColor: '#ef4444',
             focusConfirm: false,
-            preConfirm: () => {
-                return [
-                    document.getElementById('swal-outcome').value,
-                    document.getElementById('swal-report').value
-                ]
-            }
+            preConfirm: () => [
+                document.getElementById('swal-outcome').value,
+                document.getElementById('swal-report').value
+            ]
         });
 
-        if (!formValues) return; // Si l'utilisateur annule le popup, on arrête tout
+        if (!formValues) return; // Annulation du pointage
         outcome = formValues[0];
         report = formValues[1];
     }
@@ -1630,10 +1753,12 @@ async function handleClockInOut() {
             });
         });
 
+        const currentGps = `${pos.coords.latitude},${pos.coords.longitude}`;
         let validatedZone = "Hors Zone";
         let isInside = false;
         let dist = 0;
 
+        // On garde ta vérification locale pour les bureaux (FIXES)
         SIRH_CONFIG.gps.offices.forEach(office => {
             const d = getDistance(pos.coords.latitude, pos.coords.longitude, office.lat, office.lon);
             if (d <= office.radius) { 
@@ -1643,7 +1768,8 @@ async function handleClockInOut() {
             }
         });
         
-        if (SIRH_CONFIG.gps.strictMode && !isInside && currentUser.role === 'EMPLOYEE') {
+        // SÉCURITÉ : On ne bloque le "Hors Zone" local que si l'employé n'est PAS un délégué mobile
+        if (SIRH_CONFIG.gps.strictMode && !isInside && !isMobile && currentUser.role === 'EMPLOYEE') {
             return Swal.fire({icon: 'error', title: 'Hors Zone', text: 'Rapprochez-vous du bureau.'});
         }
 
@@ -1651,15 +1777,15 @@ async function handleClockInOut() {
         const payload = {
             id: userId,
             nom: currentUser.nom,
-            action: action,
+            action: action, 
             time: new Date().toISOString(),
-            gps: `${pos.coords.latitude},${pos.coords.longitude}`,
+            gps: currentGps,
             distance_bureau: dist,
             zone: validatedZone,
             ip: userIp,
             agent: currentUser.nom,
-            outcome: outcome, // Ajouté pour le CRM
-            report: report    // Ajouté pour le CRM
+            outcome: outcome, // Donnée CRM
+            report: report    // Donnée CRM
         };
 
         const response = await secureFetch(URL_CLOCK_ACTION, { 
@@ -1668,10 +1794,11 @@ async function handleClockInOut() {
             body: JSON.stringify(payload) 
         });
 
+        const resData = await response.json();
+
         if (response.ok) {
             const nowStr = new Date().toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'});
 
-            // Logique PremiumUI maintenue
             if (typeof PremiumUI !== 'undefined') {
                 PremiumUI.vibrate('success');
                 PremiumUI.play('success');
@@ -1693,8 +1820,17 @@ async function handleClockInOut() {
                 updateClockUI(false);
             }
             
+            // On affiche le nom du lieu détecté par le serveur
             document.getElementById('clock-last-action').innerText = `Validé : ${action==='CLOCK_IN'?'Entrée':'Sortie'} à ${nowStr}`;
-            Swal.fire('Succès', 'Pointage enregistré avec succès.', 'success');
+            Swal.fire('Succès', `Pointage enregistré à : ${resData.zone}`, 'success');
+        } else {
+            // --- OPTIONNEL : AUTO-APPRENTISSAGE GPS ---
+            // Si le serveur dit "Lieu inconnu" et que l'utilisateur est Admin, on propose l'enregistrement
+            if (resData.error && resData.error.includes("Lieu inconnu") && currentUser.role === 'ADMIN') {
+                offerRegisterLocation(currentGps);
+            } else {
+                throw new Error(resData.error || "Erreur serveur");
+            }
         }
 
     } catch (e) { 
@@ -1725,6 +1861,12 @@ async function handleClockInOut() {
         }
     }
 }
+
+
+
+
+
+
 
     function openFullFolder(id) {
         const e = employees.find(x => x.id === id); if(!e) return;
@@ -5069,6 +5211,7 @@ async function openDailyReportModal() {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
