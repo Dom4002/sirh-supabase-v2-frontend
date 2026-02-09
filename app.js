@@ -767,7 +767,9 @@ async function setSession(n, r, id, perms) {
 
     requestNotificationPermission();
     initDarkMode();
-    syncClockInterface(); 
+    syncClockInterface();
+    refreshAllData(false); 
+
 }
 
 
@@ -5453,6 +5455,7 @@ function setReportView(mode) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
