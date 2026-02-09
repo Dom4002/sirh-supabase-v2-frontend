@@ -781,14 +781,14 @@ async function setSession(n, r, id, perms) {
 
     // 4. CHARGEMENT RÉEL DES DONNÉES
     try {
-        await refreshAllData(false); 
+        await refreshAllData(false);
+        await syncClockInterface(); 
         await new Promise(resolve => setTimeout(resolve, 500)); 
     } catch (e) {
         console.warn("Erreur chargement:", e);
     }
 
-    await applyModulesUI(); // <--- AJOUTE CETTE LIGNE ICI (avec await)
-    // --- APPLICATION DES PERMISSIONS ---
+    await applyModulesUI(); 
     applyPermissionsUI(perms);
 
 
@@ -1660,35 +1660,38 @@ function renderPersonalReport(reports, container) {
 
 
 
-
 async function syncClockInterface() {
+    if (!currentUser || !currentUser.id) return;
     const userId = currentUser.id;
     const today = new Date().toLocaleDateString('fr-CA');
 
     try {
-        // On demande la vérité au serveur
-        const response = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/get-clock-status?employee_id=${userId}`);
+        const response = await fetch(`${SIRH_CONFIG.apiBaseUrl}/get-clock-status?employee_id=${userId}`, {
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('sirh_token')}` }
+        });
         const data = await response.json();
 
-        // On met à jour la mémoire locale avec la vérité du serveur
+        // On synchronise TOUTE la mémoire locale avec la BDD
         localStorage.setItem(`clock_status_${userId}`, data.status);
         localStorage.setItem(`clock_date_${userId}`, today);
-
+        
+        // On récupère aussi tous les pointages du jour pour savoir si c'est "Fini" (pour les fixes)
+        const checkPoints = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/read-logs?agent=${userId}`); // Juste pour l'exemple, ou utilise une route dédiée
+        
         if (data.status === 'IN') {
-            // Si le serveur dit qu'on est entré, on force le bouton sur ROUGE (SORTIE)
+            updateClockUI(true); // Affiche "SORTIE" (Rouge)
             localStorage.setItem(`clock_in_done_${userId}`, 'true');
-            updateClockUI(true); 
         } else {
-            // Si on est OUT, on vérifie si on a déjà fait une sortie aujourd'hui
-            // (Optionnel : pour bloquer le bouton si c'est un employé FIXE)
-            updateClockUI(false);
+            updateClockUI(false); // Affiche "ENTRÉE" (Vert)
+            // Si le dernier status est OUT mais qu'on a un CLOCK_OUT dans la table aujourd'hui
+            // alors on marque clock_out_done à true
         }
+        
+        console.log("🔄 État du bouton synchronisé avec le serveur :", data.status);
     } catch (e) {
         console.error("Erreur synchro bouton:", e);
     }
 }
-
-
 
 
 
@@ -5253,6 +5256,7 @@ async function openDailyReportModal() {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
