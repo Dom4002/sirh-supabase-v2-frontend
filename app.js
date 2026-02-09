@@ -1714,6 +1714,7 @@ async function syncClockInterface() {
 
 
 
+
 async function handleClockInOut() {
     const userId = currentUser.id;
     const today = new Date().toLocaleDateString('fr-CA');
@@ -1741,7 +1742,6 @@ async function handleClockInOut() {
         const inDone = localStorage.getItem(`clock_in_done_${userId}`) === 'true';
         const outDone = localStorage.getItem(`clock_out_done_${userId}`) === 'true';
 
-                       // Si l'entrée est faite ET la sortie est faite -> Journée finie
         if (inDone && outDone) {
             return Swal.fire({
                 title: 'Journée terminée !',
@@ -1759,103 +1759,138 @@ async function handleClockInOut() {
         }
     }
 
+    // --- DÉCLARATION DES VARIABLES DE SESSION ---
     let outcome = null;
     let report = null;
+    let proofStream = null;
+    let proofBlob = null; 
 
-    // --- RAPPORT DE VISITE (MOBILES UNIQUEMENT EN SORTIE) ---
+    // --- RAPPORT DE VISITE AVEC CAMÉRA LIVE OBLIGATOIRE (SORTIE MOBILE) ---
     if (action === 'CLOCK_OUT' && isMobile) {
         const { value: formValues } = await Swal.fire({
-            title: 'Bilan de la visite',
+            title: 'Fin de visite',
             html: `
-                <select id="swal-outcome" class="swal2-input">
-                    <option value="VU">✅ Visite effectuée</option>
-                    <option value="ABSENT">❌ Client Absent</option>
-                    <option value="COMMANDE">💰 Commande prise</option>
-                    <option value="RAS">👍 R.A.S</option>
-                </select>
-                <textarea id="swal-report" class="swal2-textarea" style="height: 100px" placeholder="Notes (échantillons, remarques...)"></textarea>
+                <div class="text-left mb-2">
+                    <label class="text-xs font-bold text-slate-500 uppercase">Résultat</label>
+                    <select id="swal-outcome" class="swal2-input mt-1">
+                        <option value="VU">✅ Visite effectuée</option>
+                        <option value="ABSENT">❌ Médecin Absent</option>
+                        <option value="COMMANDE">💰 Commande prise</option>
+                        <option value="RAS">👍 Passage simple</option>
+                    </select>
+                </div>
+                <div class="bg-slate-900 rounded-xl overflow-hidden relative mb-4 border-2 border-slate-200" style="height: 250px;">
+                    <video id="proof-video" autoplay playsinline class="w-full h-full object-cover"></video>
+                    <img id="proof-image" class="w-full h-full object-cover hidden absolute top-0 left-0">
+                    <canvas id="proof-canvas" class="hidden"></canvas>
+                    <div class="absolute bottom-2 left-0 right-0 flex justify-center gap-2 z-10">
+                        <button type="button" id="btn-snap" class="bg-white text-slate-900 px-4 py-1 rounded-full text-xs font-bold shadow-lg border border-slate-200">
+                            <i class="fa-solid fa-camera"></i> CAPTURER LE CACHET
+                        </button>
+                        <button type="button" id="btn-retry" class="hidden bg-orange-500 text-white px-3 py-1 rounded-full text-xs font-bold shadow-lg">
+                            <i class="fa-solid fa-rotate-left"></i> REFAIRE
+                        </button>
+                    </div>
+                </div>
+                <textarea id="swal-report" class="swal2-textarea" style="height: 60px; margin-top:0;" placeholder="Notes (échantillons, commentaires...)"></textarea>
             `,
-            confirmButtonText: 'Enregistrer & Sortir',
-            showCancelButton: true,
+            confirmButtonText: 'Valider & Sortir',
             confirmButtonColor: '#ef4444',
-            preConfirm: () => [
-                document.getElementById('swal-outcome').value,
-                document.getElementById('swal-report').value
-            ]
+            allowOutsideClick: false,
+            didOpen: () => {
+                const video = document.getElementById('proof-video');
+                const img = document.getElementById('proof-image');
+                const canvas = document.getElementById('proof-canvas');
+                const btnSnap = document.getElementById('btn-snap');
+                const btnRetry = document.getElementById('btn-retry');
+
+                navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+                    .then(stream => {
+                        proofStream = stream;
+                        video.srcObject = stream;
+                    })
+                    .catch(err => Swal.showValidationMessage("Caméra bloquée : " + err.message));
+
+                btnSnap.onclick = () => {
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    canvas.getContext('2d').drawImage(video, 0, 0);
+                    canvas.toBlob(blob => {
+                        proofBlob = blob;
+                        img.src = URL.createObjectURL(blob);
+                        video.classList.add('hidden');
+                        img.classList.remove('hidden');
+                        btnSnap.classList.add('hidden');
+                        btnRetry.classList.remove('hidden');
+                    }, 'image/jpeg', 0.8);
+                };
+
+                btnRetry.onclick = () => {
+                    proofBlob = null;
+                    video.classList.remove('hidden');
+                    img.classList.add('hidden');
+                    btnSnap.classList.remove('hidden');
+                    btnRetry.classList.add('hidden');
+                };
+            },
+            willClose: () => { if(proofStream) proofStream.getTracks().forEach(t => t.stop()); },
+            preConfirm: () => {
+                const outcomeVal = document.getElementById('swal-outcome').value;
+                if (outcomeVal === 'VU' && !proofBlob) {
+                    Swal.showValidationMessage('📸 La photo du cachet est obligatoire !');
+                    return false;
+                }
+                return { outcome: outcomeVal, report: document.getElementById('swal-report').value };
+            }
         });
 
         if (!formValues) return; 
-        outcome = formValues[0];
-        report = formValues[1];
+        outcome = formValues.outcome;
+        report = formValues.report;
     }
     
-    // --- 4. DÉBUT DU POINTAGE GPS ---
-    Swal.fire({ 
-        title: 'Vérification...', 
-        text: 'Analyse GPS et Serveur...', 
-        didOpen: () => Swal.showLoading(), 
-        allowOutsideClick: false 
-    });
+    // --- POINTAGE GPS & ENVOI ---
+    Swal.fire({ title: 'Vérification...', text: 'Analyse GPS et Serveur...', didOpen: () => Swal.showLoading(), allowOutsideClick: false });
 
     try {
         const ipResponse = await fetch('https://api.ipify.org?format=json');
         const ipData = await ipResponse.json();
-        const userIp = ipData.ip;
 
         const pos = await new Promise((resolve, reject) => {
-            navigator.geolocation.getCurrentPosition(resolve, reject, {
-                enableHighAccuracy: true, timeout: 10000, maximumAge: 0
-            });
+            navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true });
         });
 
         const currentGps = `${pos.coords.latitude},${pos.coords.longitude}`;
-        let validatedZone = "Hors Zone";
-        let isInside = false;
-        let dist = 0;
+        let validatedZone = "Hors Zone", dist = 0, isInside = false;
 
         SIRH_CONFIG.gps.offices.forEach(office => {
             const d = getDistance(pos.coords.latitude, pos.coords.longitude, office.lat, office.lon);
-            if (d <= office.radius) { 
-                isInside = true; 
-                dist = Math.round(d); 
-                validatedZone = office.name; 
-            }
+            if (d <= office.radius) { isInside = true; dist = Math.round(d); validatedZone = office.name; }
         });
         
         if (SIRH_CONFIG.gps.strictMode && !isInside && !isMobile && currentUser.role === 'EMPLOYEE') {
             return Swal.fire({icon: 'error', title: 'Hors Zone', text: 'Rapprochez-vous du bureau.'});
         }
 
-        const payload = {
-            id: userId,
-            nom: currentUser.nom,
-            action: action, 
-            time: new Date().toISOString(),
-            gps: currentGps,
-            distance_bureau: dist,
-            zone: validatedZone,
-            ip: userIp,
-            agent: currentUser.nom,
-            outcome: outcome,
-            report: report 
-        };
+        const fd = new FormData();
+        fd.append('id', userId);
+        fd.append('nom', currentUser.nom);
+        fd.append('action', action);
+        fd.append('time', new Date().toISOString());
+        fd.append('gps', currentGps);
+        fd.append('distance_bureau', dist);
+        fd.append('zone', validatedZone);
+        fd.append('ip', ipData.ip);
+        fd.append('agent', currentUser.nom);
+        
+        if (outcome) fd.append('outcome', outcome);
+        if (report) fd.append('report', report);
+        if (proofBlob) fd.append('proof_photo', proofBlob, 'capture_live.jpg'); 
 
-        const response = await secureFetch(URL_CLOCK_ACTION, { 
-            method: 'POST', 
-            headers: { 'Content-Type': 'application/json' }, 
-            body: JSON.stringify(payload) 
-        });
-
+        const response = await secureFetch(URL_CLOCK_ACTION, { method: 'POST', body: fd });
         const resData = await response.json();
 
         if (response.ok) {
-            const nowStr = new Date().toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'});
-
-            if (typeof PremiumUI !== 'undefined') {
-                PremiumUI.vibrate('success');
-                PremiumUI.play('success');
-            }
-            
             if (action === 'CLOCK_IN') {
                 localStorage.setItem(`clock_status_${userId}`, 'IN');
                 localStorage.setItem(`clock_in_done_${userId}`, 'true');
@@ -1865,38 +1900,20 @@ async function handleClockInOut() {
                 localStorage.setItem(`clock_out_done_${userId}`, 'true');
                 updateClockUI(false);
             }
-            
-            document.getElementById('clock-last-action').innerText = `Validé : ${action==='CLOCK_IN'?'Entrée':'Sortie'} à ${nowStr}`;
             Swal.fire('Succès', `Pointage enregistré : ${resData.zone || validatedZone}`, 'success');
         } else {
-            if (resData.error && resData.error.includes("Lieu inconnu") && currentUser.role === 'ADMIN') {
-                offerRegisterLocation(currentGps);
-            } else {
-                throw new Error(resData.error || "Erreur serveur");
-            }
+            throw new Error(resData.error || "Erreur serveur");
         }
 
     } catch (e) { 
-        const errorMsg = e.message || "";
-        const isDuplicateError = errorMsg.includes("déjà") || errorMsg.includes("Refus") || errorMsg.includes("exist");
-
-        if (isDuplicateError) {
-            if (action === 'CLOCK_IN') {
-                localStorage.setItem(`clock_status_${userId}`, 'IN');
-                localStorage.setItem(`clock_in_done_${userId}`, 'true');
-                updateClockUI(true);
-                Swal.fire({ icon: 'warning', title: 'Info', text: 'Entrée déjà validée.' });
-            } else if (action === 'CLOCK_OUT') {
-                localStorage.setItem(`clock_status_${userId}`, 'OUT');
-                localStorage.setItem(`clock_out_done_${userId}`, 'true');
-                updateClockUI(false);
-                Swal.fire({ icon: 'info', title: 'Info', text: 'Sortie déjà validée.' });
-            }
-        } else {
-            Swal.fire('Erreur Technique', errorMsg, 'error');
-        }
+        Swal.fire('Erreur', e.message, 'error');
     }
 }
+
+
+
+
+
 
 
 
@@ -5219,54 +5236,85 @@ async function handleCSVFile(event) {
     event.target.value = "";
 }
 
+
+
 async function openDailyReportModal() {
+    // On ajoute le champ pour la photo dans le HTML de l'alerte
     const { value: formValues } = await Swal.fire({
         title: 'Bilan de la journée',
         html: `
             <p class="text-[10px] text-slate-400 uppercase font-black mb-2">Résumé global de vos activités</p>
-            <textarea id="daily-summary" class="swal2-textarea" style="height: 150px" placeholder="Nombre de visites, difficultés..."></textarea>
-            <div class="flex items-center gap-2 mt-4">
-                <input type="checkbox" id="daily-restock" class="w-5 h-5">
-                <label for="daily-restock" class="text-sm font-bold text-slate-600">Besoin de stock / échantillons ?</label>
+            <textarea id="daily-summary" class="swal2-textarea" style="height: 100px" placeholder="Nombre de visites, difficultés, commandes..."></textarea>
+            
+            <!-- NOUVEAU : Zone Photo -->
+            <div class="my-4 text-left">
+                <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Photo du Rapport / Cahier (Optionnel)</label>
+                <input type="file" id="daily-photo" class="block w-full text-xs text-slate-500
+                  file:mr-4 file:py-2 file:px-4
+                  file:rounded-full file:border-0
+                  file:text-xs file:font-semibold
+                  file:bg-blue-50 file:text-blue-700
+                  hover:file:bg-blue-100
+                " accept="image/*,application/pdf">
+            </div>
+
+            <div class="flex items-center gap-2 mt-4 p-3 bg-orange-50 rounded-xl border border-orange-100">
+                <input type="checkbox" id="daily-restock" class="w-5 h-5 text-orange-600 rounded focus:ring-orange-500">
+                <label for="daily-restock" class="text-xs font-bold text-orange-800">Besoin de stock / échantillons ?</label>
             </div>
         `,
         confirmButtonText: 'Envoyer le rapport',
         showCancelButton: true,
+        confirmButtonColor: '#0f172a',
         preConfirm: () => {
             return {
                 summary: document.getElementById('daily-summary').value,
-                needs_restock: document.getElementById('daily-restock').checked
+                needs_restock: document.getElementById('daily-restock').checked,
+                photo: document.getElementById('daily-photo').files[0] // On récupère le fichier
             }
         }
     });
 
     if (formValues) {
-        Swal.fire({ title: 'Envoi...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+        Swal.fire({ title: 'Envoi du rapport...', text: 'Téléversement de la photo en cours...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
         
         try {
+            // ON PASSE EN FORMDATA POUR ENVOYER LE FICHIER
+            const fd = new FormData();
+            fd.append('employee_id', currentUser.id);
+            fd.append('summary', formValues.summary);
+            fd.append('needs_restock', formValues.needs_restock);
+            
+            // Si une photo a été choisie, on l'ajoute
+            if (formValues.photo) {
+                fd.append('report_doc', formValues.photo); 
+            }
+
+            // Note: On ne met PAS de 'Content-Type': 'application/json' car c'est du FormData
             const response = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/submit-daily-report`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    employee_id: currentUser.id,
-                    ...formValues
-                })
+                body: fd 
             });
 
-            // ICI ON FERME LE CHARGEMENT
             Swal.close(); 
 
             if (response.ok) {
-                Swal.fire('Succès !', 'Votre bilan a été transmis.', 'success');
+                Swal.fire('Succès !', 'Votre bilan et la photo ont été transmis.', 'success');
             } else {
                 throw new Error("Erreur serveur");
             }
         } catch (e) {
             Swal.close();
+            console.error(e);
             Swal.fire('Erreur', "Le rapport n'a pas pu être envoyé.", 'error');
         }
     }
 }
+
+
+
+
+
 
 
 
@@ -5277,6 +5325,7 @@ async function openDailyReportModal() {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
