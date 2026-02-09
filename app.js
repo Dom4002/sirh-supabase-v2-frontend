@@ -606,22 +606,34 @@ async function fetchMobileReports() {
     }
 }
 
-// 3. SUPER AUDIT GLOBAL (FONCTION EN BLOC)
+//
+
 async function fetchGlobalAudit() {
     const now = new Date();
-    const month = now.getMonth() + 1;
+    const month = now.getMonth() + 1; // 2 pour Février
     const year = now.getFullYear();
 
-    Swal.fire({ title: 'Génération de l\'audit...', text: 'Compilation des données de l\'équipe', didOpen: () => Swal.showLoading() });
+    Swal.fire({ 
+        title: 'Compilation...', 
+        text: 'Analyse des données de Février 2026', 
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading() 
+    });
 
     try {
+        // IMPORTANT : Utiliser secureFetch pour passer le token de sécurité
         const r = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/get-global-audit?month=${month}&year=${year}`);
-        lastAuditData = await r.json();
+        const data = await r.json();
+        
+        lastAuditData = data; // On stocke pour Excel
         Swal.close();
 
-        renderAuditTable(lastAuditData);
+        // On affiche le tableau
+        renderAuditTable(data);
+        
     } catch (e) {
-        Swal.fire('Erreur', 'Impossible de générer l\'audit global', 'error');
+        console.error(e);
+        Swal.fire('Erreur', 'Le serveur a rencontré un problème de calcul : ' + e.message, 'error');
     }
 }
 
@@ -5473,6 +5485,7 @@ async function openDailyReportModal() {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
