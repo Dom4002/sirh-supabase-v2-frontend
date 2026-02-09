@@ -5483,7 +5483,73 @@ async function openDailyReportModal() {
 }
 
 
+// --- LOGIQUE IMPORT CSV POUR LES SIÈGES (ZONES) ---
 
+function triggerZonesCSVImport() {
+    document.getElementById('csv-zones-input').click();
+}
+
+async function handleZonesCSVFile(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    Swal.fire({ title: 'Analyse...', text: 'Mappage des sièges en cours', didOpen: () => Swal.showLoading() });
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+        const text = e.target.result;
+        const lines = text.split(/\r?\n/).filter(l => l.trim() !== "");
+        if (lines.length < 2) return Swal.fire('Erreur', 'Fichier vide', 'error');
+
+        const delimiter = lines[0].includes(';') ? ';' : ',';
+        const headers = lines[0].split(delimiter).map(h => h.trim().toLowerCase());
+
+        // Mapping des colonnes
+        const map = {
+            nom: headers.findIndex(h => h.includes('nom') || h.includes('siege') || h.includes('office')),
+            lat: headers.findIndex(h => h.includes('lat')),
+            lon: headers.findIndex(h => h.includes('lon') || h.includes('long')),
+            rayon: headers.findIndex(h => h.includes('rayon') || h.includes('radius'))
+        };
+
+        if (map.nom === -1 || map.lat === -1 || map.lon === -1) {
+            return Swal.fire('Format incorrect', 'Colonnes Nom, Latitude et Longitude obligatoires.', 'error');
+        }
+
+        const zones = [];
+        for (let i = 1; i < lines.length; i++) {
+            const cols = lines[i].split(delimiter);
+            if (cols.length < 3) continue;
+
+            zones.push({
+                nom: cols[map.nom].trim(),
+                latitude: parseFloat(cols[map.lat].replace(',', '.')),
+                longitude: parseFloat(cols[map.lon].replace(',', '.')),
+                rayon: map.rayon !== -1 ? parseInt(cols[map.rayon]) : 100,
+                actif: true
+            });
+        }
+
+        if (zones.length > 0) {
+            try {
+                const response = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/import-zones`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ zones })
+                });
+
+                if (response.ok) {
+                    Swal.fire('Succès !', `${zones.length} sièges importés.`, 'success');
+                    fetchZones(); // Rafraîchit la grille
+                }
+            } catch (err) {
+                Swal.fire('Échec', err.message, 'error');
+            }
+        }
+    };
+    reader.readAsText(file);
+    event.target.value = ""; // Reset input
+}
 
 
 
@@ -5496,6 +5562,7 @@ async function openDailyReportModal() {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
