@@ -1150,34 +1150,35 @@
             <h2 class="text-3xl font-black text-slate-800 tracking-tighter">Rapports Opérationnels</h2>
             <p class="text-sm font-bold text-slate-400 uppercase tracking-widest">Suivi des activités et preuves terrain</p>
         </div>
-        <button onclick="renderPerformanceTable()" class="px-6 py-3 bg-slate-900 text-white rounded-xl font-bold text-xs shadow-lg hover:scale-105 transition-all">
-            <i class="fa-solid fa-chart-line mr-2"></i> SYNTHÈSE MENSUELLE
+
+        <button onclick="fetchGlobalAudit()" class="px-6 py-3 bg-slate-900 text-white rounded-xl font-bold text-xs shadow-lg hover:scale-105 transition-all">
+            <i class="fa-solid fa-chart-line mr-2"></i> SYNTHÈSE GLOBALE AUDIT
         </button>
     </div>
 
     <!-- NOUVEAU : Barre d'onglets pour filtrer les types de rapports -->
-    <div class="flex gap-4 mb-6 border-b border-slate-200">
-        <button onclick="changeReportTab('visits')" id="tab-visits" class="report-tab-btn active-report-tab pb-4 text-sm font-bold text-blue-600 border-b-2 border-blue-600">
-            Visites de Sites (Cachets)
-        </button>
-        <button onclick="changeReportTab('daily')" id="tab-daily" class="report-tab-btn pb-4 text-sm font-bold text-slate-400 border-b-2 border-transparent">
-            Bilans Journaliers (Cahiers)
-        </button>
-    </div>
+<div class="flex gap-4 mb-6 border-b border-slate-200">
+    <button onclick="changeReportTab('visits')" id="tab-visits" class="report-tab-btn pb-4 text-sm font-bold text-blue-600 border-b-2 border-blue-600">
+        Visites de Sites (Cachets)
+    </button>
+    <button onclick="changeReportTab('daily')" id="tab-daily" class="report-tab-btn pb-4 text-sm font-bold text-slate-400 border-b-2 border-transparent">
+        Bilans Journaliers (Cahiers)
+    </button>
+</div>
 
     <!-- Zone de statistiques rapides -->
     <div id="stats-reports-area" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-        <div class="bg-blue-600 p-6 rounded-[2rem] text-white shadow-xl shadow-blue-100">
-            <p class="text-[10px] font-black uppercase opacity-80">Total Visites (Mois)</p>
-            <h3 id="stat-visites-total" class="text-3xl font-black">0</h3>
-        </div>
+<div class="bg-blue-600 p-6 rounded-[2rem] text-white shadow-xl shadow-blue-100">
+    <p class="text-[10px] font-black uppercase opacity-80">Total Visites (Mois)</p>
+    <h3 id="stat-visites-total" class="text-3xl font-black">0</h3>
+</div>
         <!-- On peut ajouter d'autres cartes de stats ici -->
     </div>
 
     <!-- LE CONTENEUR DE LISTE (Il sera rempli par le JS) -->
-    <div id="reports-list-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <!-- Les cartes de rapports s'afficheront ici -->
-    </div>
+<div id="reports-list-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <!-- Le JS remplit ceci -->
+</div>
 </section>
 
         
@@ -1437,6 +1438,7 @@
     </body>
 
     </html>
+
 
 
 
