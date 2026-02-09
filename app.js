@@ -1660,10 +1660,17 @@ function renderPersonalReport(reports, container) {
 
 
 
+
+
+
+
+
+
+
+
 async function syncClockInterface() {
     if (!currentUser || !currentUser.id) return;
     const userId = currentUser.id;
-    const today = new Date().toLocaleDateString('fr-CA');
 
     try {
         const response = await fetch(`${SIRH_CONFIG.apiBaseUrl}/get-clock-status?employee_id=${userId}`, {
@@ -1671,27 +1678,36 @@ async function syncClockInterface() {
         });
         const data = await response.json();
 
-        // On synchronise TOUTE la mémoire locale avec la BDD
+        // On met à jour la mémoire locale
         localStorage.setItem(`clock_status_${userId}`, data.status);
-        localStorage.setItem(`clock_date_${userId}`, today);
-        
-        // On récupère aussi tous les pointages du jour pour savoir si c'est "Fini" (pour les fixes)
-        const checkPoints = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/read-logs?agent=${userId}`); // Juste pour l'exemple, ou utilise une route dédiée
-        
+        localStorage.setItem(`clock_in_done_${userId}`, data.in_done);
+        localStorage.setItem(`clock_out_done_${userId}`, data.out_done);
+
+        const isMobile = data.employee_type === 'MOBILE';
+
+        // LOGIQUE D'AFFICHAGE DU BOUTON
         if (data.status === 'IN') {
-            updateClockUI(true); // Affiche "SORTIE" (Rouge)
-            localStorage.setItem(`clock_in_done_${userId}`, 'true');
+            updateClockUI(true); // Bouton Rouge (SORTIE)
         } else {
-            updateClockUI(false); // Affiche "ENTRÉE" (Vert)
-            // Si le dernier status est OUT mais qu'on a un CLOCK_OUT dans la table aujourd'hui
-            // alors on marque clock_out_done à true
+            updateClockUI(false); // Bouton Vert (ENTRÉE)
+            
+            // SI FIXE ET JOURNÉE TERMINÉE
+            if (!isMobile && data.out_done) {
+                const btn = document.getElementById('btn-clock');
+                const text = document.getElementById('clock-status-text');
+                if(btn) {
+                    btn.innerHTML = '<i class="fa-solid fa-check-double"></i> <span>TERMINÉ</span>';
+                    btn.classList.replace('bg-emerald-500', 'bg-slate-400'); // Gris car fini
+                }
+                if(text) text.innerText = "JOURNÉE CLÔTURÉE";
+            }
         }
-        
-        console.log("🔄 État du bouton synchronisé avec le serveur :", data.status);
-    } catch (e) {
-        console.error("Erreur synchro bouton:", e);
-    }
+    } catch (e) { console.error(e); }
 }
+
+
+
+
 
 
 
@@ -1724,6 +1740,16 @@ async function handleClockInOut() {
     if (!isMobile) {
         const inDone = localStorage.getItem(`clock_in_done_${userId}`) === 'true';
         const outDone = localStorage.getItem(`clock_out_done_${userId}`) === 'true';
+
+                       // Si l'entrée est faite ET la sortie est faite -> Journée finie
+        if (inDone && outDone) {
+            return Swal.fire({
+                title: 'Journée terminée !',
+                text: 'Votre service est déjà clôturé pour aujourd\'hui. Reposez-vous bien !',
+                icon: 'success',
+                confirmButtonColor: '#0f172a'
+            });
+        }
 
         if (action === 'CLOCK_IN' && inDone) {
             return Swal.fire('Action impossible', 'Entrée déjà validée aujourd\'hui.', 'info');
@@ -5256,6 +5282,7 @@ async function openDailyReportModal() {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
