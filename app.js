@@ -786,6 +786,7 @@ async function setSession(n, r, id, perms) {
         console.warn("Erreur chargement:", e);
     }
 
+    await applyModulesUI(); // <--- AJOUTE CETTE LIGNE ICI (avec await)
     // --- APPLICATION DES PERMISSIONS ---
     applyPermissionsUI(perms);
 
@@ -1681,15 +1682,17 @@ function syncClockInterface() {
 
 
 
+
 async function handleClockInOut() {
     const userId = currentUser.id;
     const today = new Date().toLocaleDateString('fr-CA');
     
-    // On récupère le type d'employé (on vérifie dans la liste globale ET dans la session)
+    // 1. Détecter si l'employé est MOBILE (Délégué)
     const empData = employees.find(e => e.id === userId);
-    const isMobile = (empData && empData.employee_type === 'MOBILE') || (currentUser.employee_type === 'MOBILE');
+    // On regarde dans les données chargées ou dans la session actuelle
+    const isMobile = (empData?.employee_type === 'MOBILE') || (currentUser?.employee_type === 'MOBILE');
     
-    // --- 1. NETTOYAGE INTELLIGENT DU JOUR ---
+    // --- NETTOYAGE DU JOUR ---
     const lastActionDate = localStorage.getItem(`clock_date_${userId}`);
     if (lastActionDate !== today) {
         localStorage.setItem(`clock_date_${userId}`, today);
@@ -1702,39 +1705,38 @@ async function handleClockInOut() {
     const currentStatus = localStorage.getItem(`clock_status_${userId}`) || 'OUT';
     const action = (currentStatus === 'OUT') ? 'CLOCK_IN' : 'CLOCK_OUT';
 
-    // --- 2. SÉCURITÉ : BLOCAGE DES DOUBLONS POUR LES FIXES ---
+    // --- SÉCURITÉ POUR LES FIXES (BUREAU / SITE) ---
     if (!isMobile) {
         const inDone = localStorage.getItem(`clock_in_done_${userId}`) === 'true';
         const outDone = localStorage.getItem(`clock_out_done_${userId}`) === 'true';
 
         if (action === 'CLOCK_IN' && inDone) {
-            return Swal.fire('Action impossible', 'Vous avez déjà validé votre entrée aujourd\'hui.', 'info');
+            return Swal.fire('Action impossible', 'Entrée déjà validée aujourd\'hui.', 'info');
         }
         if (action === 'CLOCK_OUT' && outDone) {
-            return Swal.fire('Action impossible', 'Votre journée est déjà clôturée.', 'info');
+            return Swal.fire('Action impossible', 'Journée déjà clôturée.', 'info');
         }
     }
 
-    // --- 3. RAPPORT DE VISITE (UNIQUEMENT POUR MOBILES ET UNIQUEMENT EN SORTIE) ---
     let outcome = null;
     let report = null;
 
+    // --- RAPPORT DE VISITE (MOBILES UNIQUEMENT EN SORTIE) ---
     if (action === 'CLOCK_OUT' && isMobile) {
         const { value: formValues } = await Swal.fire({
             title: 'Bilan de la visite',
             html: `
                 <select id="swal-outcome" class="swal2-input">
-                    <option value="VU">✅ Médecin / Client Vu</option>
-                    <option value="ABSENT">❌ Absent / Fermé</option>
-                    <option value="COMMANDE">💰 Commande Prise</option>
-                    <option value="RAS">Rien à signaler</option>
+                    <option value="VU">✅ Visite effectuée</option>
+                    <option value="ABSENT">❌ Client Absent</option>
+                    <option value="COMMANDE">💰 Commande prise</option>
+                    <option value="RAS">👍 R.A.S</option>
                 </select>
-                <textarea id="swal-report" class="swal2-textarea" style="height: 100px" placeholder="Détails de la visite (facultatif)..."></textarea>
+                <textarea id="swal-report" class="swal2-textarea" style="height: 100px" placeholder="Notes (échantillons, remarques...)"></textarea>
             `,
-            confirmButtonText: 'Valider ma sortie',
+            confirmButtonText: 'Enregistrer & Sortir',
             showCancelButton: true,
             confirmButtonColor: '#ef4444',
-            focusConfirm: false,
             preConfirm: () => [
                 document.getElementById('swal-outcome').value,
                 document.getElementById('swal-report').value
@@ -1745,7 +1747,7 @@ async function handleClockInOut() {
         outcome = formValues[0];
         report = formValues[1];
     }
-
+    
     // --- 4. DÉBUT DU POINTAGE GPS ---
     Swal.fire({ 
         title: 'Vérification...', 
@@ -5242,6 +5244,7 @@ async function openDailyReportModal() {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
