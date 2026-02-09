@@ -1659,23 +1659,34 @@ function renderPersonalReport(reports, container) {
 
 
 
-function syncClockInterface() {
+
+
+async function syncClockInterface() {
     const userId = currentUser.id;
     const today = new Date().toLocaleDateString('fr-CA');
-    const lastActionDate = localStorage.getItem(`clock_date_${userId}`);
-    
-    // Si on change de jour, on remet l'affichage à zéro visuellement
-    if (lastActionDate !== today) {
-        localStorage.setItem(`clock_status_${userId}`, 'OUT');
-        updateClockUI(false);
-    } else {
-        // Sinon on affiche l'état stocké (IN ou OUT)
-        const currentStatus = localStorage.getItem(`clock_status_${userId}`) || 'OUT';
-        updateClockUI(currentStatus === 'IN');
+
+    try {
+        // On demande la vérité au serveur
+        const response = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/get-clock-status?employee_id=${userId}`);
+        const data = await response.json();
+
+        // On met à jour la mémoire locale avec la vérité du serveur
+        localStorage.setItem(`clock_status_${userId}`, data.status);
+        localStorage.setItem(`clock_date_${userId}`, today);
+
+        if (data.status === 'IN') {
+            // Si le serveur dit qu'on est entré, on force le bouton sur ROUGE (SORTIE)
+            localStorage.setItem(`clock_in_done_${userId}`, 'true');
+            updateClockUI(true); 
+        } else {
+            // Si on est OUT, on vérifie si on a déjà fait une sortie aujourd'hui
+            // (Optionnel : pour bloquer le bouton si c'est un employé FIXE)
+            updateClockUI(false);
+        }
+    } catch (e) {
+        console.error("Erreur synchro bouton:", e);
     }
 }
-
-
 
 
 
@@ -1690,7 +1701,6 @@ async function handleClockInOut() {
     
     // 1. Détecter si l'employé est MOBILE (Délégué)
     const empData = employees.find(e => e.id === userId);
-    // On regarde dans les données chargées ou dans la session actuelle
     const isMobile = (empData?.employee_type === 'MOBILE') || (currentUser?.employee_type === 'MOBILE');
     
     // --- NETTOYAGE DU JOUR ---
@@ -1703,8 +1713,9 @@ async function handleClockInOut() {
         updateClockUI(false); 
     }
 
+    // --- DÉCISION INTELLIGENTE DE L'ACTION ---
     const currentStatus = localStorage.getItem(`clock_status_${userId}`) || 'OUT';
-    const action = (currentStatus === 'OUT') ? 'CLOCK_IN' : 'CLOCK_OUT';
+    const action = (currentStatus === 'IN') ? 'CLOCK_OUT' : 'CLOCK_IN';
 
     // --- SÉCURITÉ POUR LES FIXES (BUREAU / SITE) ---
     if (!isMobile) {
@@ -1782,12 +1793,10 @@ async function handleClockInOut() {
             }
         });
         
-        // Blocage strict du GPS pour les employés de bureau
         if (SIRH_CONFIG.gps.strictMode && !isInside && !isMobile && currentUser.role === 'EMPLOYEE') {
             return Swal.fire({icon: 'error', title: 'Hors Zone', text: 'Rapprochez-vous du bureau.'});
         }
 
-        // --- 5. ENVOI AU SERVEUR ---
         const payload = {
             id: userId,
             nom: currentUser.nom,
@@ -1859,7 +1868,6 @@ async function handleClockInOut() {
         }
     }
 }
-
 
 
 
@@ -5245,6 +5253,7 @@ async function openDailyReportModal() {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
