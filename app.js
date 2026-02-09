@@ -500,6 +500,22 @@ async function deleteSchedule(id) {
 }
 
 
+let currentReportTab = 'visits';
+
+// Fonction pour changer d'onglet
+function changeReportTab(tab) {
+    currentReportTab = tab;
+    // Mise à jour visuelle des boutons
+    document.querySelectorAll('.report-tab-btn').forEach(btn => {
+        btn.classList.remove('active-report-tab', 'text-blue-600', 'border-blue-600');
+        btn.classList.add('text-slate-400', 'border-transparent');
+    });
+    const activeBtn = document.getElementById('tab-' + tab);
+    activeBtn.classList.remove('text-slate-400', 'border-transparent');
+    activeBtn.classList.add('active-report-tab', 'text-blue-600', 'border-blue-600');
+    
+    fetchMobileReports(); // Recharge les données selon l'onglet
+}
 
 
 
@@ -507,85 +523,76 @@ async function deleteSchedule(id) {
 
 
 
-
-
-
-
-
-
-
-async function fetchMobileReports(type = 'visits') {
-    const container = document.getElementById('reports-container');
+async function fetchMobileReports() {
+    const container = document.getElementById('reports-list-container'); // Vérifie que tu as cet ID dans ton HTML
     if (!container) return;
     
-    container.innerHTML = '<div class="text-center p-10"><i class="fa-solid fa-circle-notch fa-spin text-blue-500 text-2xl"></i></div>';
+    container.innerHTML = '<div class="col-span-full text-center p-10"><i class="fa-solid fa-circle-notch fa-spin text-blue-500 text-3xl"></i></div>';
 
     try {
-        if (type === 'visits') {
-            // --- LOGIQUE VISITES (Inchangée) ---
+        if (currentReportTab === 'visits') {
+            // 1. CHARGEMENT DES VISITES (Table visit_reports)
             const r = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/list-schedules`);
             const data = await r.json();
-            const reports = data.filter(d => d.status === 'COMPLETED' || d.visit_report);
+            const reports = data.filter(d => d.status === 'COMPLETED');
 
             container.innerHTML = '';
             if (reports.length === 0) {
-                container.innerHTML = '<div class="text-center text-slate-400 py-10">Aucun rapport de visite.</div>';
+                container.innerHTML = '<div class="col-span-full text-center text-slate-400 py-10">Aucune visite effectuée.</div>';
                 return;
             }
 
             reports.forEach(r => {
+                const proofImg = r.proof_url ? 
+                    `<div class="mt-3 cursor-pointer" onclick="viewDocument('${r.proof_url}', 'Preuve Cachet')">
+                        <img src="${r.proof_url}" class="w-full h-32 object-cover rounded-xl border border-slate-200 hover:brightness-75 transition-all">
+                        <p class="text-[9px] text-center text-blue-500 font-bold mt-1">CLIQUEZ POUR VOIR LE CACHET</p>
+                     </div>` : '';
+
                 container.innerHTML += `
-                    <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm animate-fadeIn">
-                        <div class="flex justify-between items-start mb-3">
-                            <div>
-                                <h4 class="font-black text-slate-800 uppercase text-sm">${r.location_name}</h4>
-                                <p class="text-[10px] font-bold text-slate-400 uppercase">${r.employee_name} • ${new Date(r.schedule_date).toLocaleDateString()}</p>
-                            </div>
-                            <span class="bg-blue-50 text-blue-600 px-2 py-1 rounded text-[9px] font-black uppercase">${r.visit_outcome || 'RAS'}</span>
+                    <div class="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm animate-fadeIn">
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="bg-blue-50 text-blue-600 px-2 py-1 rounded text-[9px] font-black uppercase">${r.visit_outcome || 'VU'}</span>
+                            <p class="text-[10px] font-bold text-slate-400">${new Date(r.schedule_date).toLocaleDateString()}</p>
                         </div>
-                        <div class="bg-slate-50 p-4 rounded-xl text-xs text-slate-600 italic border border-slate-100">
-                            "${r.visit_report || 'Aucun commentaire.'}"
-                        </div>
+                        <h4 class="font-black text-slate-800 uppercase text-sm">${r.location_name}</h4>
+                        <p class="text-[10px] font-bold text-blue-500 uppercase mb-2">${r.employee_name}</p>
+                        <div class="text-xs text-slate-500 italic">"${r.visit_report || 'Pas de note.'}"</div>
+                        ${proofImg}
                     </div>`;
             });
         } 
-        else if (type === 'daily') {
-            // --- NOUVELLE LOGIQUE : BILANS JOURNALIERS ---
+        else {
+            // 2. CHARGEMENT DES BILANS JOURNALIERS (Table daily_reports)
             const r = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/read-daily-reports`);
             const data = await r.json();
 
             container.innerHTML = '';
-            if (data.length === 0) {
-                container.innerHTML = '<div class="text-center text-slate-400 py-10">Aucun bilan journalier envoyé.</div>';
-                return;
-            }
-
             data.forEach(rep => {
-                const empName = rep.employees ? rep.employees.nom : 'Anonyme';
-                const dateStr = new Date(rep.report_date).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
-                const needsStock = rep.needs_restock ? 
-                    '<span class="bg-orange-100 text-orange-600 px-2 py-1 rounded text-[9px] font-black uppercase"><i class="fa-solid fa-box-open mr-1"></i> Réappro. Requis</span>' : '';
+                const photoBilan = rep.photo_url ? 
+                    `<button onclick="viewDocument('${rep.photo_url}', 'Photo du Cahier')" class="mt-3 w-full py-2 bg-emerald-50 text-emerald-600 rounded-xl text-[10px] font-black uppercase hover:bg-emerald-600 hover:text-white transition-all">
+                        <i class="fa-solid fa-camera mr-1"></i> Voir la photo du cahier
+                    </button>` : '';
 
                 container.innerHTML += `
-                    <div class="bg-white p-6 rounded-2xl border-l-4 border-l-indigo-500 shadow-sm animate-fadeIn">
-                        <div class="flex justify-between items-center mb-4">
-                            <div>
-                                <h4 class="font-black text-slate-800 text-base uppercase tracking-tighter">${empName}</h4>
-                                <p class="text-[10px] font-bold text-indigo-500 uppercase">${dateStr}</p>
-                            </div>
-                            ${needsStock}
-                        </div>
-                        <div class="text-sm text-slate-600 leading-relaxed bg-slate-50 p-4 rounded-xl border border-slate-100">
-                            ${rep.summary.replace(/\n/g, '<br>')}
-                        </div>
+                    <div class="bg-white p-6 rounded-[2rem] border shadow-sm animate-fadeIn">
+                        <h4 class="font-black text-slate-800 text-sm uppercase">${rep.employees ? rep.employees.nom : 'Agent'}</h4>
+                        <p class="text-[10px] font-bold text-indigo-500 uppercase mb-3">${new Date(rep.report_date).toLocaleDateString()}</p>
+                        <div class="text-xs text-slate-600 bg-slate-50 p-3 rounded-xl border border-slate-100">${rep.summary}</div>
+                        ${photoBilan}
                     </div>`;
             });
         }
     } catch (e) {
         console.error(e);
-        container.innerHTML = '<div class="text-center text-red-500 py-10 font-bold">Erreur de chargement des rapports.</div>';
+        container.innerHTML = '<div class="col-span-full text-center text-red-500 py-10 font-bold">Erreur réseau.</div>';
     }
 }
+
+
+
+
+
 
 
 
@@ -2242,18 +2249,23 @@ async function fetchEmployeeLeaveBalances() {
 
 
 
+
+
+
+
+
 function switchView(v) { 
 
-     localStorage.setItem('sirh_last_view', v);       
+    localStorage.setItem('sirh_last_view', v);       
+    
     // --- 1. INITIALISATION DE L'ANIMATION (FADE OUT) ---
     const mainContainer = document.getElementById('main-scroll-container');
     if (mainContainer) {
         mainContainer.style.opacity = '0';
         mainContainer.style.transform = 'translateY(10px)';
-        mainContainer.style.transition = 'none'; // On cache instantanément pour préparer l'entrée
+        mainContainer.style.transition = 'none'; 
     }
 
-    // --- TES LOGIQUES EXISTANTES (Nettoyage & Mémorisation) ---
     if (window.chatIntervalId) {
         clearInterval(window.chatIntervalId);
         window.chatIntervalId = null;
@@ -2279,7 +2291,6 @@ function switchView(v) {
     const activeBtn = document.querySelector(`button[onclick="switchView('${v}')"]`);
     if(activeBtn) activeBtn.classList.add('bg-blue-600', 'text-white');
 
-    // Reset du scroll
     if(mainContainer) {
         mainContainer.scrollTo(0, 0); 
     }
@@ -2297,6 +2308,19 @@ function switchView(v) {
         searchContainer.style.opacity = '0'; 
     }
     
+    // --- CHARGEMENTS AUTOMATIQUES CORRIGÉS ---
+    
+    // 1. Dashboard (Statistiques et Live Tracker)
+    if (v === 'dash') {
+        renderCharts();
+        fetchLiveAttendance();
+    }
+
+    // 2. Collaborateurs (Affichage de la liste)
+    if (v === 'employees') {
+        renderData();
+    }
+
     if (v === 'accounting') loadAccountingView();
 
     if(v === 'add-new') { 
@@ -2305,7 +2329,6 @@ function switchView(v) {
         resetCamera(); 
     }
 
-    // Logique Realtime Chat
     if (v === 'chat') {
         fetchMessages(); 
         initChatRealtime();
@@ -2313,14 +2336,19 @@ function switchView(v) {
         if (chatSubscription) {
             supabaseClient.removeChannel(chatSubscription);
             chatSubscription = null;
-            console.log("🔌 Déconnexion du Chat Realtime");
         }
     }
 
-    // Chargements automatiques
+    // MODULES MOBILES
     if (v === 'mobile-locations') fetchMobileLocations();
     if (v === 'mobile-planning') fetchMobileSchedules();
-    if (v === 'mobile-reports') fetchMobileReports();
+    
+    // Correction spécifique pour les rapports opérationnels
+    if (v === 'mobile-reports') {
+        fetchMobileReports();      // Charge la liste (visites ou bilans)
+        renderPerformanceTable(); // Charge les stats (Total visites, synthèses)
+    }
+
     if(v === 'settings') fetchZones(); 
     if(v === 'logs') fetchLogs(); 
     if(v === 'recruitment') fetchCandidates();
@@ -2330,27 +2358,21 @@ function switchView(v) {
         fetchLeaveRequests(); 
     }
 
-    // Fermeture sidebar mobile
     if(window.innerWidth < 768) { 
         const sb = document.getElementById('sidebar'); 
         if(!sb.classList.contains('-translate-x-full')) toggleSidebar(); 
     }
 
     // --- 2. DÉCLENCHEMENT DE L'ANIMATION (FADE IN) ---
-    // Un petit délai de 50ms permet au navigateur de valider le changement de vue
     setTimeout(() => {
         if (mainContainer) {
             mainContainer.style.transition = 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)';
             mainContainer.style.opacity = '1';
             mainContainer.style.transform = 'translateY(0)';
         }
-        // Micro-vibration haptique pour le ressenti "App Native"
         if ("vibrate" in navigator) navigator.vibrate(8);
     }, 50);
 }
-
-
-
 
 
 
@@ -5326,6 +5348,7 @@ async function openDailyReportModal() {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
