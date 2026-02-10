@@ -2125,55 +2125,6 @@ function loadMyProfile() {
 
 
 
-async function fetchEmployeeLeaveBalances() {
-    const body = document.getElementById('manager-leave-body');
-    if (!body || currentUser.role === 'EMPLOYEE') return;
-
-    body.innerHTML = '<tr><td colspan="4" class="p-6 text-center italic text-slate-400"><i class="fa-solid fa-circle-notch fa-spin mr-2"></i> Chargement des soldes...</td></tr>';
-
-    try {
-        // On réutilise fetchAllData qui charge déjà la liste des employés
-        // (En s'assurant que Make renvoie bien le Solde_Conges)
-        await fetchData(true); 
-        
-        body.innerHTML = '';
-        
-        employees.forEach(emp => {
-            // Seuls les actifs nous intéressent ici
-            if (emp.statut !== 'Actif') return; 
-
-            // Récupération des valeurs (s'assurer du nom de la colonne venant de Make)
-            const solde = parseFloat(emp.Solde_Conges || emp.solde_conges) || 0; 
-            const status = emp.Statut_Conge_Actuel || 'Aucune'; // A créer dans Airtable
-
-            let colorClass = 'text-emerald-600';
-            if (solde < 5) colorClass = 'text-red-600 font-bold';
-            else if (solde < 10) colorClass = 'text-orange-600';
-            
-            // Logique de demande en cours (on réutilise le statut existant)
-            const activeLeaveDot = allLeaves.some(l => l.nom === emp.nom && l.statut === 'en attente') 
-                                 ? '<span class="w-2 h-2 rounded-full bg-yellow-500 mr-2 inline-block"></span> En attente'
-                                 : 'Aucune';
-
-
-            body.innerHTML += `
-                <tr class="hover:bg-slate-50 transition-colors">
-                    <td class="px-8 py-3 text-sm font-bold text-slate-800">${emp.nom}</td>
-                    <td class="px-8 py-3 text-xs text-slate-500">${emp.dept}</td>
-                    <td class="px-8 py-3 text-center text-[10px] font-black">${activeLeaveDot}</td>
-                    <td class="px-8 py-3 text-right text-sm font-black ${colorClass}">${solde} jours</td>
-                </tr>
-            `;
-        });
-
-    } catch (e) {
-        console.error("Erreur chargement soldes :", e);
-        body.innerHTML = '<tr><td colspan="4" class="p-6 text-center text-red-500">Erreur de connexion au solde des congés.</td></tr>';
-    }
-}
-
-
-
 
 
 
@@ -3240,127 +3191,88 @@ function showLeaveDetail(btn) {
             });
         
     
-
 async function fetchLeaveRequests() {
-    // CORRECTION 1 : On ne bloque plus les employés ici !
     if (!currentUser) return; 
 
     const body = document.getElementById('leave-requests-body');       // Tableau Manager
     const section = document.getElementById('manager-leave-section');  // Section Manager
     const myBody = document.getElementById('my-leave-requests-body');  // Tableau Personnel
 
-    // Fonction de nettoyage interne
-    const normalize = (s) => String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-
     try {
+        // APPEL PAGINÉ AU SERVEUR
         const r = await secureFetch(`${URL_READ_LEAVES}?agent=${encodeURIComponent(currentUser.nom)}`);
-        const result = await r.json(); // On reçoit maintenant { data: [], meta: {} }
-        const rawLeaves = result.data || [];
+        const result = await r.json();
+        
+        const rawLeaves = result.data; // Les congés de la page
+        const meta = result.meta;      // Les infos de pagination
 
-        // Mapping des données (avec solde_actuel venant du backend mis à jour)
-        allLeaves = rawLeaves.map(l => {
-            const rawNom = l.nom_employe || (l.employees && l.employees.nom) || "Inconnu";
+        // --- PARTIE MANAGER (VALIDATION) ---
+        if (currentUser.role !== 'EMPLOYEE' && body && section) {
             
-            return {
-                id: l.id || '',
-                nom: rawNom.trim(),
-                nomIndex: normalize(rawNom),
-                statut: normalize(l.statut),
-                type: normalize(l.type),
-                debut: l.date_debut ? new Date(l.date_debut) : null,
-                fin: l.date_fin ? new Date(l.date_fin) : null,
-                motif: l.motif || "Aucun motif",
-                doc: l.justificatif_url || null,
-                solde: l.solde_actuel || 0
-            };
-        });
+            section.classList.remove('hidden'); 
+            body.innerHTML = '';
 
-        // ============================================================
-        // PARTIE 1 : TABLEAU DE VALIDATION (POUR MANAGER / ADMIN / RH)
-        // ============================================================
-        if (currentUser.role !== 'EMPLOYEE') {
-            const pending = allLeaves.filter(l => l.statut === 'en attente');
+            const pending = rawLeaves.filter(l => l.statut === 'En attente');
 
-            if (body && section) {
-                section.classList.remove('hidden'); 
-                body.innerHTML = '';
+            if (pending.length > 0) {
+                pending.forEach(l => {
+                    const dStart = l.date_debut ? new Date(l.date_debut).toLocaleDateString('fr-FR') : '?';
+                    const dEnd = l.date_fin ? new Date(l.date_fin).toLocaleDateString('fr-FR') : '?';
+                    
+                    const diffTime = (l.date_fin && l.date_debut) ? Math.abs(new Date(l.date_fin) - new Date(l.date_debut)) : 0;
+                    const daysDifference = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
 
-                if (pending.length > 0) {
-                    pending.forEach(l => {
-                        const dStart = l.debut ? l.debut.toLocaleDateString('fr-FR') : '?';
-                        const dEnd = l.fin ? l.fin.toLocaleDateString('fr-FR') : '?';
-                        
-                        const daysDifference = l.fin && l.debut ? (Math.ceil(Math.abs(l.fin - l.debut) / 86400000) + 1) : 1;
-                        const soldeColor = l.solde <= 0 ? 'text-red-500' : (l.solde < daysDifference ? 'text-orange-500' : 'text-emerald-600');
-
-                        body.innerHTML += `
-                            <tr class="border-b hover:bg-slate-50 transition-colors">
-                                <td class="px-8 py-4">
-                                    <div class="font-bold text-sm text-slate-700">${l.nom}</div>
-                                    <div class="text-[10px] text-slate-400 font-normal uppercase">${l.type}</div>
-                                </td>
-                                <td class="px-8 py-4 text-xs text-slate-500 font-bold">${dStart} ➔ ${dEnd}</td>
-                                <td class="px-8 py-4 text-right">
-                                    <div class="flex items-center justify-end gap-6">
-                                        <div class="text-right border-r border-slate-200 pr-4">
-                                            <p class="text-[9px] font-black text-slate-400 uppercase tracking-wide">Solde dispo</p>
-                                            <p class="text-xs font-black ${soldeColor}">${l.solde} jours</p>
-                                            <p class="text-[9px] text-slate-400 italic">Demande: ${daysDifference}j</p>
-                                        </div>
-                                        <div class="flex gap-2">
-                                            <button onclick="showLeaveDetailFromSafeData('${encodeURIComponent(l.nom)}','${encodeURIComponent(l.type)}','${dStart}','${dEnd}','${encodeURIComponent(l.motif)}','${encodeURIComponent(l.doc)}')" 
-                                                    class="p-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-600 hover:text-white" title="Voir le motif">
-                                                <i class="fa-solid fa-eye"></i>
-                                            </button>
-                                            <button onclick="processLeave('${l.id}')" class="bg-emerald-500 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase shadow-md shadow-emerald-200">OUI</button>
-                                            <button onclick="processLeave('${l.id}', 'Refusé')" class="bg-white text-red-500 border border-red-100 px-4 py-2 rounded-xl text-[10px] font-black uppercase">NON</button>
-                                        </div>
+                    body.innerHTML += `
+                        <tr class="border-b hover:bg-slate-50 transition-colors">
+                            <td class="px-8 py-4">
+                                <div class="font-bold text-sm text-slate-700">${l.nom_employe}</div>
+                                <div class="text-[10px] text-slate-400 font-normal uppercase">${l.type || 'Congé'}</div>
+                            </td>
+                            <td class="px-8 py-4 text-xs text-slate-500 font-bold">${dStart} ➔ ${dEnd}</td>
+                            <td class="px-8 py-4">
+                                <div class="flex items-center justify-end gap-4">
+                                    <div class="text-right">
+                                        <p class="text-[9px] font-black text-slate-400 uppercase">Solde</p>
+                                        <p class="text-sm font-black ${l.solde_actuel <= 0 ? 'text-red-500' : 'text-emerald-600'}">${l.solde_actuel} j</p>
                                     </div>
-                                </td>
-                            </tr>`;
-                    });
-                } else {
-                    body.innerHTML = `
-                        <tr>
-                            <td colspan="3" class="px-8 py-10 text-center text-slate-400">
-                                <div class="flex flex-col items-center gap-2">
-                                    <i class="fa-solid fa-check-double text-2xl opacity-20"></i>
-                                    <p class="text-xs font-bold uppercase tracking-widest">Aucune demande en attente</p>
+                                    <button onclick="showLeaveDetail(this)" data-doc="${l.justificatif_url}" ... class="p-2 bg-blue-50 text-blue-600 rounded-xl"><i class="fa-solid fa-eye"></i></button>
+                                    <div class="flex gap-1">
+                                        <button onclick="processLeave('${l.id}', 'Validé', ${daysDifference})" class="bg-emerald-500 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase">OUI</button>
+                                        <button onclick="processLeave('${l.id}', 'Refusé', 0)" class="bg-white text-red-500 border border-red-100 px-4 py-2 rounded-xl text-[10px] font-black uppercase">NON</button>
+                                    </div>
                                 </div>
                             </td>
                         </tr>`;
-                }
+                });
+            } else {
+                body.innerHTML = `<tr><td colspan="3" class="px-8 py-10 text-center text-slate-400"><p class="text-xs font-bold uppercase tracking-widest">Aucune demande en attente</p></td></tr>`;
             }
         }
-
-        // ============================================================
-        // PARTIE 2 : HISTORIQUE PERSONNEL (INCHANGÉ)
-        // ============================================================
+        
+        // --- PARTIE EMPLOYÉ (HISTORIQUE PERSONNEL) ---
         if (myBody) {
             myBody.innerHTML = '';
-            const myNameNormalized = normalize(currentUser.nom);
-            const myRequests = allLeaves.filter(l => l.nomIndex === myNameNormalized);
-
-            if (myRequests.length === 0) {
+            
+            // On affiche toutes les demandes (pas seulement 'pending')
+            if (rawLeaves.length === 0) {
                 myBody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-slate-400 italic">Aucune demande soumise.</td></tr>';
             } else {
-                myRequests.sort((a, b) => b.debut - a.debut);
-                myRequests.forEach(r => {
-                    const dStart = r.debut ? r.debut.toLocaleDateString('fr-FR') : '?';
-                    const dEnd = r.fin ? r.fin.toLocaleDateString('fr-FR') : '?';
+                rawLeaves.sort((a, b) => new Date(b.date_debut) - new Date(a.date_debut));
+                rawLeaves.forEach(r => {
+                    const dStart = r.date_debut ? new Date(r.date_debut).toLocaleDateString('fr-FR') : '?';
+                    const dEnd = r.date_fin ? new Date(r.date_fin).toLocaleDateString('fr-FR') : '?';
                     
-                    let statusClass = 'bg-slate-100 text-slate-600';
-                    let statusText = r.statut.toUpperCase();
+                    let statusClass = 'bg-slate-100 text-slate-600', statusText = r.statut;
 
-                    if (r.statut.includes('attente')) statusClass = 'bg-yellow-50 text-yellow-700';
-                    else if (r.statut.includes('valid')) statusClass = 'bg-emerald-50 text-emerald-700';
-                    else if (r.statut.includes('refus')) statusClass = 'bg-red-50 text-red-700';
+                    if (r.statut === 'En attente') { statusClass = 'bg-yellow-50 text-yellow-700'; statusText = '⏳ EN ATTENTE'; }
+                    else if (r.statut === 'Validé') { statusClass = 'bg-emerald-50 text-emerald-700'; statusText = '✅ APPROUVÉ'; }
+                    else if (r.statut === 'Refusé') { statusClass = 'bg-red-50 text-red-700'; statusText = '❌ REFUSÉ'; }
 
                     myBody.innerHTML += `
                         <tr class="hover:bg-slate-50 border-b last:border-0">
                             <td class="px-6 py-4 text-xs font-bold text-slate-700">${dStart} au ${dEnd}</td>
                             <td class="px-6 py-4 text-xs font-medium text-slate-500 capitalize">${r.type}</td>
-                            <td class="px-6 py-4 text-xs text-slate-400 italic truncate" style="max-width:150px">${r.motif}</td>
+                            <td class="px-6 py-4 text-xs text-slate-400 italic">${r.motif?.substring(0, 25) + (r.motif?.length > 25 ? '...' : '')}</td>
                             <td class="px-6 py-4 text-right">
                                 <span class="px-2.5 py-1.5 rounded-lg text-[10px] font-black ${statusClass}">${statusText}</span>
                             </td>
@@ -3368,14 +3280,14 @@ async function fetchLeaveRequests() {
                 });
             }
         }
-
-        renderCharts();
-
     } catch (e) {
         console.error("Erreur fetchLeaveRequests:", e);
-        if(myBody) myBody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-red-400">Erreur de chargement des congés.</td></tr>';
+        if(myBody) myBody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-red-400">Erreur de chargement.</td></tr>';
     }
 }
+
+
+
 
 
 
@@ -5620,6 +5532,7 @@ function setReportView(mode) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
