@@ -5443,28 +5443,32 @@ async function fetchMobileReports(page = 1) {
 
 
 
+
 function setEmployeeFilter(category, value) {
-    // 1. On met à jour la mémoire
     activeFilters[category] = value;
     
-    // 2. On change les couleurs des boutons pour que Bill voit ce qu'il a choisi
-    // On cherche le groupe de boutons (ex: filter-group-status)
     const container = document.getElementById(`filter-group-${category}`);
-    if (container) {
-        container.querySelectorAll('.filter-chip').forEach(btn => {
-            // Si le bouton correspond à la valeur cliquée -> Bleu
-            if (btn.getAttribute('data-value') === value) {
-                btn.className = "filter-chip px-3 py-1.5 rounded-lg text-[10px] font-black border bg-blue-600 text-white border-blue-600 shadow-md transition-all";
-            } else {
-                // Sinon -> Blanc
-                btn.className = "filter-chip px-3 py-1.5 rounded-lg text-[10px] font-bold border bg-white text-slate-600 border-slate-200 hover:border-blue-300 transition-all";
-            }
-        });
-    }
+    if (!container) return;
 
-    // 3. On repart à la page 1 et on demande les données au serveur
-    fetchData(true, 1);
+    container.querySelectorAll('.filter-chip').forEach(btn => {
+        const btnValue = btn.getAttribute('data-value');
+        
+        if (btnValue === value) {
+            // STYLE ACTIF
+            btn.classList.add('bg-blue-600', 'text-white');
+            btn.classList.remove('text-slate-500', 'bg-white', 'bg-blue-50');
+            if (category !== 'status') btn.classList.add('border-blue-600', 'shadow-md');
+        } else {
+            // STYLE INACTIF
+            btn.classList.remove('bg-blue-600', 'text-white', 'border-blue-600', 'shadow-md');
+            btn.classList.add('text-slate-500');
+            if (category !== 'status') btn.classList.add('bg-white', 'border-slate-200');
+        }
+    });
+
+    fetchData(true, 1); // Relancer la recherche
 }
+
 
 
 async function renderCharts() {
@@ -5628,6 +5632,7 @@ function setReportView(mode) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
