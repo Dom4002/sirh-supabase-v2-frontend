@@ -5319,7 +5319,6 @@ function changeReportTab(tab) {
 
 
 
-
 async function fetchMobileReports() {
     const container = document.getElementById('reports-list-container');
     const counterEl = document.getElementById('stat-visites-total');
@@ -5329,29 +5328,34 @@ async function fetchMobileReports() {
 
     if (!container) return;
     
-    // On affiche le loader
+    // On lance le chargement
     container.innerHTML = '<div class="col-span-full text-center p-10"><i class="fa-solid fa-circle-notch fa-spin text-blue-500 text-3xl"></i></div>';
 
     try {
         if (currentReportTab === 'visits') {
-            // --- LOGIQUE VISITES (DÉJÀ OK) ---
+            // --- LOGIQUE VISITES ---
             const r = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/read-visit-reports`);
             let data = await r.json();
-            if (nameFilter) data = data.filter(v => v.nom_agent.toLowerCase().includes(nameFilter));
+
+            if (nameFilter) {
+                data = data.filter(v => v.nom_agent?.toLowerCase().includes(nameFilter));
+            }
+
             if(labelEl) labelEl.innerText = "TOTAL VISITES (MOIS)";
             if(counterEl) counterEl.innerText = data.length; 
 
             container.innerHTML = '';
             if (!data || data.length === 0) {
-                container.innerHTML = '<div class="col-span-full text-center text-slate-400 py-10">Aucune visite trouvée.</div>';
+                container.innerHTML = '<div class="col-span-full text-center text-slate-400 py-10">Aucune visite certifiée.</div>';
                 return;
             }
 
             // Regroupement par délégué
             const grouped = {};
             data.forEach(v => {
-                if (!grouped[v.nom_agent]) grouped[v.nom_agent] = [];
-                grouped[v.nom_agent].push(v);
+                const name = v.nom_agent || "Inconnu";
+                if (!grouped[name]) grouped[name] = [];
+                grouped[name].push(v);
             });
 
             let html = `<div class="col-span-full space-y-6">`;
@@ -5362,13 +5366,17 @@ async function fetchMobileReports() {
                             <span class="font-black text-white text-xs uppercase tracking-widest">${name}</span>
                             <span class="bg-blue-500 text-white px-2 py-0.5 rounded-lg text-[10px] font-bold">${visits.length} SITES</span>
                         </div>
-                        <table class="w-full text-left"><tbody class="divide-y divide-slate-100">`;
+                        <table class="w-full text-left">
+                            <tbody class="divide-y divide-slate-100">`;
+                
                 visits.forEach(v => {
                     html += `
-                        <tr class="hover:bg-blue-50/30">
+                        <tr class="hover:bg-blue-50/30 transition-colors">
                             <td class="px-6 py-3 text-xs font-bold text-blue-600 w-1/3 uppercase">${v.lieu_nom}</td>
                             <td class="px-6 py-3 text-[11px] text-slate-400 font-mono">${v.check_in ? new Date(v.check_in).toLocaleString([], {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'}) : '--'}</td>
-                            <td class="px-6 py-3 text-center">${v.proof_url ? `<button onclick="viewDocument('${v.proof_url}', 'Cachet')" class="text-emerald-500"><i class="fa-solid fa-camera-retro text-lg"></i></button>` : '<i class="fa-solid fa-ban text-slate-200"></i>'}</td>
+                            <td class="px-6 py-3 text-center">
+                                ${v.proof_url ? `<button onclick="viewDocument('${v.proof_url}', 'Cachet')" class="text-emerald-500"><i class="fa-solid fa-camera-retro text-lg"></i></button>` : '<i class="fa-solid fa-ban text-slate-200"></i>'}
+                            </td>
                             <td class="px-6 py-3 text-right text-[10px] text-slate-400 italic truncate max-w-[150px]">${v.notes || '-'}</td>
                         </tr>`;
                 });
@@ -5377,12 +5385,14 @@ async function fetchMobileReports() {
             container.innerHTML = html + `</div>`;
 
         } else {
-            // --- LOGIQUE BILANS JOURNALIERS (DAILY) CORRIGÉE ---
+            // --- LOGIQUE BILANS JOURNALIERS (CORRIGÉE) ---
             const r = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/read-daily-reports`);
             let data = await r.json();
 
-            if (nameFilter) data = data.filter(rep => rep.employees?.nom.toLowerCase().includes(nameFilter));
-            
+            if (nameFilter) {
+                data = data.filter(rep => rep.employees?.nom.toLowerCase().includes(nameFilter));
+            }
+
             if(labelEl) labelEl.innerText = "TOTAL BILANS JOURNALIERS";
             if(counterEl) counterEl.innerText = data.length; 
 
@@ -5392,11 +5402,18 @@ async function fetchMobileReports() {
                 return;
             }
 
-            // Affichage en mode liste compacte pour les bilans
-            let html = `<div class="col-span-full bg-white rounded-[2rem] shadow-sm border overflow-hidden"><table class="w-full text-left border-collapse">
-                <thead class="bg-slate-50 border-b"><tr class="text-[10px] font-black text-slate-400 uppercase">
-                <th class="p-4">Agent</th><th class="p-4">Date</th><th class="p-4">Résumé</th><th class="p-4 text-center">Stock</th><th class="p-4 text-right">Photo</th>
-                </tr></thead><tbody class="divide-y divide-slate-100">`;
+            let html = `<div class="col-span-full bg-white rounded-[2rem] shadow-sm border overflow-hidden animate-fadeIn">
+                <table class="w-full text-left border-collapse">
+                    <thead class="bg-slate-50 border-b">
+                        <tr class="text-[10px] font-black text-slate-400 uppercase">
+                            <th class="p-4">Agent</th>
+                            <th class="p-4">Date</th>
+                            <th class="p-4">Résumé</th>
+                            <th class="p-4 text-center">Stock</th>
+                            <th class="p-4 text-right">Photo</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">`;
 
             data.forEach(rep => {
                 html += `
@@ -5406,18 +5423,17 @@ async function fetchMobileReports() {
                         <td class="p-4 text-xs text-slate-600 italic max-w-md truncate" title="${rep.summary}">${rep.summary}</td>
                         <td class="p-4 text-center">${rep.needs_restock ? '⚠️ REAPPRO' : '✅ OK'}</td>
                         <td class="p-4 text-right">
-                            ${rep.photo_url ? `<button onclick="viewDocument('${rep.photo_url}', 'Cahier')" class="text-blue-500 hover:scale-110 transition-transform"><i class="fa-solid fa-file-image text-lg"></i></button>` : '<i class="fa-solid fa-ban text-slate-200"></i>'}
+                            ${rep.photo_url ? `<button onclick="viewDocument('${rep.photo_url}', 'Cahier')" class="text-blue-500"><i class="fa-solid fa-file-image text-lg"></i></button>` : '<i class="fa-solid fa-ban text-slate-200"></i>'}
                         </td>
                     </tr>`;
             });
             container.innerHTML = html + `</tbody></table></div>`;
         }
     } catch (e) {
-        console.error("Erreur de chargement des rapports:", e);
-        container.innerHTML = '<div class="col-span-full text-center text-red-500 py-10 font-bold">Impossible de charger les données. Vérifiez la console.</div>';
+        console.error("Erreur de chargement:", e);
+        container.innerHTML = '<div class="col-span-full text-center text-red-500 py-10 font-bold">Erreur de connexion aux données.</div>';
     }
 }
-
 
 
 
@@ -5492,6 +5508,7 @@ function setReportView(mode) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
