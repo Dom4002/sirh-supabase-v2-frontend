@@ -1096,7 +1096,7 @@ async function triggerGlobalPush(title, message) {
             localStorage.setItem(CACHE_KEY + '_time', Date.now());
 
             // 5. Mise à jour Interface
-            renderData();
+            loadEmployeeList(currentEmpPage);
             renderCharts();
 
             // 6. Si Manager, on charge les congés
@@ -1112,7 +1112,7 @@ async function triggerGlobalPush(title, message) {
             if (cached) {
                 console.log("⚠️ Utilisation du cache de secours");
                 employees = JSON.parse(cached);
-                renderData();
+                loadEmployeeList(currentEmpPage);
                 loadMyProfile();
             } else {
                 Swal.fire('Erreur Connexion', 'Impossible de charger vos informations.', 'error');
@@ -1928,7 +1928,9 @@ async function fetchEmployeeLeaveBalances() {
     try {
         // On réutilise fetchAllData qui charge déjà la liste des employés
         // (En s'assurant que Make renvoie bien le Solde_Conges)
-        await fetchData(true); 
+        await refreshAllData(true); 
+        if (employees.length === 0) await loadEmployeeList(1); 
+
         
         body.innerHTML = '';
         
@@ -2032,12 +2034,13 @@ function switchView(v) {
     // 1. Dashboard (Statistiques et Live Tracker)
     if (v === 'dash') {
         renderCharts();
+        loadEmployeeStats(); // Charge les graphiques
         fetchLiveAttendance();
     }
 
     // 2. Collaborateurs (Affichage de la liste)
     if (v === 'employees') {
-        renderData();
+        loadEmployeeList(1); // Charge la liste (Page 1) au lieu de renderData
     }
 
     if (v === 'accounting') loadAccountingView();
@@ -2343,7 +2346,7 @@ async function triggerRobotCheck() {
             if (response.ok) {
                 Swal.fire('Succès', 'Votre profil a été mis à jour', 'success');
                 toggleEditMode(); 
-                fetchData(true); // On met à jour ses infos
+                refreshAllData(true); // On met à jour ses infos
             } else {
                 throw new Error("Erreur serveur (" + response.status + ")");
             }
@@ -2453,7 +2456,7 @@ async function triggerRobotCheck() {
                 });
 
                 // 5. Rafraîchit les données en arrière-plan et change de vue
-                await fetchData(true); // Recharge la liste depuis Supabase
+                await refreshAllData(true); // Recharge la liste depuis Supabase
                 switchView('employees'); // Redirige l'admin vers la liste des employés
             }
                     
@@ -3845,7 +3848,7 @@ async function handleCandidateAction(id, action) {
     if (result && result.status === "success") {
         Swal.fire('Succès', 'Action effectuée avec succès.', 'success');
         fetchCandidates(); 
-        if(action === 'ACCEPTER_EMBAUCHE') fetchData(true);
+        if(action === 'ACCEPTER_EMBAUCHE') refreshAllData(true);
     } else {
         throw new Error("Le serveur n'a pas confirmé l'action (Crédits épuisés ?)");
     }
@@ -4234,7 +4237,7 @@ async function fetchPayrollData() {
             }
         });
 
-        renderData(); // On redessine le tableau
+        loadEmployeeList(currentEmpPage); // On redessine le tableau
     }
 
 
@@ -5589,6 +5592,7 @@ function setReportView(mode) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
