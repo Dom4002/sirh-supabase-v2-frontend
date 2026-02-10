@@ -3222,42 +3222,27 @@ async function fetchLeaveRequests() {
                     const diffTime = (l.date_fin && l.date_debut) ? Math.abs(new Date(l.date_fin) - new Date(l.date_debut)) : 0;
                     const daysDifference = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
 
-                  
-
-body.innerHTML += `
-    <tr class="border-b hover:bg-slate-50 transition-colors">
-        <td class="px-8 py-4">
-            <div class="font-bold text-sm text-slate-700">${l.nom_employe}</div>
-            <div class="text-[10px] text-slate-400 uppercase font-black tracking-widest">${l.type}</div>
-        </td>
-        <td class="px-8 py-4 text-xs text-slate-500 font-bold">
-            ${new Date(l.date_debut).toLocaleDateString()} ➔ ${new Date(l.date_fin).toLocaleDateString()}
-        </td>
-        <td class="px-8 py-4 text-right">
-            <div class="flex items-center justify-end gap-4">
-                <!-- LE SOLDE S'AFFICHE ICI -->
-                <div class="text-right mr-4">
-                    <p class="text-[9px] font-black text-slate-400 uppercase">Solde actuel</p>
-                    <p class="text-xs font-black ${l.solde_actuel <= 0 ? 'text-red-500' : 'text-emerald-600'}">
-                        ${l.solde_actuel} jours
-                    </p>
-                </div>
-
-                <button onclick="showLeaveDetail(this)" ... class="p-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-600 hover:text-white transition-all">
-                    <i class="fa-solid fa-eye"></i>
-                </button>
-                
-                <div class="flex gap-1">
-                    <button onclick="processLeave('${l.id}', 'Validé')" class="bg-emerald-500 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase shadow-lg shadow-emerald-100 active:scale-95 transition-all">OUI</button>
-                    <button onclick="processLeave('${l.id}', 'Refusé')" class="bg-white text-red-500 border border-red-100 px-4 py-2 rounded-xl text-[10px] font-black uppercase active:scale-95 transition-all">NON</button>
-                </div>
-            </div>
-        </td>
-    </tr>`;
-
-
-
-                            
+                    body.innerHTML += `
+                        <tr class="border-b hover:bg-slate-50 transition-colors">
+                            <td class="px-8 py-4">
+                                <div class="font-bold text-sm text-slate-700">${l.nom_employe}</div>
+                                <div class="text-[10px] text-slate-400 font-normal uppercase">${l.type || 'Congé'}</div>
+                            </td>
+                            <td class="px-8 py-4 text-xs text-slate-500 font-bold">${dStart} ➔ ${dEnd}</td>
+                            <td class="px-8 py-4">
+                                <div class="flex items-center justify-end gap-4">
+                                    <div class="text-right">
+                                        <p class="text-[9px] font-black text-slate-400 uppercase">Solde</p>
+                                        <p class="text-sm font-black ${l.solde_actuel <= 0 ? 'text-red-500' : 'text-emerald-600'}">${l.solde_actuel} j</p>
+                                    </div>
+                                    <button onclick="showLeaveDetail(this)" data-doc="${l.justificatif_url}" ... class="p-2 bg-blue-50 text-blue-600 rounded-xl"><i class="fa-solid fa-eye"></i></button>
+                                    <div class="flex gap-1">
+                                        <button onclick="processLeave('${l.id}', 'Validé', ${daysDifference})" class="bg-emerald-500 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase">OUI</button>
+                                        <button onclick="processLeave('${l.id}', 'Refusé', 0)" class="bg-white text-red-500 border border-red-100 px-4 py-2 rounded-xl text-[10px] font-black uppercase">NON</button>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>`;
                 });
             } else {
                 body.innerHTML = `<tr><td colspan="3" class="px-8 py-10 text-center text-slate-400"><p class="text-xs font-bold uppercase tracking-widest">Aucune demande en attente</p></td></tr>`;
@@ -5547,8 +5532,6 @@ function setReportView(mode) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
-
-
 
 
 
