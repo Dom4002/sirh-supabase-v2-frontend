@@ -12,6 +12,11 @@
 
 let reportPage = 1;
 let reportTotalPages = 1;
+
+
+let searchTimeout = null;
+let currentSearchText = "";
+let currentStatusFilter = "all";
     // ==========================================
     // CONFIGURATION DE PERSONNALISATION (SAAS)
     // ==========================================
@@ -1060,30 +1065,36 @@ async function triggerGlobalPush(title, message) {
 
 
 
+
+
 async function fetchData(forceUpdate = false, page = 1) { 
     console.log(`🚀 fetchData lancée. Page: ${page}, Role: ${currentUser.role}`);
 
     const CACHE_KEY = 'sirh_data_v1';
     const limit = 10; 
     
-    // 1. Construction de l'URL avec pagination
-    let fetchUrl = `${URL_READ}?page=${page}&limit=${limit}&agent=${encodeURIComponent(currentUser.nom)}`;
+    // On s'assure que les variables de recherche et filtres existent (ou chaîne vide par défaut)
+    const search = typeof currentSearchText !== 'undefined' ? currentSearchText : "";
+    const filter = typeof currentStatusFilter !== 'undefined' ? currentStatusFilter : "all";
+
+    // 1. Construction de l'URL avec TOUS les paramètres : page, limit, recherche et filtre
+    let fetchUrl = `${URL_READ}?page=${page}&limit=${limit}&search=${encodeURIComponent(search)}&filter=${filter}&agent=${encodeURIComponent(currentUser.nom)}`;
 
     if (currentUser.role === 'EMPLOYEE') {
         fetchUrl += `&target_id=${encodeURIComponent(currentUser.id)}`;
     }
 
     try {
-        console.log("📞 Appel API vers :", fetchUrl);
+        console.log("📞 Appel API (Deep Search) vers :", fetchUrl);
         
         const r = await secureFetch(fetchUrl);
         const result = await r.json(); 
 
-        // Extraction des données et des métadonnées
+        // Extraction des données et des métadonnées (meta renvoyé par le backend)
         const d = result.data || [];
         const meta = result.meta || { total: d.length, page: 1, last_page: 1 };
 
-        console.log(`✅ Page ${meta.page} reçue :`, d.length, "enregistrements");
+        console.log(`✅ Page ${meta.page} reçue :`, d.length, "enregistrements trouvés");
 
         // 3. MAPPING (TON CODE ORIGINAL CONSERVÉ TEL QUEL)
         employees = d.map(x => {
@@ -1118,18 +1129,17 @@ async function fetchData(forceUpdate = false, page = 1) {
         localStorage.setItem(CACHE_KEY, JSON.stringify(employees));
         localStorage.setItem(CACHE_KEY + '_time', Date.now());
 
-        // 5. Mise à jour du Tableau (10 lignes)
+        // 5. Mise à jour du Tableau (affiche les 10 résultats de la page)
         renderData();
 
-        // --- CORRECTION DE LA NAVIGATION (PAGINATION) ---
-        // On cible l'élément footer du tableau au lieu de toute la section
+        // --- MISE À JOUR DE LA NAVIGATION (PAGINATION FOOTER) ---
         const paginationFooter = document.getElementById('employee-pagination-footer');
         
         if (paginationFooter) {
             if (meta.last_page > 1) {
                 paginationFooter.innerHTML = `
                     <button onclick="fetchData(true, ${meta.page - 1})" ${meta.page <= 1 ? 'disabled' : ''} 
-                        class="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-[10px] font-black uppercase text-slate-600 disabled:opacity-30 hover:bg-slate-100 transition-all">
+                        class="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-[10px] font-black uppercase text-slate-600 disabled:opacity-30 hover:bg-slate-100 transition-all shadow-sm">
                         <i class="fa-solid fa-chevron-left"></i> Précédent
                     </button>
                     
@@ -1138,16 +1148,16 @@ async function fetchData(forceUpdate = false, page = 1) {
                     </span>
                     
                     <button onclick="fetchData(true, ${meta.page + 1})" ${meta.page >= meta.last_page ? 'disabled' : ''} 
-                        class="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-[10px] font-black uppercase text-slate-600 disabled:opacity-30 hover:bg-slate-100 transition-all">
+                        class="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-[10px] font-black uppercase text-slate-600 disabled:opacity-30 hover:bg-slate-100 transition-all shadow-sm">
                         Suivant <i class="fa-solid fa-chevron-right"></i>
                     </button>
                 `;
             } else {
-                paginationFooter.innerHTML = `<span class="text-[10px] font-black text-slate-300 uppercase">Fin de liste</span>`;
+                paginationFooter.innerHTML = `<span class="text-[10px] font-black text-slate-300 uppercase tracking-widest">Fin de liste</span>`;
             }
         }
 
-        // 6. Mise à jour graphiques (utilise la route globale dashboard-stats)
+        // 6. Mise à jour graphiques (utilise la route globale dashboard-stats pour rester précis)
         renderCharts();
 
         if (currentUser.role !== 'EMPLOYEE') {
@@ -1166,6 +1176,8 @@ async function fetchData(forceUpdate = false, page = 1) {
         }
     }
 }
+
+
 
 
 
@@ -2277,7 +2289,7 @@ function switchView(v) {
             function toggleSidebar(){const sb=document.getElementById('sidebar'), o=document.getElementById('sidebar-overlay'); if(sb.classList.contains('-translate-x-full')){sb.classList.remove('-translate-x-full');o.classList.remove('hidden');}else{sb.classList.add('-translate-x-full');o.classList.add('hidden');}}
         
 
-            function filterTable(){const t=document.getElementById('search-input').value.toLowerCase(); const s=document.querySelector('.view-section.active'); if(s)s.querySelectorAll('tbody tr').forEach(r=>{r.style.display=r.innerText.toLowerCase().includes(t)?'':'none'})}
+
           
         
             function parseDateSmart(d){if(!d)return new Date();if(!isNaN(d)&&!String(d).includes('/'))return new Date((d-25569)*86400000);if(String(d).includes('/')){const p=d.split('/'); return new Date(p[2],p[1]-1,p[0]);}return new Date(d);}
@@ -2859,6 +2871,44 @@ async function viewDocument(url, title) {
     }
 
 
+
+
+
+
+// 1. La Recherche (Serveur)
+function filterTable() {
+    const input = document.getElementById('search-input');
+    currentSearchText = input.value.trim();
+
+    // On annule le déclenchement précédent pour ne pas surcharger le serveur
+    clearTimeout(searchTimeout);
+
+    // On attend 300ms après la dernière touche tapée
+    searchTimeout = setTimeout(() => {
+        fetchData(true, 1); // On relance la recherche à la page 1
+    }, 300);
+}
+
+// 2. Le Filtre (Serveur)
+function applySmartFilter(filterType) {
+    currentStatusFilter = filterType;
+    
+    // Mise à jour visuelle des boutons (Active / Hover)
+    document.querySelectorAll('.filter-chip').forEach(btn => {
+        const isThisOne = btn.innerText.toLowerCase() === filterType.toLowerCase() || 
+                          (filterType === 'all' && btn.innerText.toLowerCase() === 'tous');
+        
+        if(isThisOne) {
+            btn.classList.add('bg-blue-600', 'text-white', 'border-blue-600', 'shadow-md');
+            btn.classList.remove('bg-white', 'text-slate-600');
+        } else {
+            btn.classList.remove('bg-blue-600', 'text-white', 'border-blue-600', 'shadow-md');
+            btn.classList.add('bg-white', 'text-slate-600');
+        }
+    });
+
+    fetchData(true, 1); // On relance le filtre à la page 1
+}
 
             
             function generateDraftContract(id) { 
@@ -4328,20 +4378,7 @@ async function fetchPayrollData() {
     }
 
 
-    function applySmartFilter(filterType) {
-        currentFilter = filterType;
-        currentPage = 1; // On revient à la page 1 lors d'un filtrage
-        
-        // Mise à jour visuelle des boutons
-        document.querySelectorAll('.filter-chip').forEach(btn => {
-            btn.classList.remove('active-chip');
-            if(btn.innerText.toLowerCase() === filterType.toLowerCase() || (filterType === 'all' && btn.innerText.toLowerCase() === 'tous')) {
-                btn.classList.add('active-chip');
-            }
-        });
 
-        renderData(); // On redessine le tableau
-    }
 
 
     // Fonction magique pour décider si on écrit en blanc ou en noir sur une couleur
@@ -5550,6 +5587,7 @@ function setReportView(mode) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
