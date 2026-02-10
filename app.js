@@ -1059,106 +1059,113 @@ async function triggerGlobalPush(title, message) {
 
 
 
-async function fetchData(forceUpdate = false, page = 1) { // Ajout du paramètre page (par défaut 1)
-        console.log(`🚀 fetchData lancée. Page: ${page}, Role: ${currentUser.role}`);
 
-        const CACHE_KEY = 'sirh_data_v1';
-        const limit = 10; // On définit le nombre de collaborateurs par page
+async function fetchData(forceUpdate = false, page = 1) { 
+    console.log(`🚀 fetchData lancée. Page: ${page}, Role: ${currentUser.role}`);
+
+    const CACHE_KEY = 'sirh_data_v1';
+    const limit = 10; 
+    
+    // 1. Construction de l'URL avec pagination
+    let fetchUrl = `${URL_READ}?page=${page}&limit=${limit}&agent=${encodeURIComponent(currentUser.nom)}`;
+
+    if (currentUser.role === 'EMPLOYEE') {
+        fetchUrl += `&target_id=${encodeURIComponent(currentUser.id)}`;
+    }
+
+    try {
+        console.log("📞 Appel API vers :", fetchUrl);
         
-        // 1. On construit l'URL avec les paramètres page et limit
-        let fetchUrl = `${URL_READ}?page=${page}&limit=${limit}&agent=${encodeURIComponent(currentUser.nom)}`;
+        const r = await secureFetch(fetchUrl);
+        const result = await r.json(); 
 
-        if (currentUser.role === 'EMPLOYEE') {
-            fetchUrl += `&target_id=${encodeURIComponent(currentUser.id)}`;
+        // Extraction des données et des métadonnées
+        const d = result.data || [];
+        const meta = result.meta || { total: d.length, page: 1, last_page: 1 };
+
+        console.log(`✅ Page ${meta.page} reçue :`, d.length, "enregistrements");
+
+        // 3. MAPPING (TON CODE ORIGINAL CONSERVÉ TEL QUEL)
+        employees = d.map(x => {
+            return { 
+                id: x.id, 
+                nom: x.nom, 
+                date: x.date_embauche, 
+                employee_type: x.employee_type || 'OFFICE', 
+                poste: x.poste, 
+                dept: x.departement || "Non défini", 
+                Solde_Conges: parseFloat(x.solde_conges) || 0,
+                limit: x.type_contrat === 'CDI' ? '365' : (x.type_contrat === 'CDD' ? '180' : '90'), 
+                photo: x.photo_url || '', 
+                statut: x.statut || 'Actif', 
+                email: x.email, 
+                telephone: x.telephone, 
+                adresse: x.adresse, 
+                date_naissance: x.date_naissance, 
+                role: x.role || 'EMPLOYEE',
+                matricule: x.matricule || 'N/A',
+                doc: x.contrat_pdf_url || '',
+                cv_link: x.cv_url || '',
+                id_card_link: x.id_card_url || '',
+                diploma_link: x.diploma_url || '',
+                attestation_link: x.attestation_url || '',
+                lm_link: x.lm_url || '',
+                contract_status: x.contract_status || 'Non signé'
+            };
+        });
+
+        // 4. Sauvegarde Cache
+        localStorage.setItem(CACHE_KEY, JSON.stringify(employees));
+        localStorage.setItem(CACHE_KEY + '_time', Date.now());
+
+        // 5. Mise à jour du Tableau (10 lignes)
+        renderData();
+
+        // --- CORRECTION DE LA NAVIGATION (PAGINATION) ---
+        // On cible l'élément footer du tableau au lieu de toute la section
+        const paginationFooter = document.getElementById('employee-pagination-footer');
+        
+        if (paginationFooter) {
+            if (meta.last_page > 1) {
+                paginationFooter.innerHTML = `
+                    <button onclick="fetchData(true, ${meta.page - 1})" ${meta.page <= 1 ? 'disabled' : ''} 
+                        class="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-[10px] font-black uppercase text-slate-600 disabled:opacity-30 hover:bg-slate-100 transition-all">
+                        <i class="fa-solid fa-chevron-left"></i> Précédent
+                    </button>
+                    
+                    <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        PAGE ${meta.page} / ${meta.last_page}
+                    </span>
+                    
+                    <button onclick="fetchData(true, ${meta.page + 1})" ${meta.page >= meta.last_page ? 'disabled' : ''} 
+                        class="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-[10px] font-black uppercase text-slate-600 disabled:opacity-30 hover:bg-slate-100 transition-all">
+                        Suivant <i class="fa-solid fa-chevron-right"></i>
+                    </button>
+                `;
+            } else {
+                paginationFooter.innerHTML = `<span class="text-[10px] font-black text-slate-300 uppercase">Fin de liste</span>`;
+            }
         }
 
-        try {
-            console.log("📞 Appel API vers :", fetchUrl);
-            
-            const r = await secureFetch(fetchUrl);
-            const result = await r.json(); // On reçoit maintenant { data: [], meta: {} }
+        // 6. Mise à jour graphiques (utilise la route globale dashboard-stats)
+        renderCharts();
 
-            // On extrait les données et les infos de pagination
-            const d = result.data || [];
-            const meta = result.meta || { total: d.length, page: 1, last_page: 1 };
+        if (currentUser.role !== 'EMPLOYEE') {
+            fetchLeaveRequests();
+        }
 
-            console.log(`✅ Page ${meta.page} reçue :`, d.length, "enregistrements");
-
-            // 3. Mapping (Nettoyage des données) - TON CODE ORIGINAL CONSERVÉ
-            employees = d.map(x => {
-                return { 
-                    id: x.id, 
-                    nom: x.nom, 
-                    date: x.date_embauche, 
-                    employee_type: x.employee_type || 'OFFICE', 
-                    poste: x.poste, 
-                    dept: x.departement || "Non défini", 
-                    Solde_Conges: parseFloat(x.solde_conges) || 0,
-                    limit: x.type_contrat === 'CDI' ? '365' : (x.type_contrat === 'CDD' ? '180' : '90'), 
-                    photo: x.photo_url || '', 
-                    statut: x.statut || 'Actif', 
-                    email: x.email, 
-                    telephone: x.telephone, 
-                    adresse: x.adresse, 
-                    date_naissance: x.date_naissance, 
-                    role: x.role || 'EMPLOYEE',
-                    matricule: x.matricule || 'N/A',
-                    doc: x.contrat_pdf_url || '',
-                    cv_link: x.cv_url || '',
-                    id_card_link: x.id_card_url || '',
-                    diploma_link: x.diploma_url || '',
-                    attestation_link: x.attestation_url || '',
-                    lm_link: x.lm_url || '',
-                    contract_status: x.contract_status || 'Non signé'
-                };
-            });
-
-            // 4. Sauvegarde Cache
-            localStorage.setItem(CACHE_KEY, JSON.stringify(employees));
-            localStorage.setItem(CACHE_KEY + '_time', Date.now());
-
-            // 5. Mise à jour Interface
+    } catch (e) {
+        console.error("❌ ERREUR FETCH:", e);
+        const cached = localStorage.getItem(CACHE_KEY);
+        if (cached) {
+            employees = JSON.parse(cached);
             renderData();
-
-            // --- NOUVEAU : GESTION DES CONTRÔLES DE PAGINATION ---
-            const container = document.getElementById('view-employees');
-            const oldPagination = document.getElementById('employees-pagination-controls');
-            if(oldPagination) oldPagination.remove();
-
-            if (meta.last_page > 1) {
-                const paginationHtml = `
-                    <div id="employees-pagination-controls" class="flex justify-between items-center mt-6 p-4 bg-white rounded-2xl border shadow-sm animate-fadeIn">
-                        <button onclick="fetchData(true, ${meta.page - 1})" ${meta.page <= 1 ? 'disabled' : ''} class="px-4 py-2 text-xs font-bold uppercase text-slate-500 disabled:opacity-20 hover:text-blue-600 transition-all">
-                            <i class="fa-solid fa-arrow-left"></i> Précédent
-                        </button>
-                        <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Page ${meta.page} / ${meta.last_page}</span>
-                        <button onclick="fetchData(true, ${meta.page + 1})" ${meta.page >= meta.last_page ? 'disabled' : ''} class="px-4 py-2 text-xs font-bold uppercase text-blue-600 disabled:opacity-20 hover:scale-105 transition-all">
-                            Suivant <i class="fa-solid fa-arrow-right"></i>
-                        </button>
-                    </div>`;
-                if(container) container.insertAdjacentHTML('beforeend', paginationHtml);
-            }
-
-            // 6. Mise à jour graphiques (utilise maintenant la route globale que nous avons créée)
-            renderCharts();
-
-            if (currentUser.role !== 'EMPLOYEE') {
-                fetchLeaveRequests();
-            }
-
-        } catch (e) {
-            console.error("❌ ERREUR FETCH:", e);
-            const cached = localStorage.getItem(CACHE_KEY);
-            if (cached) {
-                employees = JSON.parse(cached);
-                renderData();
-                loadMyProfile();
-            } else {
-                Swal.fire('Erreur Connexion', 'Impossible de charger vos informations.', 'error');
-            }
+            loadMyProfile();
+        } else {
+            Swal.fire('Erreur Connexion', 'Impossible de charger vos informations.', 'error');
         }
     }
-   
+}
 
 
 
@@ -2316,6 +2323,38 @@ function switchView(v) {
         }
     }
 
+
+
+
+
+
+
+
+function updatePaginationUI(containerId, meta, callbackName) {
+    const footer = document.getElementById(containerId);
+    if (!footer) return;
+
+    if (!meta || meta.last_page <= 1) {
+        footer.innerHTML = `<span class="text-[10px] font-black text-slate-300 uppercase tracking-widest">Fin de liste</span>`;
+        return;
+    }
+
+    footer.innerHTML = `
+        <button onclick="${callbackName}(true, ${meta.page - 1})" ${meta.page <= 1 ? 'disabled' : ''} 
+            class="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-[10px] font-black uppercase text-slate-600 disabled:opacity-30 hover:bg-slate-100 transition-all shadow-sm">
+            <i class="fa-solid fa-chevron-left"></i> Précédent
+        </button>
+        
+        <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+            PAGE ${meta.page} / ${meta.last_page}
+        </span>
+        
+        <button onclick="${callbackName}(true, ${meta.page + 1})" ${meta.page >= meta.last_page ? 'disabled' : ''} 
+            class="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-[10px] font-black uppercase text-slate-600 disabled:opacity-30 hover:bg-slate-100 transition-all shadow-sm">
+            Suivant <i class="fa-solid fa-chevron-right"></i>
+        </button>
+    `;
+}
 
 
 
@@ -5511,6 +5550,7 @@ function setReportView(mode) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
