@@ -425,16 +425,10 @@
 
 
 
-            <!-- PAGINATION HAUT -->
-            <div class="flex items-center gap-3">
-                <button onclick="changePage(-1)" class="btn-prev-global w-8 h-8 flex items-center justify-center rounded-full bg-white border border-slate-200 text-slate-600 hover:bg-slate-900 hover:text-white transition-all shadow-sm">
-                    <i class="fa-solid fa-chevron-left text-xs"></i>
-                </button>
-                <span class="page-info-global text-[10px] font-black uppercase tracking-widest text-slate-400 select-none min-w-[80px] text-center">PAGE 1 / 1</span>
-                <button onclick="changePage(1)" class="btn-next-global w-8 h-8 flex items-center justify-center rounded-full bg-white border border-slate-200 text-slate-600 hover:bg-slate-900 hover:text-white transition-all shadow-sm">
-                    <i class="fa-solid fa-chevron-right text-xs"></i>
-                </button>
-            </div>
+<!-- Remplace l'ancien bloc de pagination (celui qui a le texte "AFFICHAGE PAR 10") par celui-ci -->
+<div id="employee-pagination-footer" class="border-t border-slate-100 bg-slate-50 p-4 flex justify-between items-center">
+    <!-- Ce contenu sera rempli dynamiquement par le JavaScript -->
+</div>
         </div>
 
         <!-- TABLEAU -->
@@ -454,18 +448,10 @@
             </div>
 
             <!-- PAGINATION BAS -->
-            <div class="border-t border-slate-100 bg-slate-50 p-4 flex justify-between items-center">
-                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Affichage par 10</span>
-                <div class="flex items-center gap-3">
-                    <button onclick="changePage(-1)" class="btn-prev-global w-8 h-8 flex items-center justify-center rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-200 transition-all">
-                        <i class="fa-solid fa-chevron-left text-xs"></i>
-                    </button>
-                    <span class="page-info-global text-[10px] font-black uppercase tracking-widest text-slate-500 select-none min-w-[80px] text-center">PAGE 1 / 1</span>
-                    <button onclick="changePage(1)" class="btn-next-global w-8 h-8 flex items-center justify-center rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-200 transition-all">
-                        <i class="fa-solid fa-chevron-right text-xs"></i>
-                    </button>
-                </div>
-            </div>
+  <!-- Remplace l'ancien bloc de pagination (celui qui a le texte "AFFICHAGE PAR 10") par celui-ci -->
+<div id="employee-pagination-footer" class="border-t border-slate-100 bg-slate-50 p-4 flex justify-between items-center">
+    <!-- Ce contenu sera rempli dynamiquement par le JavaScript -->
+</div>
         </div>
 
 
@@ -1470,6 +1456,7 @@
     </body>
 
     </html>
+
 
 
 
