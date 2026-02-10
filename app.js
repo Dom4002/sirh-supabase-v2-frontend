@@ -3254,24 +3254,24 @@ async function fetchLeaveRequests() {
 
     try {
         const r = await secureFetch(`${URL_READ_LEAVES}?agent=${encodeURIComponent(currentUser.nom)}`);
-        const rawLeaves = await r.json();
+        const result = await r.json(); // On reçoit maintenant { data: [], meta: {} }
+        const rawLeaves = result.data || [];
 
         // Mapping des données (avec solde_actuel venant du backend mis à jour)
-        allLeaves = rawLeaves.data.map(l => {
-            const clean = (v) => Array.isArray(v) ? v[0] : v;
-            const rawNom = clean(l.nom_employe || l.employees?.nom || "Inconnu");
+        allLeaves = rawLeaves.map(l => {
+            const rawNom = l.nom_employe || (l.employees && l.employees.nom) || "Inconnu";
             
             return {
-                id: l.record_id || l.id || '',
-                nom: rawNom ? String(rawNom).trim() : null,
+                id: l.id || '',
+                nom: rawNom.trim(),
                 nomIndex: normalize(rawNom),
-                statut: normalize(clean(l.Statut || l.statut)),
-                type: normalize(clean(l.Type || l.type)),
-                debut: clean(l['Date Début'] || l['Date de début'] || l.date_debut) ? parseDateSmart(clean(l.date_debut)) : null,
-                fin: clean(l['Date Fin'] || l['Date de fin'] || l.date_fin) ? parseDateSmart(clean(l.date_fin)) : null,
-                motif: clean(l.motif || l.Motif || "Aucun motif"),
-                doc: clean(l.justificatif_link || l.Justificatif || l.justificatif_url || null),
-                solde: l.solde_actuel || 0 // Nouveau champ
+                statut: normalize(l.statut),
+                type: normalize(l.type),
+                debut: l.date_debut ? new Date(l.date_debut) : null,
+                fin: l.date_fin ? new Date(l.date_fin) : null,
+                motif: l.motif || "Aucun motif",
+                doc: l.justificatif_url || null,
+                solde: l.solde_actuel || 0
             };
         });
 
@@ -3287,43 +3287,33 @@ async function fetchLeaveRequests() {
 
                 if (pending.length > 0) {
                     pending.forEach(l => {
-                        const cleanNom = (l.nom || 'Inconnu').replace(/"/g, '&quot;');
-                        const cleanType = (l.type || 'Congé').replace(/"/g, '&quot;');
-                        const cleanMotif = (l.motif || 'Aucun motif').replace(/"/g, '&quot;');
-                        const cleanDoc = (l.doc || '').replace(/"/g, '&quot;');
-
                         const dStart = l.debut ? l.debut.toLocaleDateString('fr-FR') : '?';
                         const dEnd = l.fin ? l.fin.toLocaleDateString('fr-FR') : '?';
                         
-                        const diffTime = l.fin && l.debut ? Math.abs(l.fin.getTime() - l.debut.getTime()) : 0;
-                        const daysDifference = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-
-                        // COULEUR DU SOLDE
+                        const daysDifference = l.fin && l.debut ? (Math.ceil(Math.abs(l.fin - l.debut) / 86400000) + 1) : 1;
                         const soldeColor = l.solde <= 0 ? 'text-red-500' : (l.solde < daysDifference ? 'text-orange-500' : 'text-emerald-600');
 
                         body.innerHTML += `
                             <tr class="border-b hover:bg-slate-50 transition-colors">
                                 <td class="px-8 py-4">
-                                    <div class="font-bold text-sm text-slate-700">${l.nom || 'Inconnu'}</div>
-                                    <div class="text-[10px] text-slate-400 font-normal uppercase">${l.type || 'Congé'}</div>
+                                    <div class="font-bold text-sm text-slate-700">${l.nom}</div>
+                                    <div class="text-[10px] text-slate-400 font-normal uppercase">${l.type}</div>
                                 </td>
                                 <td class="px-8 py-4 text-xs text-slate-500 font-bold">${dStart} ➔ ${dEnd}</td>
                                 <td class="px-8 py-4 text-right">
                                     <div class="flex items-center justify-end gap-6">
-                                        <!-- AFFICHAGE DU SOLDE AU MOMENT DE LA DÉCISION -->
                                         <div class="text-right border-r border-slate-200 pr-4">
                                             <p class="text-[9px] font-black text-slate-400 uppercase tracking-wide">Solde dispo</p>
                                             <p class="text-xs font-black ${soldeColor}">${l.solde} jours</p>
                                             <p class="text-[9px] text-slate-400 italic">Demande: ${daysDifference}j</p>
                                         </div>
-
                                         <div class="flex gap-2">
                                             <button onclick="showLeaveDetailFromSafeData('${encodeURIComponent(l.nom)}','${encodeURIComponent(l.type)}','${dStart}','${dEnd}','${encodeURIComponent(l.motif)}','${encodeURIComponent(l.doc)}')" 
-                                                    class="p-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-600 hover:text-white transition-all shadow-sm" title="Voir le motif">
+                                                    class="p-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-600 hover:text-white" title="Voir le motif">
                                                 <i class="fa-solid fa-eye"></i>
                                             </button>
-                                            <button onclick="processLeave('${l.id}', 'Validé', ${daysDifference})" class="bg-emerald-500 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase shadow-md shadow-emerald-200 hover:scale-105 transition-all">OUI</button>
-                                            <button onclick="processLeave('${l.id}', 'Refusé', 0)" class="bg-white text-red-500 border border-red-100 px-4 py-2 rounded-xl text-[10px] font-black uppercase hover:bg-red-50 transition-all">NON</button>
+                                            <button onclick="processLeave('${l.id}')" class="bg-emerald-500 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase shadow-md shadow-emerald-200">OUI</button>
+                                            <button onclick="processLeave('${l.id}', 'Refusé')" class="bg-white text-red-500 border border-red-100 px-4 py-2 rounded-xl text-[10px] font-black uppercase">NON</button>
                                         </div>
                                     </div>
                                 </td>
@@ -3362,22 +3352,15 @@ async function fetchLeaveRequests() {
                     let statusClass = 'bg-slate-100 text-slate-600';
                     let statusText = r.statut.toUpperCase();
 
-                    if (r.statut.includes('attente')) {
-                        statusClass = 'bg-yellow-50 text-yellow-700 border border-yellow-100';
-                        statusText = '⏳ EN ATTENTE';
-                    } else if (r.statut.includes('valid')) {
-                        statusClass = 'bg-emerald-50 text-emerald-700 border border-emerald-100';
-                        statusText = '✅ APPROUVÉ';
-                    } else if (r.statut.includes('refus')) {
-                        statusClass = 'bg-red-50 text-red-700 border border-red-100';
-                        statusText = '❌ REFUSÉ';
-                    }
+                    if (r.statut.includes('attente')) statusClass = 'bg-yellow-50 text-yellow-700';
+                    else if (r.statut.includes('valid')) statusClass = 'bg-emerald-50 text-emerald-700';
+                    else if (r.statut.includes('refus')) statusClass = 'bg-red-50 text-red-700';
 
                     myBody.innerHTML += `
-                        <tr class="hover:bg-slate-50 transition-colors border-b last:border-0">
-                            <td class="px-6 py-4 text-xs font-bold text-slate-700">${dStart} <span class="text-slate-400 mx-1">au</span> ${dEnd}</td>
+                        <tr class="hover:bg-slate-50 border-b last:border-0">
+                            <td class="px-6 py-4 text-xs font-bold text-slate-700">${dStart} au ${dEnd}</td>
                             <td class="px-6 py-4 text-xs font-medium text-slate-500 capitalize">${r.type}</td>
-                            <td class="px-6 py-4 text-xs text-slate-400 italic">${r.motif.substring(0, 25) + (r.motif.length > 25 ? '...' : '')}</td>
+                            <td class="px-6 py-4 text-xs text-slate-400 italic truncate" style="max-width:150px">${r.motif}</td>
                             <td class="px-6 py-4 text-right">
                                 <span class="px-2.5 py-1.5 rounded-lg text-[10px] font-black ${statusClass}">${statusText}</span>
                             </td>
@@ -3393,8 +3376,6 @@ async function fetchLeaveRequests() {
         if(myBody) myBody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-red-400">Erreur de chargement des congés.</td></tr>';
     }
 }
-
-
 
 
 
@@ -5639,6 +5620,8 @@ function setReportView(mode) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
+
 
 
 
