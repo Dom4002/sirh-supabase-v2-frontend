@@ -3256,10 +3256,10 @@ async function fetchLeaveRequests() {
         const r = await secureFetch(`${URL_READ_LEAVES}?agent=${encodeURIComponent(currentUser.nom)}`);
         const rawLeaves = await r.json();
 
-        // Mapping des données
-        allLeaves = rawLeaves.map(l => {
+        // Mapping des données (avec solde_actuel venant du backend mis à jour)
+        allLeaves = rawLeaves.data.map(l => {
             const clean = (v) => Array.isArray(v) ? v[0] : v;
-            const rawNom = clean(l.Employees_nom || l.nom || l['Employé']);
+            const rawNom = clean(l.nom_employe || l.employees?.nom || "Inconnu");
             
             return {
                 id: l.record_id || l.id || '',
@@ -3267,27 +3267,26 @@ async function fetchLeaveRequests() {
                 nomIndex: normalize(rawNom),
                 statut: normalize(clean(l.Statut || l.statut)),
                 type: normalize(clean(l.Type || l.type)),
-                debut: clean(l['Date Début'] || l['Date de début'] || l.debut) ? parseDateSmart(clean(l['Date Début'] || l['Date de début'] || l.debut)) : null,
-                fin: clean(l['Date Fin'] || l['Date de fin'] || l.fin) ? parseDateSmart(clean(l['Date Fin'] || l['Date de fin'] || l.fin)) : null,
+                debut: clean(l['Date Début'] || l['Date de début'] || l.date_debut) ? parseDateSmart(clean(l.date_debut)) : null,
+                fin: clean(l['Date Fin'] || l['Date de fin'] || l.date_fin) ? parseDateSmart(clean(l.date_fin)) : null,
                 motif: clean(l.motif || l.Motif || "Aucun motif"),
-                doc: clean(l.justificatif_link || l.Justificatif || l.doc || null)
+                doc: clean(l.justificatif_link || l.Justificatif || l.justificatif_url || null),
+                solde: l.solde_actuel || 0 // Nouveau champ
             };
         });
 
-// ============================================================
+        // ============================================================
         // PARTIE 1 : TABLEAU DE VALIDATION (POUR MANAGER / ADMIN / RH)
         // ============================================================
         if (currentUser.role !== 'EMPLOYEE') {
             const pending = allLeaves.filter(l => l.statut === 'en attente');
 
             if (body && section) {
-                // FORCE LE BLOC À RESTER VISIBLE
                 section.classList.remove('hidden'); 
                 body.innerHTML = '';
 
                 if (pending.length > 0) {
                     pending.forEach(l => {
-                        // ON GARDE EXACTEMENT TON CODE DE NETTOYAGE
                         const cleanNom = (l.nom || 'Inconnu').replace(/"/g, '&quot;');
                         const cleanType = (l.type || 'Congé').replace(/"/g, '&quot;');
                         const cleanMotif = (l.motif || 'Aucun motif').replace(/"/g, '&quot;');
@@ -3299,31 +3298,38 @@ async function fetchLeaveRequests() {
                         const diffTime = l.fin && l.debut ? Math.abs(l.fin.getTime() - l.debut.getTime()) : 0;
                         const daysDifference = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
 
+                        // COULEUR DU SOLDE
+                        const soldeColor = l.solde <= 0 ? 'text-red-500' : (l.solde < daysDifference ? 'text-orange-500' : 'text-emerald-600');
+
                         body.innerHTML += `
                             <tr class="border-b hover:bg-slate-50 transition-colors">
                                 <td class="px-8 py-4">
                                     <div class="font-bold text-sm text-slate-700">${l.nom || 'Inconnu'}</div>
                                     <div class="text-[10px] text-slate-400 font-normal uppercase">${l.type || 'Congé'}</div>
                                 </td>
-                                <td class="px-8 py-4 text-xs text-slate-500">${dStart} ➔ ${dEnd}</td>
-                                <td class="px-8 py-4 text-right flex justify-end items-center gap-2">
-                                    <button onclick="showLeaveDetail(this)" 
-                                            data-nom="${cleanNom}"
-                                            data-type="${cleanType}"
-                                            data-start="${dStart}"
-                                            data-end="${dEnd}"
-                                            data-motif="${cleanMotif}"
-                                            data-doc="${cleanDoc}"
-                                            class="p-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-600 hover:text-white transition-all shadow-sm mr-2">
-                                        <i class="fa-solid fa-eye"></i>
-                                    </button>
-                                    <button onclick="processLeave('${l.id}', 'Validé', ${daysDifference})" class="bg-emerald-500 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase shadow-md shadow-emerald-200">OUI</button>
-                                    <button onclick="processLeave('${l.id}', 'Refusé', 0)" class="bg-white text-red-500 border border-red-100 px-4 py-2 rounded-xl text-[10px] font-black uppercase">NON</button>
+                                <td class="px-8 py-4 text-xs text-slate-500 font-bold">${dStart} ➔ ${dEnd}</td>
+                                <td class="px-8 py-4 text-right">
+                                    <div class="flex items-center justify-end gap-6">
+                                        <!-- AFFICHAGE DU SOLDE AU MOMENT DE LA DÉCISION -->
+                                        <div class="text-right border-r border-slate-200 pr-4">
+                                            <p class="text-[9px] font-black text-slate-400 uppercase tracking-wide">Solde dispo</p>
+                                            <p class="text-xs font-black ${soldeColor}">${l.solde} jours</p>
+                                            <p class="text-[9px] text-slate-400 italic">Demande: ${daysDifference}j</p>
+                                        </div>
+
+                                        <div class="flex gap-2">
+                                            <button onclick="showLeaveDetailFromSafeData('${encodeURIComponent(l.nom)}','${encodeURIComponent(l.type)}','${dStart}','${dEnd}','${encodeURIComponent(l.motif)}','${encodeURIComponent(l.doc)}')" 
+                                                    class="p-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-600 hover:text-white transition-all shadow-sm" title="Voir le motif">
+                                                <i class="fa-solid fa-eye"></i>
+                                            </button>
+                                            <button onclick="processLeave('${l.id}', 'Validé', ${daysDifference})" class="bg-emerald-500 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase shadow-md shadow-emerald-200 hover:scale-105 transition-all">OUI</button>
+                                            <button onclick="processLeave('${l.id}', 'Refusé', 0)" class="bg-white text-red-500 border border-red-100 px-4 py-2 rounded-xl text-[10px] font-black uppercase hover:bg-red-50 transition-all">NON</button>
+                                        </div>
+                                    </div>
                                 </td>
                             </tr>`;
                     });
                 } else {
-                    // AU LIEU DE CACHER LE BLOC, ON AFFICHE CE MESSAGE DANS LE TABLEAU
                     body.innerHTML = `
                         <tr>
                             <td colspan="3" class="px-8 py-10 text-center text-slate-400">
@@ -3336,8 +3342,9 @@ async function fetchLeaveRequests() {
                 }
             }
         }
+
         // ============================================================
-        // PARTIE 2 : HISTORIQUE PERSONNEL (POUR TOUT LE MONDE)
+        // PARTIE 2 : HISTORIQUE PERSONNEL (INCHANGÉ)
         // ============================================================
         if (myBody) {
             myBody.innerHTML = '';
@@ -5632,6 +5639,7 @@ function setReportView(mode) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
