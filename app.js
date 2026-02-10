@@ -1646,11 +1646,9 @@ async function handleClockInOut() {
     const userId = currentUser.id;
     const today = new Date().toLocaleDateString('fr-CA');
     
-    // 1. Détecter si l'employé est MOBILE (Délégué)
     const empData = employees.find(e => e.id === userId);
     const isMobile = (empData?.employee_type === 'MOBILE') || (currentUser?.employee_type === 'MOBILE');
     
-    // --- NETTOYAGE DU JOUR ---
     const lastActionDate = localStorage.getItem(`clock_date_${userId}`);
     if (lastActionDate !== today) {
         localStorage.setItem(`clock_date_${userId}`, today);
@@ -1660,147 +1658,137 @@ async function handleClockInOut() {
         updateClockUI(false); 
     }
 
-    // --- DÉCISION INTELLIGENTE DE L'ACTION ---
     const currentStatus = localStorage.getItem(`clock_status_${userId}`) || 'OUT';
     const action = (currentStatus === 'IN') ? 'CLOCK_OUT' : 'CLOCK_IN';
 
-    // --- SÉCURITÉ POUR LES FIXES (BUREAU / SITE) ---
+    // Sécurité pour les fixes
     if (!isMobile) {
         const inDone = localStorage.getItem(`clock_in_done_${userId}`) === 'true';
         const outDone = localStorage.getItem(`clock_out_done_${userId}`) === 'true';
-
-        if (inDone && outDone) {
-            return Swal.fire({
-                title: 'Journée terminée !',
-                text: 'Votre service est déjà clôturé pour aujourd\'hui. Reposez-vous bien !',
-                icon: 'success',
-                confirmButtonColor: '#0f172a'
-            });
-        }
-
-        if (action === 'CLOCK_IN' && inDone) {
-            return Swal.fire('Action impossible', 'Entrée déjà validée aujourd\'hui.', 'info');
-        }
-        if (action === 'CLOCK_OUT' && outDone) {
-            return Swal.fire('Action impossible', 'Journée déjà clôturée.', 'info');
-        }
+        if (inDone && outDone) return Swal.fire('Terminé', 'Votre journée est clôturée.', 'success');
+        if (action === 'CLOCK_IN' && inDone) return Swal.fire('Oups', 'Entrée déjà validée.', 'info');
     }
 
-    // --- DÉCLARATION DES VARIABLES DE SESSION ---
     let outcome = null;
     let report = null;
     let proofStream = null;
     let proofBlob = null; 
+    let isLastExit = false;
 
-    // --- RAPPORT DE VISITE AVEC CAMÉRA LIVE OBLIGATOIRE (SORTIE MOBILE) ---
-// --- RAPPORT DE VISITE AVEC OPTION FIN DE JOURNÉE ---
-if (action === 'CLOCK_OUT' && isMobile) {
-    const { value: formValues } = await Swal.fire({
-        title: 'Fin de visite',
-        html: `
-            <select id="swal-outcome" class="swal2-input">
-                <option value="VU">✅ Visite effectuée</option>
-                <option value="ABSENT">❌ Médecin Absent</option>
-                <option value="COMMANDE">💰 Commande prise</option>
-            </select>
-            <!-- Zone Caméra Live ici (omise pour la clarté mais reste présente dans ton code) -->
-            
-            <textarea id="swal-report" class="swal2-textarea" placeholder="Notes..."></textarea>
+    // --- BLOC CAMÉRA LIVE POUR LA SORTIE MOBILE ---
+    if (action === 'CLOCK_OUT' && isMobile) {
+        const { value: formValues } = await Swal.fire({
+            title: 'Fin de visite',
+            html: `
+                <div class="text-left mb-2">
+                    <label class="text-[10px] font-black text-slate-400 uppercase">Résultat de la visite</label>
+                    <select id="swal-outcome" class="swal2-input mt-1">
+                        <option value="VU">✅ Visite effectuée</option>
+                        <option value="ABSENT">❌ Médecin Absent</option>
+                        <option value="COMMANDE">💰 Commande prise</option>
+                        <option value="RAS">👍 Passage simple</option>
+                    </select>
+                </div>
 
-            <!-- NOUVELLE OPTION : DERNIÈRE SORTIE -->
-            <div class="mt-4 p-3 bg-red-50 rounded-xl border border-red-100 flex items-center gap-3">
-                <input type="checkbox" id="last-exit-check" class="w-5 h-5 accent-red-600">
-                <label for="last-exit-check" class="text-[10px] font-black text-red-700 uppercase text-left">
-                    C'est ma dernière sortie <br><span class="opacity-70 font-bold">Ceci clôture ma journée de travail</span>
-                </label>
-            </div>
-        `,
-        // ... (didOpen et reste du code caméra inchangé)
-        preConfirm: () => {
-            const isLastExit = document.getElementById('last-exit-check').checked;
-            // (Tes validations photo/outcome habituelles ici)
-            return { 
-                outcome: document.getElementById('swal-outcome').value, 
-                report: document.getElementById('swal-report').value,
-                isLastExit: isLastExit 
-            };
-        }
-    });
+                <!-- ZONE CAMÉRA LIVE RÉTABLIE -->
+                <div class="bg-slate-900 rounded-xl overflow-hidden relative mb-4 border-2 border-slate-200" style="height: 220px;">
+                    <video id="proof-video" autoplay playsinline class="w-full h-full object-cover"></video>
+                    <img id="proof-image" class="w-full h-full object-cover hidden absolute top-0 left-0">
+                    <canvas id="proof-canvas" class="hidden"></canvas>
+                    <div class="absolute bottom-2 left-0 right-0 flex justify-center gap-2 z-10">
+                        <button type="button" id="btn-snap" class="bg-white text-slate-900 px-4 py-1 rounded-full text-xs font-bold shadow-lg">CAPTURER LE CACHET</button>
+                        <button type="button" id="btn-retry" class="hidden bg-orange-500 text-white px-3 py-1 rounded-full text-xs font-bold shadow-lg">REFAIRE</button>
+                    </div>
+                </div>
 
-    if (!formValues) return;
-    outcome = formValues.outcome;
-    report = formValues.report;
+                <textarea id="swal-report" class="swal2-textarea" style="height: 60px; margin-top:0;" placeholder="Notes..."></textarea>
 
-    // SI C'EST LA DERNIÈRE SORTIE : On enregistre l'info localement
-    if (formValues.isLastExit) {
-        localStorage.setItem(`clock_out_done_${userId}`, 'true');
-        // On peut aussi envoyer un flag spécial au serveur
-        outcome += " (FIN DE JOURNÉE)"; 
+                <div class="mt-4 p-3 bg-red-50 rounded-xl border border-red-100 flex items-center gap-3">
+                    <input type="checkbox" id="last-exit-check" class="w-5 h-5 accent-red-600">
+                    <label for="last-exit-check" class="text-[10px] font-black text-red-700 uppercase text-left">C'est ma dernière sortie (Fin de journée)</label>
+                </div>
+            `,
+            confirmButtonText: 'Valider & Sortir',
+            confirmButtonColor: '#ef4444',
+            allowOutsideClick: false,
+            didOpen: () => {
+                const video = document.getElementById('proof-video');
+                const img = document.getElementById('proof-image');
+                const canvas = document.getElementById('proof-canvas');
+                const btnSnap = document.getElementById('btn-snap');
+                const btnRetry = document.getElementById('btn-retry');
+
+                navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+                    .then(stream => { proofStream = stream; video.srcObject = stream; })
+                    .catch(err => Swal.showValidationMessage("Caméra bloquée"));
+
+                btnSnap.onclick = () => {
+                    canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+                    canvas.getContext('2d').drawImage(video, 0, 0);
+                    canvas.toBlob(blob => {
+                        proofBlob = blob;
+                        img.src = URL.createObjectURL(blob);
+                        video.classList.add('hidden'); img.classList.remove('hidden');
+                        btnSnap.classList.add('hidden'); btnRetry.classList.remove('hidden');
+                    }, 'image/jpeg', 0.8);
+                };
+
+                btnRetry.onclick = () => {
+                    proofBlob = null; video.classList.remove('hidden');
+                    img.classList.add('hidden'); btnSnap.classList.remove('hidden');
+                    btnRetry.classList.add('hidden');
+                };
+            },
+            willClose: () => { if(proofStream) proofStream.getTracks().forEach(t => t.stop()); },
+            preConfirm: () => {
+                const outcomeVal = document.getElementById('swal-outcome').value;
+                if (outcomeVal === 'VU' && !proofBlob) {
+                    Swal.showValidationMessage('📸 Photo du cachet obligatoire !');
+                    return false;
+                }
+                return { 
+                    outcome: outcomeVal, 
+                    report: document.getElementById('swal-report').value,
+                    isLastExit: document.getElementById('last-exit-check').checked
+                };
+            }
+        });
+
+        if (!formValues) return; 
+        outcome = formValues.outcome;
+        report = formValues.report;
+        isLastExit = formValues.isLastExit;
     }
-}
     
     // --- POINTAGE GPS & ENVOI ---
-    Swal.fire({ title: 'Vérification...', text: 'Analyse GPS et Serveur...', didOpen: () => Swal.showLoading(), allowOutsideClick: false });
+    Swal.fire({ title: 'Vérification...', text: 'Analyse GPS...', didOpen: () => Swal.showLoading(), allowOutsideClick: false });
 
     try {
-        const ipResponse = await fetch('https://api.ipify.org?format=json');
-        const ipData = await ipResponse.json();
-
-        const pos = await new Promise((resolve, reject) => {
-            navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true });
-        });
-
+        const ipRes = await fetch('https://api.ipify.org?format=json').then(r => r.json());
+        const pos = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej));
         const currentGps = `${pos.coords.latitude},${pos.coords.longitude}`;
-        let validatedZone = "Hors Zone", dist = 0, isInside = false;
-
-        SIRH_CONFIG.gps.offices.forEach(office => {
-            const d = getDistance(pos.coords.latitude, pos.coords.longitude, office.lat, office.lon);
-            if (d <= office.radius) { isInside = true; dist = Math.round(d); validatedZone = office.name; }
-        });
-        
-        if (SIRH_CONFIG.gps.strictMode && !isInside && !isMobile && currentUser.role === 'EMPLOYEE') {
-            return Swal.fire({icon: 'error', title: 'Hors Zone', text: 'Rapprochez-vous du bureau.'});
-        }
 
         const fd = new FormData();
         fd.append('id', userId);
-        fd.append('nom', currentUser.nom);
         fd.append('action', action);
-        fd.append('time', new Date().toISOString());
         fd.append('gps', currentGps);
-        fd.append('distance_bureau', dist);
-        fd.append('zone', validatedZone);
-        fd.append('ip', ipData.ip);
+        fd.append('ip', ipRes.ip);
         fd.append('agent', currentUser.nom);
-        
         if (outcome) fd.append('outcome', outcome);
         if (report) fd.append('report', report);
-        if (proofBlob) fd.append('proof_photo', proofBlob, 'capture_live.jpg'); 
+        if (proofBlob) fd.append('proof_photo', proofBlob, 'capture.jpg');
+        if (isLastExit) fd.append('is_last_exit', 'true');
 
         const response = await secureFetch(URL_CLOCK_ACTION, { method: 'POST', body: fd });
         const resData = await response.json();
 
         if (response.ok) {
-            if (action === 'CLOCK_IN') {
-                localStorage.setItem(`clock_status_${userId}`, 'IN');
-                localStorage.setItem(`clock_in_done_${userId}`, 'true');
-                updateClockUI(true);
-            } else {
-                localStorage.setItem(`clock_status_${userId}`, 'OUT');
-                localStorage.setItem(`clock_out_done_${userId}`, 'true');
-                updateClockUI(false);
-            }
-            Swal.fire('Succès', `Pointage enregistré : ${resData.zone || validatedZone}`, 'success');
-        } else {
-            throw new Error(resData.error || "Erreur serveur");
-        }
-
-    } catch (e) { 
-        Swal.fire('Erreur', e.message, 'error');
-    }
+            if (isLastExit) localStorage.setItem(`clock_out_done_${userId}`, 'true');
+            syncClockInterface();
+            Swal.fire('Succès', `Pointage validé : ${resData.zone}`, 'success');
+        } else { throw new Error(resData.error); }
+    } catch (e) { Swal.fire('Erreur', e.message, 'error'); }
 }
-
-
 
 
 
@@ -5510,6 +5498,7 @@ function setReportView(mode) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
