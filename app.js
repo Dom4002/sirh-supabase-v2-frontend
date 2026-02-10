@@ -2125,6 +2125,55 @@ function loadMyProfile() {
 
 
 
+async function fetchEmployeeLeaveBalances() {
+    const body = document.getElementById('manager-leave-body');
+    if (!body || currentUser.role === 'EMPLOYEE') return;
+
+    body.innerHTML = '<tr><td colspan="4" class="p-6 text-center italic text-slate-400"><i class="fa-solid fa-circle-notch fa-spin mr-2"></i> Chargement des soldes...</td></tr>';
+
+    try {
+        // On réutilise fetchAllData qui charge déjà la liste des employés
+        // (En s'assurant que Make renvoie bien le Solde_Conges)
+        await fetchData(true); 
+        
+        body.innerHTML = '';
+        
+        employees.forEach(emp => {
+            // Seuls les actifs nous intéressent ici
+            if (emp.statut !== 'Actif') return; 
+
+            // Récupération des valeurs (s'assurer du nom de la colonne venant de Make)
+            const solde = parseFloat(emp.Solde_Conges || emp.solde_conges) || 0; 
+            const status = emp.Statut_Conge_Actuel || 'Aucune'; // A créer dans Airtable
+
+            let colorClass = 'text-emerald-600';
+            if (solde < 5) colorClass = 'text-red-600 font-bold';
+            else if (solde < 10) colorClass = 'text-orange-600';
+            
+            // Logique de demande en cours (on réutilise le statut existant)
+            const activeLeaveDot = allLeaves.some(l => l.nom === emp.nom && l.statut === 'en attente') 
+                                 ? '<span class="w-2 h-2 rounded-full bg-yellow-500 mr-2 inline-block"></span> En attente'
+                                 : 'Aucune';
+
+
+            body.innerHTML += `
+                <tr class="hover:bg-slate-50 transition-colors">
+                    <td class="px-8 py-3 text-sm font-bold text-slate-800">${emp.nom}</td>
+                    <td class="px-8 py-3 text-xs text-slate-500">${emp.dept}</td>
+                    <td class="px-8 py-3 text-center text-[10px] font-black">${activeLeaveDot}</td>
+                    <td class="px-8 py-3 text-right text-sm font-black ${colorClass}">${solde} jours</td>
+                </tr>
+            `;
+        });
+
+    } catch (e) {
+        console.error("Erreur chargement soldes :", e);
+        body.innerHTML = '<tr><td colspan="4" class="p-6 text-center text-red-500">Erreur de connexion au solde des congés.</td></tr>';
+    }
+}
+
+
+
 
 
 
@@ -3191,88 +3240,137 @@ function showLeaveDetail(btn) {
             });
         
     
+
 async function fetchLeaveRequests() {
+    // CORRECTION 1 : On ne bloque plus les employés ici !
     if (!currentUser) return; 
 
     const body = document.getElementById('leave-requests-body');       // Tableau Manager
     const section = document.getElementById('manager-leave-section');  // Section Manager
     const myBody = document.getElementById('my-leave-requests-body');  // Tableau Personnel
 
+    // Fonction de nettoyage interne
+    const normalize = (s) => String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+
     try {
-        // APPEL PAGINÉ AU SERVEUR
         const r = await secureFetch(`${URL_READ_LEAVES}?agent=${encodeURIComponent(currentUser.nom)}`);
-        const result = await r.json();
-        
-        const rawLeaves = result.data; // Les congés de la page
-        const meta = result.meta;      // Les infos de pagination
+        const rawLeaves = await r.json();
 
-        // --- PARTIE MANAGER (VALIDATION) ---
-        if (currentUser.role !== 'EMPLOYEE' && body && section) {
+        // Mapping des données
+        allLeaves = rawLeaves.map(l => {
+            const clean = (v) => Array.isArray(v) ? v[0] : v;
+            const rawNom = clean(l.Employees_nom || l.nom || l['Employé']);
             
-            section.classList.remove('hidden'); 
-            body.innerHTML = '';
+            return {
+                id: l.record_id || l.id || '',
+                nom: rawNom ? String(rawNom).trim() : null,
+                nomIndex: normalize(rawNom),
+                statut: normalize(clean(l.Statut || l.statut)),
+                type: normalize(clean(l.Type || l.type)),
+                debut: clean(l['Date Début'] || l['Date de début'] || l.debut) ? parseDateSmart(clean(l['Date Début'] || l['Date de début'] || l.debut)) : null,
+                fin: clean(l['Date Fin'] || l['Date de fin'] || l.fin) ? parseDateSmart(clean(l['Date Fin'] || l['Date de fin'] || l.fin)) : null,
+                motif: clean(l.motif || l.Motif || "Aucun motif"),
+                doc: clean(l.justificatif_link || l.Justificatif || l.doc || null)
+            };
+        });
 
-            const pending = rawLeaves.filter(l => l.statut === 'En attente');
+// ============================================================
+        // PARTIE 1 : TABLEAU DE VALIDATION (POUR MANAGER / ADMIN / RH)
+        // ============================================================
+        if (currentUser.role !== 'EMPLOYEE') {
+            const pending = allLeaves.filter(l => l.statut === 'en attente');
 
-            if (pending.length > 0) {
-                pending.forEach(l => {
-                    const dStart = l.date_debut ? new Date(l.date_debut).toLocaleDateString('fr-FR') : '?';
-                    const dEnd = l.date_fin ? new Date(l.date_fin).toLocaleDateString('fr-FR') : '?';
-                    
-                    const diffTime = (l.date_fin && l.date_debut) ? Math.abs(new Date(l.date_fin) - new Date(l.date_debut)) : 0;
-                    const daysDifference = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+            if (body && section) {
+                // FORCE LE BLOC À RESTER VISIBLE
+                section.classList.remove('hidden'); 
+                body.innerHTML = '';
 
-                    body.innerHTML += `
-                        <tr class="border-b hover:bg-slate-50 transition-colors">
-                            <td class="px-8 py-4">
-                                <div class="font-bold text-sm text-slate-700">${l.nom_employe}</div>
-                                <div class="text-[10px] text-slate-400 font-normal uppercase">${l.type || 'Congé'}</div>
-                            </td>
-                            <td class="px-8 py-4 text-xs text-slate-500 font-bold">${dStart} ➔ ${dEnd}</td>
-                            <td class="px-8 py-4">
-                                <div class="flex items-center justify-end gap-4">
-                                    <div class="text-right">
-                                        <p class="text-[9px] font-black text-slate-400 uppercase">Solde</p>
-                                        <p class="text-sm font-black ${l.solde_actuel <= 0 ? 'text-red-500' : 'text-emerald-600'}">${l.solde_actuel} j</p>
-                                    </div>
-                                    <button onclick="showLeaveDetail(this)" data-doc="${l.justificatif_url}" ... class="p-2 bg-blue-50 text-blue-600 rounded-xl"><i class="fa-solid fa-eye"></i></button>
-                                    <div class="flex gap-1">
-                                        <button onclick="processLeave('${l.id}', 'Validé', ${daysDifference})" class="bg-emerald-500 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase">OUI</button>
-                                        <button onclick="processLeave('${l.id}', 'Refusé', 0)" class="bg-white text-red-500 border border-red-100 px-4 py-2 rounded-xl text-[10px] font-black uppercase">NON</button>
-                                    </div>
+                if (pending.length > 0) {
+                    pending.forEach(l => {
+                        // ON GARDE EXACTEMENT TON CODE DE NETTOYAGE
+                        const cleanNom = (l.nom || 'Inconnu').replace(/"/g, '&quot;');
+                        const cleanType = (l.type || 'Congé').replace(/"/g, '&quot;');
+                        const cleanMotif = (l.motif || 'Aucun motif').replace(/"/g, '&quot;');
+                        const cleanDoc = (l.doc || '').replace(/"/g, '&quot;');
+
+                        const dStart = l.debut ? l.debut.toLocaleDateString('fr-FR') : '?';
+                        const dEnd = l.fin ? l.fin.toLocaleDateString('fr-FR') : '?';
+                        
+                        const diffTime = l.fin && l.debut ? Math.abs(l.fin.getTime() - l.debut.getTime()) : 0;
+                        const daysDifference = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+
+                        body.innerHTML += `
+                            <tr class="border-b hover:bg-slate-50 transition-colors">
+                                <td class="px-8 py-4">
+                                    <div class="font-bold text-sm text-slate-700">${l.nom || 'Inconnu'}</div>
+                                    <div class="text-[10px] text-slate-400 font-normal uppercase">${l.type || 'Congé'}</div>
+                                </td>
+                                <td class="px-8 py-4 text-xs text-slate-500">${dStart} ➔ ${dEnd}</td>
+                                <td class="px-8 py-4 text-right flex justify-end items-center gap-2">
+                                    <button onclick="showLeaveDetail(this)" 
+                                            data-nom="${cleanNom}"
+                                            data-type="${cleanType}"
+                                            data-start="${dStart}"
+                                            data-end="${dEnd}"
+                                            data-motif="${cleanMotif}"
+                                            data-doc="${cleanDoc}"
+                                            class="p-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-600 hover:text-white transition-all shadow-sm mr-2">
+                                        <i class="fa-solid fa-eye"></i>
+                                    </button>
+                                    <button onclick="processLeave('${l.id}', 'Validé', ${daysDifference})" class="bg-emerald-500 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase shadow-md shadow-emerald-200">OUI</button>
+                                    <button onclick="processLeave('${l.id}', 'Refusé', 0)" class="bg-white text-red-500 border border-red-100 px-4 py-2 rounded-xl text-[10px] font-black uppercase">NON</button>
+                                </td>
+                            </tr>`;
+                    });
+                } else {
+                    // AU LIEU DE CACHER LE BLOC, ON AFFICHE CE MESSAGE DANS LE TABLEAU
+                    body.innerHTML = `
+                        <tr>
+                            <td colspan="3" class="px-8 py-10 text-center text-slate-400">
+                                <div class="flex flex-col items-center gap-2">
+                                    <i class="fa-solid fa-check-double text-2xl opacity-20"></i>
+                                    <p class="text-xs font-bold uppercase tracking-widest">Aucune demande en attente</p>
                                 </div>
                             </td>
                         </tr>`;
-                });
-            } else {
-                body.innerHTML = `<tr><td colspan="3" class="px-8 py-10 text-center text-slate-400"><p class="text-xs font-bold uppercase tracking-widest">Aucune demande en attente</p></td></tr>`;
+                }
             }
         }
-        
-        // --- PARTIE EMPLOYÉ (HISTORIQUE PERSONNEL) ---
+        // ============================================================
+        // PARTIE 2 : HISTORIQUE PERSONNEL (POUR TOUT LE MONDE)
+        // ============================================================
         if (myBody) {
             myBody.innerHTML = '';
-            
-            // On affiche toutes les demandes (pas seulement 'pending')
-            if (rawLeaves.length === 0) {
+            const myNameNormalized = normalize(currentUser.nom);
+            const myRequests = allLeaves.filter(l => l.nomIndex === myNameNormalized);
+
+            if (myRequests.length === 0) {
                 myBody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-slate-400 italic">Aucune demande soumise.</td></tr>';
             } else {
-                rawLeaves.sort((a, b) => new Date(b.date_debut) - new Date(a.date_debut));
-                rawLeaves.forEach(r => {
-                    const dStart = r.date_debut ? new Date(r.date_debut).toLocaleDateString('fr-FR') : '?';
-                    const dEnd = r.date_fin ? new Date(r.date_fin).toLocaleDateString('fr-FR') : '?';
+                myRequests.sort((a, b) => b.debut - a.debut);
+                myRequests.forEach(r => {
+                    const dStart = r.debut ? r.debut.toLocaleDateString('fr-FR') : '?';
+                    const dEnd = r.fin ? r.fin.toLocaleDateString('fr-FR') : '?';
                     
-                    let statusClass = 'bg-slate-100 text-slate-600', statusText = r.statut;
+                    let statusClass = 'bg-slate-100 text-slate-600';
+                    let statusText = r.statut.toUpperCase();
 
-                    if (r.statut === 'En attente') { statusClass = 'bg-yellow-50 text-yellow-700'; statusText = '⏳ EN ATTENTE'; }
-                    else if (r.statut === 'Validé') { statusClass = 'bg-emerald-50 text-emerald-700'; statusText = '✅ APPROUVÉ'; }
-                    else if (r.statut === 'Refusé') { statusClass = 'bg-red-50 text-red-700'; statusText = '❌ REFUSÉ'; }
+                    if (r.statut.includes('attente')) {
+                        statusClass = 'bg-yellow-50 text-yellow-700 border border-yellow-100';
+                        statusText = '⏳ EN ATTENTE';
+                    } else if (r.statut.includes('valid')) {
+                        statusClass = 'bg-emerald-50 text-emerald-700 border border-emerald-100';
+                        statusText = '✅ APPROUVÉ';
+                    } else if (r.statut.includes('refus')) {
+                        statusClass = 'bg-red-50 text-red-700 border border-red-100';
+                        statusText = '❌ REFUSÉ';
+                    }
 
                     myBody.innerHTML += `
-                        <tr class="hover:bg-slate-50 border-b last:border-0">
-                            <td class="px-6 py-4 text-xs font-bold text-slate-700">${dStart} au ${dEnd}</td>
+                        <tr class="hover:bg-slate-50 transition-colors border-b last:border-0">
+                            <td class="px-6 py-4 text-xs font-bold text-slate-700">${dStart} <span class="text-slate-400 mx-1">au</span> ${dEnd}</td>
                             <td class="px-6 py-4 text-xs font-medium text-slate-500 capitalize">${r.type}</td>
-                            <td class="px-6 py-4 text-xs text-slate-400 italic">${r.motif?.substring(0, 25) + (r.motif?.length > 25 ? '...' : '')}</td>
+                            <td class="px-6 py-4 text-xs text-slate-400 italic">${r.motif.substring(0, 25) + (r.motif.length > 25 ? '...' : '')}</td>
                             <td class="px-6 py-4 text-right">
                                 <span class="px-2.5 py-1.5 rounded-lg text-[10px] font-black ${statusClass}">${statusText}</span>
                             </td>
@@ -3280,12 +3378,14 @@ async function fetchLeaveRequests() {
                 });
             }
         }
+
+        renderCharts();
+
     } catch (e) {
         console.error("Erreur fetchLeaveRequests:", e);
-        if(myBody) myBody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-red-400">Erreur de chargement.</td></tr>';
+        if(myBody) myBody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-red-400">Erreur de chargement des congés.</td></tr>';
     }
 }
-
 
 
 
@@ -5343,32 +5443,28 @@ async function fetchMobileReports(page = 1) {
 
 
 
-
 function setEmployeeFilter(category, value) {
+    // 1. On met à jour la mémoire
     activeFilters[category] = value;
     
+    // 2. On change les couleurs des boutons pour que Bill voit ce qu'il a choisi
+    // On cherche le groupe de boutons (ex: filter-group-status)
     const container = document.getElementById(`filter-group-${category}`);
-    if (!container) return;
+    if (container) {
+        container.querySelectorAll('.filter-chip').forEach(btn => {
+            // Si le bouton correspond à la valeur cliquée -> Bleu
+            if (btn.getAttribute('data-value') === value) {
+                btn.className = "filter-chip px-3 py-1.5 rounded-lg text-[10px] font-black border bg-blue-600 text-white border-blue-600 shadow-md transition-all";
+            } else {
+                // Sinon -> Blanc
+                btn.className = "filter-chip px-3 py-1.5 rounded-lg text-[10px] font-bold border bg-white text-slate-600 border-slate-200 hover:border-blue-300 transition-all";
+            }
+        });
+    }
 
-    container.querySelectorAll('.filter-chip').forEach(btn => {
-        const btnValue = btn.getAttribute('data-value');
-        
-        if (btnValue === value) {
-            // STYLE ACTIF
-            btn.classList.add('bg-blue-600', 'text-white');
-            btn.classList.remove('text-slate-500', 'bg-white', 'bg-blue-50');
-            if (category !== 'status') btn.classList.add('border-blue-600', 'shadow-md');
-        } else {
-            // STYLE INACTIF
-            btn.classList.remove('bg-blue-600', 'text-white', 'border-blue-600', 'shadow-md');
-            btn.classList.add('text-slate-500');
-            if (category !== 'status') btn.classList.add('bg-white', 'border-slate-200');
-        }
-    });
-
-    fetchData(true, 1); // Relancer la recherche
+    // 3. On repart à la page 1 et on demande les données au serveur
+    fetchData(true, 1);
 }
-
 
 
 async function renderCharts() {
@@ -5532,10 +5628,6 @@ function setReportView(mode) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
-
-
-
-
 
 
 
