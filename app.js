@@ -1057,15 +1057,17 @@ async function triggerGlobalPush(title, message) {
 
 
 
-    async function fetchData(forceUpdate = false) {
-        console.log("🚀 fetchData lancée. Force:", forceUpdate, "Role:", currentUser.role);
+
+
+async function fetchData(forceUpdate = false, page = 1) { // Ajout du paramètre page (par défaut 1)
+        console.log(`🚀 fetchData lancée. Page: ${page}, Role: ${currentUser.role}`);
 
         const CACHE_KEY = 'sirh_data_v1';
+        const limit = 10; // On définit le nombre de collaborateurs par page
         
-        // 1. On construit l'URL
-        let fetchUrl = `${URL_READ}?agent=${encodeURIComponent(currentUser.nom)}`;
+        // 1. On construit l'URL avec les paramètres page et limit
+        let fetchUrl = `${URL_READ}?page=${page}&limit=${limit}&agent=${encodeURIComponent(currentUser.nom)}`;
 
-        // Si c'est un employé, on ajoute son ID pour aider Make à filtrer (optionnel mais recommandé)
         if (currentUser.role === 'EMPLOYEE') {
             fetchUrl += `&target_id=${encodeURIComponent(currentUser.id)}`;
         }
@@ -1073,17 +1075,19 @@ async function triggerGlobalPush(title, message) {
         try {
             console.log("📞 Appel API vers :", fetchUrl);
             
-            // 2. Appel Réseau
             const r = await secureFetch(fetchUrl);
-            const d = await r.json();
+            const result = await r.json(); // On reçoit maintenant { data: [], meta: {} }
 
-            console.log("✅ Réponse reçue :", d.length, "enregistrements");
+            // On extrait les données et les infos de pagination
+            const d = result.data || [];
+            const meta = result.meta || { total: d.length, page: 1, last_page: 1 };
 
-            // 3. Mapping (Nettoyage des données)
-// 3. Mapping (Nettoyage des données pour Supabase)
+            console.log(`✅ Page ${meta.page} reçue :`, d.length, "enregistrements");
+
+            // 3. Mapping (Nettoyage des données) - TON CODE ORIGINAL CONSERVÉ
             employees = d.map(x => {
                 return { 
-                    id: x.id, // ID UUID de Supabase
+                    id: x.id, 
                     nom: x.nom, 
                     date: x.date_embauche, 
                     employee_type: x.employee_type || 'OFFICE', 
@@ -1091,7 +1095,7 @@ async function triggerGlobalPush(title, message) {
                     dept: x.departement || "Non défini", 
                     Solde_Conges: parseFloat(x.solde_conges) || 0,
                     limit: x.type_contrat === 'CDI' ? '365' : (x.type_contrat === 'CDD' ? '180' : '90'), 
-                    photo: x.photo_url || '', // On utilise le champ de Supabase
+                    photo: x.photo_url || '', 
                     statut: x.statut || 'Actif', 
                     email: x.email, 
                     telephone: x.telephone, 
@@ -1099,8 +1103,6 @@ async function triggerGlobalPush(title, message) {
                     date_naissance: x.date_naissance, 
                     role: x.role || 'EMPLOYEE',
                     matricule: x.matricule || 'N/A',
-                    
-                    // --- MAPPING DES DOCUMENTS SUPABASE ---
                     doc: x.contrat_pdf_url || '',
                     cv_link: x.cv_url || '',
                     id_card_link: x.id_card_url || '',
@@ -1117,20 +1119,37 @@ async function triggerGlobalPush(title, message) {
 
             // 5. Mise à jour Interface
             renderData();
+
+            // --- NOUVEAU : GESTION DES CONTRÔLES DE PAGINATION ---
+            const container = document.getElementById('view-employees');
+            const oldPagination = document.getElementById('employees-pagination-controls');
+            if(oldPagination) oldPagination.remove();
+
+            if (meta.last_page > 1) {
+                const paginationHtml = `
+                    <div id="employees-pagination-controls" class="flex justify-between items-center mt-6 p-4 bg-white rounded-2xl border shadow-sm animate-fadeIn">
+                        <button onclick="fetchData(true, ${meta.page - 1})" ${meta.page <= 1 ? 'disabled' : ''} class="px-4 py-2 text-xs font-bold uppercase text-slate-500 disabled:opacity-20 hover:text-blue-600 transition-all">
+                            <i class="fa-solid fa-arrow-left"></i> Précédent
+                        </button>
+                        <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Page ${meta.page} / ${meta.last_page}</span>
+                        <button onclick="fetchData(true, ${meta.page + 1})" ${meta.page >= meta.last_page ? 'disabled' : ''} class="px-4 py-2 text-xs font-bold uppercase text-blue-600 disabled:opacity-20 hover:scale-105 transition-all">
+                            Suivant <i class="fa-solid fa-arrow-right"></i>
+                        </button>
+                    </div>`;
+                if(container) container.insertAdjacentHTML('beforeend', paginationHtml);
+            }
+
+            // 6. Mise à jour graphiques (utilise maintenant la route globale que nous avons créée)
             renderCharts();
 
-            // 6. Si Manager, on charge les congés
             if (currentUser.role !== 'EMPLOYEE') {
                 fetchLeaveRequests();
             }
 
         } catch (e) {
             console.error("❌ ERREUR FETCH:", e);
-            
-            // En cas d'erreur, on essaie quand même d'afficher le cache si dispo
             const cached = localStorage.getItem(CACHE_KEY);
             if (cached) {
-                console.log("⚠️ Utilisation du cache de secours");
                 employees = JSON.parse(cached);
                 renderData();
                 loadMyProfile();
@@ -1139,7 +1158,8 @@ async function triggerGlobalPush(title, message) {
             }
         }
     }
-            
+   
+
 
 
     function renderData() { 
@@ -3263,110 +3283,7 @@ async function fetchLeaveRequests() {
 
 
 
-function renderCharts() {
-        if (!employees || employees.length === 0) return;
 
-        // 1. ÉLIMINATION DES DOUBLONS D'EMPLOYÉS (par matricule unique)
-        const uniqueEmployees = [];
-        const seenIds = new Set();
-        employees.forEach(emp => {
-            if (!seenIds.has(emp.id)) {
-                seenIds.add(emp.id);
-                uniqueEmployees.push(emp);
-            }
-        });
-
-        let counts = { 'Actif': 0, 'Congé': 0, 'Sortie': 0 };
-        const today = new Date();
-        today.setHours(0, 0, 0, 0); 
-
-        const normalize = (s) => String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-
-        console.log("--- DÉBUT CALCUL GRAPHIQUE (PRIORITÉ CUMULÉE) ---");
-
-        uniqueEmployees.forEach(emp => {
-            const empNomIndex = normalize(emp.nom);
-            const empStatutProfil = normalize(emp.statut);
-
-            // A. PRIORITÉ SORTIE : Si marqué Sortie dans le profil Airtable
-            if (empStatutProfil.includes('sortie')) {
-                counts['Sortie']++;
-                return;
-            }
-
-            // B. SOURCE 1 : Vérification dans la table CONGES (Validé + Dates)
-            const aUnCongeValideEnTable = allLeaves.some(leave => {
-                if (!leave.nomIndex || !leave.debut || !leave.fin) return false;
-                
-                // Comparaison STRICTE du nom pour éviter de confondre Josue Dominique et Dominique
-                const matchNomStrict = (leave.nomIndex === empNomIndex);
-                
-                // MODIFICATION ICI : On utilise includes('valid') pour accepter "Validé" (Supabase) ou "valide"
-                const estValide = (leave.statut.toLowerCase().includes('valid'));
-                
-                const estDansDates = (today >= leave.debut && today <= leave.fin);
-                const nEstPasTele = (!leave.type.includes("teletravail"));
-
-                return matchNomStrict && estValide && estDansDates && nEstPasTele;
-            });
-
-            // C. SOURCE 2 : Vérification du statut manuel "Congé" dans la fiche employé
-            const estEnCongeDansProfil = empStatutProfil.includes('conge');
-
-            // D. SYNTHÈSE : Si l'un des deux est Vrai, on le compte en congé
-            if (aUnCongeValideEnTable || estEnCongeDansProfil) {
-                console.info(`[CONGÉ] ${emp.nom} comptabilisé.`);
-                counts['Congé']++;
-            } else {
-                counts['Actif']++;
-            }
-        });
-
-        // --- SYNCHRONISATION DES CHIFFRES DU DASHBOARD ---
-        if(document.getElementById('stat-total')) document.getElementById('stat-total').innerText = uniqueEmployees.length;
-        if(document.getElementById('stat-active')) document.getElementById('stat-active').innerText = counts['Actif'];
-
-        // --- RENDU CHART.JS (STATUT) ---
-        if (chartStatusInstance) chartStatusInstance.destroy();
-        const ctxStatus = document.getElementById('chartStatus').getContext('2d');
-        chartStatusInstance = new Chart(ctxStatus, {
-            type: 'doughnut',
-            data: {
-                labels: ['Actif', 'Congé', 'Sortie'],
-                datasets: [{
-                    data: [counts['Actif'], counts['Congé'], counts['Sortie']],
-                    backgroundColor: ['#10b981', '#f59e0b', '#ef4444'], 
-                    borderWidth: 0
-                }]
-            },
-            options: { 
-                plugins: { legend: { position: 'bottom' } }, 
-                cutout: '70%',
-                animation: { duration: 800 }
-            }
-        });
-
-        // --- RENDU CHART.JS (DÉPARTEMENT) ---
-        const deptCounts = {};
-        uniqueEmployees.forEach(e => { 
-            const d = e.dept || 'Inconnu';
-            deptCounts[d] = (deptCounts[d] || 0) + 1; 
-        });
-        if (chartDeptInstance) chartDeptInstance.destroy();
-        const ctxDept = document.getElementById('chartDept').getContext('2d');
-        chartDeptInstance = new Chart(ctxDept, {
-            type: 'bar',
-            data: {
-                labels: Object.keys(deptCounts),
-                datasets: [{ label: 'Collaborateurs', data: Object.values(deptCounts), backgroundColor: '#6366f1', borderRadius: 8 }]
-            },
-            options: { 
-                scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } }, x: { grid: { display: false } } }, 
-                plugins: { legend: { display: false } } 
-            }
-        });
-    }
-    
 
 
 async function fetchFlashMessage() {
@@ -5433,9 +5350,96 @@ async function fetchMobileReports(page = 1) {
 
 
 
+async function renderCharts() {
+    // Changement de paradigme pour la scalabilité (20 ans / 10 000 employés)
+    // On ne calcule plus en local car avec la pagination, la variable 'employees' est incomplète.
+    // On interroge le "Cerveau" du serveur qui a la vision globale.
+
+    try {
+        const response = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/get-dashboard-stats`);
+        const stats = await response.json();
+
+        // --- 1. SYNCHRONISATION DES CHIFFRES DU DASHBOARD ---
+        if(document.getElementById('stat-total')) document.getElementById('stat-total').innerText = stats.total;
+        if(document.getElementById('stat-active')) document.getElementById('stat-active').innerText = stats.actifs;
+
+        // --- 2. RENDU CHART.JS (STATUT) ---
+        if (chartStatusInstance) chartStatusInstance.destroy();
+        const ctxStatus = document.getElementById('chartStatus').getContext('2d');
+        chartStatusInstance = new Chart(ctxStatus, {
+            type: 'doughnut',
+            data: {
+                labels: ['Actif', 'Congé', 'Sortie'],
+                datasets: [{
+                    // On utilise les données globales calculées par le serveur
+                    data: [stats.actifs, stats.enConge, stats.sortis],
+                    backgroundColor: ['#10b981', '#f59e0b', '#ef4444'], 
+                    borderWidth: 0
+                }]
+            },
+            options: { 
+                plugins: { legend: { position: 'bottom' } }, 
+                cutout: '70%',
+                animation: { duration: 800 }
+            }
+        });
+
+        // --- 3. RENDU CHART.JS (DÉPARTEMENT) ---
+        if (chartDeptInstance) chartDeptInstance.destroy();
+        const ctxDept = document.getElementById('chartDept').getContext('2d');
+        chartDeptInstance = new Chart(ctxDept, {
+            type: 'bar',
+            data: {
+                labels: Object.keys(stats.departements),
+                datasets: [{ 
+                    label: 'Collaborateurs', 
+                    data: Object.values(stats.departements), 
+                    backgroundColor: '#6366f1', 
+                    borderRadius: 8 
+                }]
+            },
+            options: { 
+                scales: { 
+                    y: { beginAtZero: true, ticks: { stepSize: 1 } }, 
+                    x: { grid: { display: false } } 
+                }, 
+                plugins: { legend: { display: false } } 
+            }
+        });
+
+    } catch (e) {
+        console.error("Erreur de mise à jour des statistiques globales:", e);
+    }
+}
 
 
 
+
+
+
+function injectPaginationUI(containerId, meta, callbackName) {
+    const container = document.getElementById(containerId);
+    if (!container || !meta || meta.last_page <= 1) return;
+
+    const html = `
+        <div class="flex justify-between items-center mt-6 p-4 bg-white rounded-2xl border shadow-sm">
+            <button onclick="${callbackName}(${meta.page - 1})" ${meta.page <= 1 ? 'disabled' : ''} 
+                class="px-4 py-2 text-xs font-bold uppercase text-slate-500 disabled:opacity-20">
+                <i class="fa-solid fa-arrow-left mr-2"></i> Précédent
+            </button>
+            <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                Page ${meta.page} / ${meta.last_page}
+            </span>
+            <button onclick="${callbackName}(${meta.page + 1})" ${meta.page >= meta.last_page ? 'disabled' : ''} 
+                class="px-4 py-2 text-xs font-bold uppercase text-blue-600 disabled:opacity-20">
+                Suivant <i class="fa-solid fa-arrow-right ml-2"></i>
+            </button>
+        </div>
+    `;
+    
+    // On l'ajoute à la fin de la section
+    container.insertAdjacentHTML('beforeend', html);
+}
 
 
 // 3. AUDIT GLOBAL
@@ -5507,6 +5511,7 @@ function setReportView(mode) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
