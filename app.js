@@ -963,72 +963,51 @@ async function offerRegisterLocation(gps) {
 
 
 
+async function loadEmployeeStats() {
+    try {
+        // Appel léger au serveur
+        const r = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/get-employee-stats`);
+        const stats = await r.json();
 
-    async function refreshAllData(force = false) {
-        const now = Date.now();
-        const icon = document.getElementById('refresh-icon'); 
-        if(icon) icon.classList.add('fa-spin');
+        // 1. Mise à jour des cartes (Dashboard)
+        if(document.getElementById('stat-total')) document.getElementById('stat-total').innerText = stats.total;
+        if(document.getElementById('stat-active')) document.getElementById('stat-active').innerText = stats.actifs;
+        if(document.getElementById('stat-alert')) document.getElementById('stat-alert').innerText = stats.alertes_contrat;
 
-        if(force) {
-            const Toast = Swal.mixin({toast: true, position: 'top-end', showConfirmButton: false});
-            Toast.fire({icon: 'info', title: 'Actualisation...'});
+        // 2. Mise à jour du Graphique Donut (Statuts)
+        if (chartStatusInstance) chartStatusInstance.destroy();
+        const ctxStatus = document.getElementById('chartStatus')?.getContext('2d');
+        if(ctxStatus) {
+            chartStatusInstance = new Chart(ctxStatus, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Actif', 'Congé', 'Sortie'],
+                    datasets: [{
+                        data: [stats.actifs, stats.conges, stats.sorties],
+                        backgroundColor: ['#10b981', '#f59e0b', '#ef4444'], 
+                        borderWidth: 0
+                    }]
+                },
+                options: { cutout: '70%', plugins: { legend: { position: 'bottom' } } }
+            });
         }
 
-        try {
-            const tasks = [];
-
-            // 1. GPS & Flash (inchangé)
-            if (force || (now - lastFetchTimes.global > 3600000)) {
-                tasks.push(fetchCompanyConfig().catch(e => console.warn("GPS ignoré", e)));
-            }
-            tasks.push(fetchFlashMessage().catch(e => console.warn("Flash ignoré", e)));
-
-            // --- CORRECTION MAJEURE ICI ---
-            // Avant, on ne chargeait pas si on était sur 'my-profile'.
-            // Maintenant, si la liste 'employees' est vide, ON FORCE LE CHARGEMENT.
-            // C'est ça qui va déclencher le Webhook pour l'employé.
-            if (force || employees.length === 0 || (now - lastFetchTimes.employees > REFRESH_THRESHOLD)) {
-                // On attend que les données soient là avant de continuer
-                await fetchData(force); 
-                lastFetchTimes.employees = now;
-            }
-
-            // 3. Autres chargements spécifiques (inchangé)
-            if (currentView === 'recruitment') tasks.push(fetchCandidates());
-            if (currentView === 'logs') tasks.push(fetchLogs());
-            if (currentView === 'my-profile') {
-                loadMyProfile(); // On recharge l'affichage local
-                tasks.push(fetchPayrollData()); // On va chercher les bulletins
-            }
-            if (currentUser.role !== 'EMPLOYEE') {
-                tasks.push(fetchLeaveRequests());
-                fetchEmployeeLeaveBalances();
-                tasks.push(triggerRobotCheck());
-                tasks.push(fetchLiveAttendance());
-
-            }
-            
-            else {
-                    // AJOUTE CET APPEL ICI : L'employé doit aussi charger ses propres demandes
-                    tasks.push(fetchLeaveRequests());
-                }
-
-            await Promise.all(tasks);
-            
-            // Mise à jour finale de l'interface
-            if (currentView === 'dash') renderCharts();
-
-            if(force) {
-                const Toast = Swal.mixin({toast: true, position: 'top-end', showConfirmButton: false, timer: 2000});
-                Toast.fire({icon: 'success', title: 'Données à jour !'});
-            }
-
-        } catch (error) {
-            console.error("Erreur Sync:", error);
-        } finally {
-            if(icon) setTimeout(() => icon.classList.remove('fa-spin'), 500);
+        // 3. Mise à jour du Graphique Barres (Départements)
+        if (chartDeptInstance) chartDeptInstance.destroy();
+        const ctxDept = document.getElementById('chartDept')?.getContext('2d');
+        if(ctxDept) {
+            chartDeptInstance = new Chart(ctxDept, {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(stats.par_dept),
+                    datasets: [{ label: 'Effectif', data: Object.values(stats.par_dept), backgroundColor: '#6366f1', borderRadius: 5 }]
+                },
+                options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+            });
         }
-    }
+
+    } catch (e) { console.error("Erreur Stats:", e); }
+}
 
 
 
@@ -1141,149 +1120,18 @@ async function triggerGlobalPush(title, message) {
             
 
 
-    function renderData() { 
-        const b = document.getElementById('full-body'); 
-        const d = document.getElementById('dashboard-body'); 
-        b.innerHTML = ''; 
-        d.innerHTML = ''; 
-        
-        let total = 0, alertes = 0, actifs = 0; 
-
-        // --- 1. CALCUL DES STATS (Sur TOUT l'effectif) ---
-        employees.forEach(e => { 
-            total++; 
-            const rawStatus = (e.statut || 'Actif').toLowerCase().trim();
-            const isSortie = rawStatus.includes('sortie'); 
-            
-            if (rawStatus === 'actif') actifs++; 
-            
-            let dL = 999, isU = false, isExpired = false;
-            
-            if(e.date_embauche && !isSortie) { 
-                let sD = parseDateSmart(e.date_embauche); // Récupère de la bonne colonne
-                let eD = new Date(sD); 
-                 eD.setDate(eD.getDate() + (parseInt(e.type_contrat) || 365)); // Utilise type_contrat (le texte)
-                dL = Math.ceil((eD - new Date()) / 86400000); 
-
-                if (dL < 0) { isExpired = true; alertes++; } 
-                else if (dL <= 15) { isU = true; alertes++; }
-
-                if(isExpired || isU) {
-                    d.innerHTML += `<tr class="bg-white border-b"><td class="p-4 text-sm font-bold text-slate-700">${escapeHTML(e.nom)}</td><td class="p-4 text-xs text-slate-500">${escapeHTML(e.poste)}</td><td class="p-4 ${isExpired ? 'text-red-600' : 'text-orange-600'} font-bold text-xs uppercase">${isExpired ? 'Expiré' : dL + ' jours'}</td><td class="p-4 rh-only text-right"><button class="bg-slate-900 text-white px-3 py-1.5 rounded-lg text-[10px] font-bold" onclick="openEditModal('${escapeHTML(e.id)}')">GÉRER</button></td></tr>`; 
-                }
-            }
-        }); 
-
-        // --- 2. FILTRAGE POUR L'AFFICHAGE ---
-        let filteredEmployees = employees;
-        
-        if (typeof currentFilter !== 'undefined' && currentFilter !== 'all') {
-            filteredEmployees = employees.filter(e => {
-                const safeStatut = (e.statut || "").toLowerCase();
-                const safeDept = (e.dept || "").toLowerCase();
-                const search = currentFilter.toLowerCase();
-                
-                // Logique de correspondance (exacte ou partielle)
-                return safeStatut.includes(search) || safeDept.includes(search);
-            });
-        }
-
-        // --- 3. PAGINATION SUR LA LISTE FILTRÉE ---
-        const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-        const endIndex = startIndex + ITEMS_PER_PAGE;
-        const paginatedEmployees = filteredEmployees.slice(startIndex, endIndex);
-
-        paginatedEmployees.forEach(e => {
-            const rawStatus = (e.statut || 'Actif').toLowerCase().trim();
-            let dL = 999, isU = false, isExpired = false;
-            const isSortie = rawStatus.includes('sortie');
-            const isConges = rawStatus.includes('cong');
-            
-            if(e.date && !isSortie) {
-                let sD = parseDateSmart(e.date); 
-                let eD = new Date(sD); 
-                eD.setDate(eD.getDate() + (parseInt(e.limit) || 365));
-                dL = Math.ceil((eD - new Date()) / 86400000); 
-                if (dL < 0) isExpired = true;
-                else if (dL <= 15) isU = true;
-            }
-
-            let bdgClass = "bg-green-100 text-green-700";
-            let bdgLabel = e.statut || 'Actif';
-
-            if(isSortie) { 
-                bdgClass = "bg-slate-100 text-slate-500"; 
-                bdgLabel = "SORTIE"; 
-            } else if(isExpired) { 
-                bdgClass = "bg-red-100 text-red-700 font-bold border border-red-200"; 
-                bdgLabel = `EXPIRÉ`; 
-            } else if(isU) { 
-                bdgClass = "bg-orange-100 text-orange-700 animate-pulse font-bold"; 
-                bdgLabel = `FIN: ${dL}j`; 
-            } else if(isConges) { 
-                bdgClass = "bg-blue-100 text-blue-700"; 
-                bdgLabel = "CONGÉ"; 
-            }
-
-            const av = e.photo && e.photo.length > 10 ? `<img src="${formatGoogleLink(e.photo)}" loading="lazy" decoding="async" class="w-10 h-10 rounded-full object-cover bg-slate-200 border border-slate-200">` : `<div class="w-10 h-10 bg-gradient-to-br from-slate-100 to-slate-200 border border-slate-200 rounded-full flex items-center justify-center text-xs font-black text-slate-500">${escapeHTML(e.nom).substring(0,2).toUpperCase()}</div>`;
-            
-            const sStr = String(e.contract_status || '').toLowerCase().trim(); 
-            const isSigned = (sStr === 'signé' || sStr === 'signe');
-            
-            const safeId = escapeHTML(e.id);
-    
-
-
- const contractActions = `
-<div class="flex items-center justify-end gap-2">
-    <!-- DOSSIER COMPLET -->
-    <button onclick="openFullFolder('${safeId}')" title="Dossier Complet" class="p-2 bg-yellow-50 text-yellow-600 rounded-lg hover:bg-yellow-500 hover:text-white transition-all"><i class="fa-solid fa-folder-open"></i></button>
-    
-    <div class="h-4 w-[1px] bg-slate-200 mx-1"></div>
-
-    ${!isSigned ? `
-        <!-- 1. GÉNÉRER LE BROUILLON (Le bouton qui manquait) -->
-        <button onclick="generateDraftContract('${safeId}')" title="Générer le brouillon PDF" class="p-2 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-600 hover:text-white transition-all">
-            <i class="fa-solid fa-file-contract"></i>
-        </button>
-
-        <!-- 2. OPTION A : SIGNATURE ÉLECTRONIQUE (AUTO) -->
-        <button onclick="openContractModal('${safeId}')" title="Signature sur écran" class="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white transition-all">
-            <i class="fa-solid fa-pen-nib"></i>
-        </button>
-
-        <!-- 3. OPTION B : SCAN / UPLOAD MANUEL -->
-        <button onclick="triggerManualContractUpload('${safeId}')" title="Uploader un contrat scanné" class="p-2 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-600 hover:text-white transition-all">
-            <i class="fa-solid fa-file-arrow-up"></i>
-        </button>
-    ` : `
-        <span class="text-[10px] font-black text-emerald-500 uppercase bg-emerald-50 px-2 py-1 rounded">Signé</span>
-    `}
-
-    <div class="h-4 w-[1px] bg-slate-200 mx-1"></div>
-    
-    <!-- BADGE ET MODIFICATION -->
-    <button onclick="printBadge('${safeId}')" class="text-slate-400 hover:text-blue-600 transition-all"><i class="fa-solid fa-print"></i></button>
-    <button onclick="openEditModal('${safeId}')" class="text-slate-400 hover:text-slate-800 transition-all"><i class="fa-solid fa-pen"></i></button>
-</div>`;
+   
 
 
 
-            
-            b.innerHTML+=`<tr class="border-b hover:bg-slate-50 transition-colors"><td class="p-4 flex gap-3 items-center min-w-[200px]">${av}<div><div class="font-bold text-sm text-slate-800 uppercase">${escapeHTML(e.nom)}</div><div class="text-[10px] text-slate-400 font-mono tracking-tighter">${e.matricule}</div></div></td><td class="p-4 text-xs font-medium text-slate-500">${escapeHTML(e.poste)}</td><td class="p-4"><span class="px-3 py-1 border rounded-lg text-[10px] font-black uppercase ${bdgClass}">${escapeHTML(bdgLabel)}</span></td><td class="p-4 rh-only">${contractActions}</td></tr>`; 
-        });
 
-        // Mises à jour UI
-        document.getElementById('stat-total').innerText = total; 
-        document.getElementById('stat-alert').innerText = alertes; 
-        document.getElementById('stat-active').innerText = actifs;
 
-        // Mise à jour pagination avec la liste FILTRÉE
-        const totalPages = Math.ceil(filteredEmployees.length / ITEMS_PER_PAGE);
-        document.querySelectorAll('.page-info-global').forEach(el => { el.innerText = `PAGE ${currentPage} / ${totalPages || 1}`; });
-        document.querySelectorAll('.btn-prev-global').forEach(btn => { btn.disabled = currentPage === 1; btn.classList.toggle('opacity-30', currentPage === 1); });
-        document.querySelectorAll('.btn-next-global').forEach(btn => { btn.disabled = currentPage >= totalPages; btn.classList.toggle('opacity-30', currentPage >= totalPages); });
-    }
+
+
+
+
+
+
 
 
 async function openAttendancePicker() {
@@ -2249,7 +2097,7 @@ function switchView(v) {
             function toggleSidebar(){const sb=document.getElementById('sidebar'), o=document.getElementById('sidebar-overlay'); if(sb.classList.contains('-translate-x-full')){sb.classList.remove('-translate-x-full');o.classList.remove('hidden');}else{sb.classList.add('-translate-x-full');o.classList.add('hidden');}}
         
 
-            function filterTable(){const t=document.getElementById('search-input').value.toLowerCase(); const s=document.querySelector('.view-section.active'); if(s)s.querySelectorAll('tbody tr').forEach(r=>{r.style.display=r.innerText.toLowerCase().includes(t)?'':'none'})}
+
           
         
             function parseDateSmart(d){if(!d)return new Date();if(!isNaN(d)&&!String(d).includes('/'))return new Date((d-25569)*86400000);if(String(d).includes('/')){const p=d.split('/'); return new Date(p[2],p[1]-1,p[0]);}return new Date(d);}
@@ -4114,26 +3962,27 @@ async function deleteZone(id) {
 
 
 
+// Nouvelle fonction de recherche (liée à l'input #search-input)
+function filterTable() {
+    const input = document.getElementById('search-input');
+    currentEmpSearch = input.value.trim();
+    
+    // On ajoute un petit délai pour ne pas harceler le serveur à chaque lettre
+    if (window.searchTimeout) clearTimeout(window.searchTimeout);
+    window.searchTimeout = setTimeout(() => {
+        loadEmployeeList(1); // Retour page 1 avec la nouvelle recherche
+    }, 500);
+}
+
+// Nouvelle fonction de changement de page
 function changePage(direction) {
-                const totalPages = Math.ceil(employees.length / ITEMS_PER_PAGE);
-                const newPage = currentPage + direction;
-                
-                if (newPage >= 1 && newPage <= totalPages) {
-                    currentPage = newPage;
-                    renderData();
-                    
-                    // --- CORRECTION DU SCROLL ---
-                    // On remonte doucement vers le haut du tableau, pas tout en haut de la page
-                    // Cela garde le focus visuel sur les données
-                    const tableSection = document.getElementById('view-employees');
-                    if(tableSection) {
-                        tableSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    }
-                }
-            }
-
-
-
+    const newPage = currentEmpPage + direction;
+    if (newPage > 0) {
+        loadEmployeeList(newPage);
+        // Scroll doux vers le haut du tableau
+        document.getElementById('view-employees')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+}
 
 
             // --- SÉCURITÉ XSS (NETTOYAGE DES DONNÉES) ---
@@ -5313,44 +5162,254 @@ function changeReportTab(tab) {
 
 
 
+async function refreshAllData(force = false) {
+    const now = Date.now();
+    const icon = document.getElementById('refresh-icon'); 
+    if(icon) icon.classList.add('fa-spin');
+
+    if(force) {
+        const Toast = Swal.mixin({toast: true, position: 'top-end', showConfirmButton: false});
+        Toast.fire({icon: 'info', title: 'Actualisation...'});
+    }
+
+    try {
+        const tasks = [];
+
+        // 1. GPS & Flash (inchangé)
+        if (force || (now - lastFetchTimes.global > 3600000)) {
+            tasks.push(fetchCompanyConfig().catch(e => console.warn("GPS ignoré", e)));
+        }
+        tasks.push(fetchFlashMessage().catch(e => console.warn("Flash ignoré", e)));
+
+        // --- CORRECTION MAJEURE : ARCHITECTURE SCALABLE ---
+        // On remplace le chargement massif (fetchData) par le chargement séparé
+        
+        // Moteur 1 : Les Chiffres (Graphiques, Cartes du haut)
+        // C'est léger et rapide pour le Dashboard
+        tasks.push(loadEmployeeStats().catch(e => console.error("Erreur Stats", e)));
+
+        // Moteur 2 : La Liste (Tableau)
+        // On ne charge que la page actuelle (10 personnes), pas les 2000
+        tasks.push(loadEmployeeList(currentEmpPage).catch(e => console.error("Erreur Liste", e)));
+
+        // 3. Autres chargements spécifiques (inchangé)
+        if (currentView === 'recruitment') tasks.push(fetchCandidates());
+        if (currentView === 'logs') tasks.push(fetchLogs());
+        if (currentView === 'my-profile') {
+            loadMyProfile(); // On recharge l'affichage local
+            tasks.push(fetchPayrollData()); // On va chercher les bulletins
+        }
+        
+        if (currentUser.role !== 'EMPLOYEE') {
+            tasks.push(fetchLeaveRequests());
+            fetchEmployeeLeaveBalances();
+            tasks.push(triggerRobotCheck());
+            tasks.push(fetchLiveAttendance());
+        }
+        else {
+            // L'employé charge ses propres demandes
+            tasks.push(fetchLeaveRequests());
+        }
+
+        // On attend que tout soit fini
+        await Promise.all(tasks);
+        
+        if(force) {
+            const Toast = Swal.mixin({toast: true, position: 'top-end', showConfirmButton: false, timer: 2000});
+            Toast.fire({icon: 'success', title: 'Données à jour !'});
+        }
+
+    } catch (error) {
+        console.error("Erreur Sync:", error);
+    } finally {
+        if(icon) setTimeout(() => icon.classList.remove('fa-spin'), 500);
+    }
+}
 
 
 
 
 
 
-async function fetchMobileReports() {
+
+
+
+async function loadEmployeeList(page = 1) {
+    const tbody = document.getElementById('full-body');
+    const searchInput = document.getElementById('search-input');
+    
+    // Gestion de la recherche
+    if (searchInput && searchInput.value !== currentEmpSearch) {
+        currentEmpSearch = searchInput.value;
+        currentEmpPage = 1;
+    } else {
+        currentEmpPage = page;
+    }
+
+    if(!tbody) return;
+
+    // Squelette de chargement (Design Pro)
+    const skeletonRow = `<tr class="border-b"><td class="p-4 flex gap-3 items-center"><div class="w-10 h-10 rounded-full bg-slate-200 animate-pulse"></div><div class="space-y-2"><div class="h-3 w-24 bg-slate-200 rounded animate-pulse"></div></div></td><td class="p-4"><div class="h-3 w-32 bg-slate-200 rounded animate-pulse"></div></td><td class="p-4"><div class="h-6 w-16 rounded-lg bg-slate-200 animate-pulse"></div></td><td class="p-4"></td></tr>`;
+    tbody.innerHTML = skeletonRow.repeat(5);
+
+    try {
+        // Appel paginé au serveur
+        const url = `${SIRH_CONFIG.apiBaseUrl}/read-employees-paginated?page=${currentEmpPage}&limit=${ITEMS_PER_PAGE}&search=${encodeURIComponent(currentEmpSearch)}`;
+        const r = await secureFetch(url);
+        const res = await r.json();
+
+        // Mise à jour de la liste globale (pour que les modales d'édition fonctionnent)
+        // On convertit les données brutes du serveur au format attendu par l'app
+        employees = res.data.map(x => ({
+            id: x.id, nom: x.nom, matricule: x.matricule || 'N/A',
+            poste: x.poste, dept: x.departement || "Non défini",
+            email: x.email, telephone: x.telephone, adresse: x.adresse,
+            statut: x.statut || 'Actif', photo: x.photo_url || '',
+            date: x.date_embauche,
+            employee_type: x.employee_type || 'OFFICE',
+            type_contrat: x.type_contrat, // Garder le texte exact
+            limit: x.type_contrat === 'CDI' ? '365' : (x.type_contrat === 'CDD' ? '180' : '90'),
+            // Liens docs
+            doc: x.contrat_pdf_url || '', cv_link: x.cv_url || '', id_card_link: x.id_card_url || '',
+            diploma_link: x.diploma_url || '', attestation_link: x.attestation_url || '', lm_link: x.lm_url || '',
+            contract_status: x.contract_status || 'Non signé',
+            solde_conges: parseFloat(x.solde_conges) || 0
+        }));
+
+        tbody.innerHTML = '';
+        
+        if (employees.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="4" class="p-10 text-center text-slate-400">Aucun collaborateur trouvé.</td></tr>`;
+            updatePaginationUI(0, 0);
+            return;
+        }
+
+        // --- GÉNÉRATION DU HTML (Ton design exact) ---
+        employees.forEach(e => {
+            const rawStatus = (e.statut || 'Actif').toLowerCase().trim();
+            const isSortie = rawStatus.includes('sortie');
+            const isConges = rawStatus.includes('cong');
+            let bdgClass = "bg-green-100 text-green-700";
+            let bdgLabel = e.statut;
+
+            if(isSortie) { bdgClass = "bg-slate-100 text-slate-500"; bdgLabel = "SORTIE"; } 
+            else if(isConges) { bdgClass = "bg-blue-100 text-blue-700"; bdgLabel = "CONGÉ"; }
+
+            // Avatar
+            const av = e.photo && e.photo.length > 10 
+                ? `<img src="${formatGoogleLink(e.photo)}" loading="lazy" class="w-10 h-10 rounded-full object-cover bg-slate-200 border border-slate-200">` 
+                : `<div class="w-10 h-10 bg-gradient-to-br from-slate-100 to-slate-200 border border-slate-200 rounded-full flex items-center justify-center text-xs font-black text-slate-500">${escapeHTML(e.nom).substring(0,2).toUpperCase()}</div>`;
+            
+            const sStr = String(e.contract_status || '').toLowerCase().trim(); 
+            const isSigned = (sStr === 'signé' || sStr === 'signe');
+            const safeId = escapeHTML(e.id);
+
+            // --- BARRE D'ACTIONS (Ton code exact) ---
+            const contractActions = `
+            <div class="flex items-center justify-end gap-2">
+                <button onclick="openFullFolder('${safeId}')" title="Dossier Complet" class="p-2 bg-yellow-50 text-yellow-600 rounded-lg hover:bg-yellow-500 hover:text-white transition-all"><i class="fa-solid fa-folder-open"></i></button>
+                <div class="h-4 w-[1px] bg-slate-200 mx-1"></div>
+                ${!isSigned ? `
+                    <button onclick="generateDraftContract('${safeId}')" title="Générer brouillon" class="p-2 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-600 hover:text-white transition-all"><i class="fa-solid fa-file-contract"></i></button>
+                    <button onclick="openContractModal('${safeId}')" title="Signer" class="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white transition-all"><i class="fa-solid fa-pen-nib"></i></button>
+                    <button onclick="triggerManualContractUpload('${safeId}')" title="Uploader" class="p-2 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-600 hover:text-white transition-all"><i class="fa-solid fa-file-arrow-up"></i></button>
+                ` : `<span class="text-[10px] font-black text-emerald-500 uppercase bg-emerald-50 px-2 py-1 rounded">Signé</span>`}
+                <div class="h-4 w-[1px] bg-slate-200 mx-1"></div>
+                <button onclick="printBadge('${safeId}')" class="text-slate-400 hover:text-blue-600 transition-all"><i class="fa-solid fa-print"></i></button>
+                <button onclick="openEditModal('${safeId}')" class="text-slate-400 hover:text-slate-800 transition-all"><i class="fa-solid fa-pen"></i></button>
+            </div>`;
+
+            tbody.innerHTML += `
+                <tr class="border-b hover:bg-slate-50 transition-colors">
+                    <td class="p-4 flex gap-3 items-center min-w-[200px]">
+                        ${av}
+                        <div>
+                            <div class="font-bold text-sm text-slate-800 uppercase">${escapeHTML(e.nom)}</div>
+                            <div class="text-[10px] text-slate-400 font-mono tracking-tighter">${e.matricule}</div>
+                        </div>
+                    </td>
+                    <td class="p-4 text-xs font-medium text-slate-500">${escapeHTML(e.poste)}</td>
+                    <td class="p-4"><span class="px-3 py-1 border rounded-lg text-[10px] font-black uppercase ${bdgClass}">${escapeHTML(bdgLabel)}</span></td>
+                    <td class="p-4 rh-only text-right">${contractActions}</td>
+                </tr>`;
+        });
+
+        // Mise à jour de la pagination visuelle
+        updatePaginationUI(res.page, res.total_pages);
+
+    } catch (e) { console.error("Erreur Tableau:", e); }
+}
+
+function updatePaginationUI(page, total) {
+    document.querySelectorAll('.page-info-global').forEach(el => { el.innerText = `PAGE ${page} / ${total || 1}`; });
+    
+    document.querySelectorAll('.btn-prev-global').forEach(btn => { 
+        btn.onclick = () => changePage(-1); 
+        btn.disabled = page <= 1; 
+        btn.classList.toggle('opacity-30', page <= 1); 
+    });
+    
+    document.querySelectorAll('.btn-next-global').forEach(btn => { 
+        btn.onclick = () => changePage(1); 
+        btn.disabled = page >= total; 
+        btn.classList.toggle('opacity-30', page >= total); 
+    });
+}
+
+
+// Variables pour gérer la pagination
+let currentPageReport = 1;
+let totalPagesReport = 1;
+
+async function fetchMobileReports(page = 1) {
     const container = document.getElementById('reports-list-container');
     const counterEl = document.getElementById('stat-visites-total');
     const labelEl = document.getElementById('stat-report-label');
+    
+    // Récupération des filtres
     const nameFilter = document.getElementById('filter-report-name')?.value.toLowerCase() || "";
     const periodFilter = document.getElementById('filter-report-date')?.value || "month";
 
+    // Reset de la page si on change de filtre (détecté par l'appel sans argument ou page 1 explicite)
+    if (page === 1) currentPageReport = 1;
+
     if (!container) return;
     
-    // On lance le chargement
-    container.innerHTML = '<div class="col-span-full text-center p-10"><i class="fa-solid fa-circle-notch fa-spin text-blue-500 text-3xl"></i></div>';
+    // Loader (uniquement si changement de contexte, sinon ça clignote trop)
+    if (page === 1) container.innerHTML = '<div class="col-span-full text-center p-10"><i class="fa-solid fa-circle-notch fa-spin text-blue-500 text-3xl"></i></div>';
 
     try {
         if (currentReportTab === 'visits') {
-            // --- LOGIQUE VISITES ---
-            const r = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/read-visit-reports`);
-            let data = await r.json();
+            // --- ONGLET VISITES (MODE PAGINÉ SERVER-SIDE) ---
+            
+            // 1. On appelle le serveur avec le numéro de page
+            const r = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/read-visit-reports?period=${periodFilter}&page=${page}&limit=20`);
+            const response = await r.json();
+            
+            // 2. On gère le nouveau format de réponse { data, meta }
+            // Si l'ancien backend est encore là, on gère le fallback (tableau simple)
+            let data = Array.isArray(response) ? response : (response.data || []);
+            const meta = response.meta || { total: data.length, current_page: 1, last_page: 1 };
 
+            // Mise à jour des variables globales
+            currentPageReport = meta.page || 1;
+            totalPagesReport = meta.last_page || 1;
+
+            // Filtrage Client (Temporaire, idéalement à faire côté serveur plus tard)
             if (nameFilter) {
                 data = data.filter(v => v.nom_agent?.toLowerCase().includes(nameFilter));
             }
 
-            if(labelEl) labelEl.innerText = "TOTAL VISITES (MOIS)";
-            if(counterEl) counterEl.innerText = data.length; 
+            if(labelEl) labelEl.innerText = "VISITES (PAGE " + currentPageReport + ")";
+            if(counterEl) counterEl.innerText = meta.total || data.length; 
 
             container.innerHTML = '';
-            if (!data || data.length === 0) {
-                container.innerHTML = '<div class="col-span-full text-center text-slate-400 py-10">Aucune visite certifiée.</div>';
+            if (data.length === 0) {
+                container.innerHTML = '<div class="col-span-full text-center text-slate-400 py-10">Aucune visite sur cette page.</div>';
                 return;
             }
 
-            // Regroupement par délégué
+            // --- REGROUPEMENT PAR DÉLÉGUÉ ---
             const grouped = {};
             data.forEach(v => {
                 const name = v.nom_agent || "Inconnu";
@@ -5370,29 +5429,44 @@ async function fetchMobileReports() {
                             <tbody class="divide-y divide-slate-100">`;
                 
                 visits.forEach(v => {
+                    // Sécurisation des dates
+                    const dateAffichage = v.check_in ? new Date(v.check_in).toLocaleString([], {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'}) : '--';
+                    
                     html += `
                         <tr class="hover:bg-blue-50/30 transition-colors">
-                            <td class="px-6 py-3 text-xs font-bold text-blue-600 w-1/3 uppercase">${v.lieu_nom}</td>
-                            <td class="px-6 py-3 text-[11px] text-slate-400 font-mono">${v.check_in ? new Date(v.check_in).toLocaleString([], {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'}) : '--'}</td>
+                            <td class="px-6 py-3 text-xs font-bold text-blue-600 w-1/3 uppercase">${v.lieu_nom || 'Site inconnu'}</td>
+                            <td class="px-6 py-3 text-[11px] text-slate-400 font-mono">${dateAffichage}</td>
                             <td class="px-6 py-3 text-center">
-                                ${v.proof_url ? `<button onclick="viewDocument('${v.proof_url}', 'Cachet')" class="text-emerald-500"><i class="fa-solid fa-camera-retro text-lg"></i></button>` : '<i class="fa-solid fa-ban text-slate-200"></i>'}
+                                ${v.proof_url ? `<button onclick="viewDocument('${v.proof_url}', 'Cachet')" class="text-emerald-500 hover:scale-110 transition-transform"><i class="fa-solid fa-camera-retro text-lg"></i></button>` : '<i class="fa-solid fa-ban text-slate-200"></i>'}
                             </td>
                             <td class="px-6 py-3 text-right text-[10px] text-slate-400 italic truncate max-w-[150px]">${v.notes || '-'}</td>
                         </tr>`;
                 });
                 html += `</tbody></table></div>`;
             }
-            container.innerHTML = html + `</div>`;
+
+            // --- AJOUT DES BOUTONS DE PAGINATION ---
+            html += `
+                <div class="flex justify-center items-center gap-4 mt-8">
+                    <button ${currentPageReport <= 1 ? 'disabled' : ''} onclick="fetchMobileReports(${currentPageReport - 1})" class="px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 disabled:opacity-50 transition-all">
+                        <i class="fa-solid fa-chevron-left mr-1"></i> Précédent
+                    </button>
+                    <span class="text-xs font-bold text-slate-400 uppercase tracking-widest">Page ${currentPageReport} / ${totalPagesReport}</span>
+                    <button ${currentPageReport >= totalPagesReport ? 'disabled' : ''} onclick="fetchMobileReports(${currentPageReport + 1})" class="px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 disabled:opacity-50 transition-all">
+                        Suivant <i class="fa-solid fa-chevron-right ml-1"></i>
+                    </button>
+                </div>
+            </div>`;
+
+            container.innerHTML = html;
 
         } else {
-            // --- LOGIQUE BILANS JOURNALIERS (CORRIGÉE) ---
+            // --- ONGLET BILANS JOURNALIERS (RESTE EN CHARGEMENT TOTAL POUR L'INSTANT) ---
             const r = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/read-daily-reports`);
             let data = await r.json();
 
-            if (nameFilter) {
-                data = data.filter(rep => rep.employees?.nom.toLowerCase().includes(nameFilter));
-            }
-
+            if (nameFilter) data = data.filter(rep => rep.employees?.nom.toLowerCase().includes(nameFilter));
+            
             if(labelEl) labelEl.innerText = "TOTAL BILANS JOURNALIERS";
             if(counterEl) counterEl.innerText = data.length; 
 
@@ -5402,6 +5476,7 @@ async function fetchMobileReports() {
                 return;
             }
 
+            // Mode tableau compact pour les bilans
             let html = `<div class="col-span-full bg-white rounded-[2rem] shadow-sm border overflow-hidden animate-fadeIn">
                 <table class="w-full text-left border-collapse">
                     <thead class="bg-slate-50 border-b">
@@ -5423,17 +5498,20 @@ async function fetchMobileReports() {
                         <td class="p-4 text-xs text-slate-600 italic max-w-md truncate" title="${rep.summary}">${rep.summary}</td>
                         <td class="p-4 text-center">${rep.needs_restock ? '⚠️ REAPPRO' : '✅ OK'}</td>
                         <td class="p-4 text-right">
-                            ${rep.photo_url ? `<button onclick="viewDocument('${rep.photo_url}', 'Cahier')" class="text-blue-500"><i class="fa-solid fa-file-image text-lg"></i></button>` : '<i class="fa-solid fa-ban text-slate-200"></i>'}
+                            ${rep.photo_url ? `<button onclick="viewDocument('${rep.photo_url}', 'Cahier')" class="text-blue-500 hover:scale-110 transition-transform"><i class="fa-solid fa-file-image text-lg"></i></button>` : '<i class="fa-solid fa-ban text-slate-200"></i>'}
                         </td>
                     </tr>`;
             });
             container.innerHTML = html + `</tbody></table></div>`;
         }
     } catch (e) {
-        console.error("Erreur de chargement:", e);
-        container.innerHTML = '<div class="col-span-full text-center text-red-500 py-10 font-bold">Erreur de connexion aux données.</div>';
+        console.error("Erreur de chargement des rapports:", e);
+        container.innerHTML = '<div class="col-span-full text-center text-red-500 py-10 font-bold">Erreur de connexion.</div>';
     }
 }
+
+
+
 
 
 
@@ -5508,6 +5586,7 @@ function setReportView(mode) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
