@@ -10,7 +10,8 @@
             };
 
 
-
+let reportPage = 1;
+let reportTotalPages = 1;
     // ==========================================
     // CONFIGURATION DE PERSONNALISATION (SAAS)
     // ==========================================
@@ -5315,11 +5316,7 @@ function changeReportTab(tab) {
 
 
 
-
-
-
-
-async function fetchMobileReports() {
+async function fetchMobileReports(page = 1) {
     const container = document.getElementById('reports-list-container');
     const counterEl = document.getElementById('stat-visites-total');
     const labelEl = document.getElementById('stat-report-label');
@@ -5328,29 +5325,41 @@ async function fetchMobileReports() {
 
     if (!container) return;
     
-    // On lance le chargement
+    // On mémorise la page actuelle
+    reportPage = page;
+
+    // On affiche le loader
     container.innerHTML = '<div class="col-span-full text-center p-10"><i class="fa-solid fa-circle-notch fa-spin text-blue-500 text-3xl"></i></div>';
 
     try {
+        // --- PRÉPARATION DE L'URL AVEC PAGINATION ET FILTRES ---
+        const limit = 20;
+        const endpoint = currentReportTab === 'visits' ? 'read-visit-reports' : 'read-daily-reports';
+        const url = `${SIRH_CONFIG.apiBaseUrl}/${endpoint}?page=${page}&limit=${limit}&name=${encodeURIComponent(nameFilter)}&period=${periodFilter}`;
+        
+        const r = await secureFetch(url);
+        const result = await r.json();
+
+        // On extrait les données et les métadonnées (nb total de pages)
+        // Note: Si ton serveur ne renvoie pas encore de 'meta', on gère le fallback
+        const data = result.data || result; 
+        const totalCount = result.meta?.total || data.length;
+        reportTotalPages = result.meta?.last_page || 1;
+
+        // Mise à jour des compteurs
+        if(labelEl) labelEl.innerText = currentReportTab === 'visits' ? "TOTAL VISITES (MOIS)" : "TOTAL BILANS JOURNALIERS";
+        if(counterEl) counterEl.innerText = totalCount; 
+
+        container.innerHTML = '';
+        if (!data || data.length === 0) {
+            container.innerHTML = '<div class="col-span-full text-center text-slate-400 py-10">Aucune donnée trouvée pour cette page.</div>';
+            return;
+        }
+
+        let html = '';
+
         if (currentReportTab === 'visits') {
-            // --- LOGIQUE VISITES ---
-            const r = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/read-visit-reports`);
-            let data = await r.json();
-
-            if (nameFilter) {
-                data = data.filter(v => v.nom_agent?.toLowerCase().includes(nameFilter));
-            }
-
-            if(labelEl) labelEl.innerText = "TOTAL VISITES (MOIS)";
-            if(counterEl) counterEl.innerText = data.length; 
-
-            container.innerHTML = '';
-            if (!data || data.length === 0) {
-                container.innerHTML = '<div class="col-span-full text-center text-slate-400 py-10">Aucune visite certifiée.</div>';
-                return;
-            }
-
-            // Regroupement par délégué
+            // --- LOGIQUE VISITES REGROUPÉES ---
             const grouped = {};
             data.forEach(v => {
                 const name = v.nom_agent || "Inconnu";
@@ -5358,62 +5367,33 @@ async function fetchMobileReports() {
                 grouped[name].push(v);
             });
 
-            let html = `<div class="col-span-full space-y-6">`;
+            html = `<div class="col-span-full space-y-6">`;
             for (const [name, visits] of Object.entries(grouped)) {
                 html += `
                     <div class="bg-white rounded-[2rem] shadow-sm border overflow-hidden animate-fadeIn">
                         <div class="bg-slate-900 px-6 py-3 border-b flex justify-between items-center">
                             <span class="font-black text-white text-xs uppercase tracking-widest">${name}</span>
-                            <span class="bg-blue-500 text-white px-2 py-0.5 rounded-lg text-[10px] font-bold">${visits.length} SITES</span>
+                            <span class="bg-blue-500 text-white px-2 py-0.5 rounded-lg text-[10px] font-bold">${visits.length} SUR CETTE PAGE</span>
                         </div>
-                        <table class="w-full text-left">
-                            <tbody class="divide-y divide-slate-100">`;
-                
+                        <table class="w-full text-left"><tbody class="divide-y divide-slate-100">`;
                 visits.forEach(v => {
                     html += `
-                        <tr class="hover:bg-blue-50/30 transition-colors">
+                        <tr class="hover:bg-blue-50/30">
                             <td class="px-6 py-3 text-xs font-bold text-blue-600 w-1/3 uppercase">${v.lieu_nom}</td>
                             <td class="px-6 py-3 text-[11px] text-slate-400 font-mono">${v.check_in ? new Date(v.check_in).toLocaleString([], {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'}) : '--'}</td>
-                            <td class="px-6 py-3 text-center">
-                                ${v.proof_url ? `<button onclick="viewDocument('${v.proof_url}', 'Cachet')" class="text-emerald-500"><i class="fa-solid fa-camera-retro text-lg"></i></button>` : '<i class="fa-solid fa-ban text-slate-200"></i>'}
-                            </td>
+                            <td class="px-6 py-3 text-center">${v.proof_url ? `<button onclick="viewDocument('${v.proof_url}', 'Cachet')" class="text-emerald-500"><i class="fa-solid fa-camera-retro text-lg"></i></button>` : '<i class="fa-solid fa-ban text-slate-200"></i>'}</td>
                             <td class="px-6 py-3 text-right text-[10px] text-slate-400 italic truncate max-w-[150px]">${v.notes || '-'}</td>
                         </tr>`;
                 });
                 html += `</tbody></table></div>`;
             }
-            container.innerHTML = html + `</div>`;
-
+            html += `</div>`;
         } else {
-            // --- LOGIQUE BILANS JOURNALIERS (CORRIGÉE) ---
-            const r = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/read-daily-reports`);
-            let data = await r.json();
-
-            if (nameFilter) {
-                data = data.filter(rep => rep.employees?.nom.toLowerCase().includes(nameFilter));
-            }
-
-            if(labelEl) labelEl.innerText = "TOTAL BILANS JOURNALIERS";
-            if(counterEl) counterEl.innerText = data.length; 
-
-            container.innerHTML = '';
-            if (!data || data.length === 0) {
-                container.innerHTML = '<div class="col-span-full text-center text-slate-400 py-10">Aucun bilan journalier trouvé.</div>';
-                return;
-            }
-
-            let html = `<div class="col-span-full bg-white rounded-[2rem] shadow-sm border overflow-hidden animate-fadeIn">
-                <table class="w-full text-left border-collapse">
-                    <thead class="bg-slate-50 border-b">
-                        <tr class="text-[10px] font-black text-slate-400 uppercase">
-                            <th class="p-4">Agent</th>
-                            <th class="p-4">Date</th>
-                            <th class="p-4">Résumé</th>
-                            <th class="p-4 text-center">Stock</th>
-                            <th class="p-4 text-right">Photo</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-100">`;
+            // --- LOGIQUE BILANS JOURNALIERS TABLEAU ---
+            html = `<div class="col-span-full bg-white rounded-[2rem] shadow-sm border overflow-hidden animate-fadeIn"><table class="w-full text-left border-collapse">
+                <thead class="bg-slate-50 border-b"><tr class="text-[10px] font-black text-slate-400 uppercase">
+                <th class="p-4">Agent</th><th class="p-4">Date</th><th class="p-4">Résumé</th><th class="p-4 text-center">Stock</th><th class="p-4 text-right">Photo</th>
+                </tr></thead><tbody class="divide-y divide-slate-100">`;
 
             data.forEach(rep => {
                 html += `
@@ -5423,17 +5403,36 @@ async function fetchMobileReports() {
                         <td class="p-4 text-xs text-slate-600 italic max-w-md truncate" title="${rep.summary}">${rep.summary}</td>
                         <td class="p-4 text-center">${rep.needs_restock ? '⚠️ REAPPRO' : '✅ OK'}</td>
                         <td class="p-4 text-right">
-                            ${rep.photo_url ? `<button onclick="viewDocument('${rep.photo_url}', 'Cahier')" class="text-blue-500"><i class="fa-solid fa-file-image text-lg"></i></button>` : '<i class="fa-solid fa-ban text-slate-200"></i>'}
+                            ${rep.photo_url ? `<button onclick="viewDocument('${rep.photo_url}', 'Cahier')" class="text-blue-500 hover:scale-110 transition-transform"><i class="fa-solid fa-file-image text-lg"></i></button>` : '<i class="fa-solid fa-ban text-slate-200"></i>'}
                         </td>
                     </tr>`;
             });
-            container.innerHTML = html + `</tbody></table></div>`;
+            html += `</tbody></table></div>`;
         }
+
+        // --- AJOUT DES BOUTONS DE PAGINATION (BAS DU CONTENEUR) ---
+        const paginationHtml = `
+            <div class="col-span-full flex justify-between items-center mt-6 px-4">
+                <button onclick="fetchMobileReports(${reportPage - 1})" ${reportPage <= 1 ? 'disabled' : ''} class="px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-black uppercase text-slate-600 disabled:opacity-30 transition-all hover:bg-slate-50 shadow-sm">
+                    <i class="fa-solid fa-chevron-left mr-2"></i> Précédent
+                </button>
+                <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Page ${reportPage} / ${reportTotalPages}</span>
+                <button onclick="fetchMobileReports(${reportPage + 1})" ${reportPage >= reportTotalPages ? 'disabled' : ''} class="px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-black uppercase text-slate-600 disabled:opacity-30 transition-all hover:bg-slate-50 shadow-sm">
+                    Suivant <i class="fa-solid fa-chevron-right ml-2"></i>
+                </button>
+            </div>
+        `;
+
+        container.innerHTML = html + paginationHtml;
+
     } catch (e) {
-        console.error("Erreur de chargement:", e);
+        console.error("Erreur de chargement des rapports:", e);
         container.innerHTML = '<div class="col-span-full text-center text-red-500 py-10 font-bold">Erreur de connexion aux données.</div>';
     }
 }
+
+
+
 
 
 
@@ -5508,6 +5507,7 @@ function setReportView(mode) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
