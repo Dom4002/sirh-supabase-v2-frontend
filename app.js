@@ -13,10 +13,16 @@
 let reportPage = 1;
 let reportTotalPages = 1;
 
+// On place ça en haut du fichier app.js
+let activeFilters = {
+    search: "",   // Ce qui est tapé dans la barre de recherche
+    status: "all", // Le bouton Statut cliqué
+    type: "all",   // Le bouton Activité cliqué
+    dept: "all"    // Le bouton Département cliqué
+};
 
-let searchTimeout = null;
-let currentSearchText = "";
-let currentStatusFilter = "all";
+let searchTimeout = null; // Sert à attendre que l'utilisateur finisse de taper
+
     // ==========================================
     // CONFIGURATION DE PERSONNALISATION (SAAS)
     // ==========================================
@@ -1073,24 +1079,33 @@ async function fetchData(forceUpdate = false, page = 1) {
     const CACHE_KEY = 'sirh_data_v1';
     const limit = 10; 
     
-    // On s'assure que les variables de recherche et filtres existent (ou chaîne vide par défaut)
-    const search = typeof currentSearchText !== 'undefined' ? currentSearchText : "";
-    const filter = typeof currentStatusFilter !== 'undefined' ? currentStatusFilter : "all";
+    // --- NOUVEAU : Récupération centralisée des filtres ---
+    // On utilise l'objet activeFilters (ou des valeurs par défaut si pas encore défini)
+    const filters = typeof activeFilters !== 'undefined' ? activeFilters : {
+        search: typeof currentSearchText !== 'undefined' ? currentSearchText : "",
+        status: typeof currentStatusFilter !== 'undefined' ? currentStatusFilter : "all",
+        type: "all",
+        dept: "all"
+    };
 
-    // 1. Construction de l'URL avec TOUS les paramètres : page, limit, recherche et filtre
-    let fetchUrl = `${URL_READ}?page=${page}&limit=${limit}&search=${encodeURIComponent(search)}&filter=${filter}&agent=${encodeURIComponent(currentUser.nom)}`;
+    // 1. Construction de l'URL avec TOUS les paramètres de filtrage pro
+    let fetchUrl = `${URL_READ}?page=${page}&limit=${limit}` +
+                   `&search=${encodeURIComponent(filters.search)}` +
+                   `&status=${filters.status}` +
+                   `&type=${filters.type}` +
+                   `&dept=${filters.dept}` +
+                   `&agent=${encodeURIComponent(currentUser.nom)}`;
 
     if (currentUser.role === 'EMPLOYEE') {
         fetchUrl += `&target_id=${encodeURIComponent(currentUser.id)}`;
     }
 
     try {
-        console.log("📞 Appel API (Deep Search) vers :", fetchUrl);
+        console.log("📞 Appel API (Deep Search Multi-Critères) vers :", fetchUrl);
         
         const r = await secureFetch(fetchUrl);
         const result = await r.json(); 
 
-        // Extraction des données et des métadonnées (meta renvoyé par le backend)
         const d = result.data || [];
         const meta = result.meta || { total: d.length, page: 1, last_page: 1 };
 
@@ -1129,7 +1144,7 @@ async function fetchData(forceUpdate = false, page = 1) {
         localStorage.setItem(CACHE_KEY, JSON.stringify(employees));
         localStorage.setItem(CACHE_KEY + '_time', Date.now());
 
-        // 5. Mise à jour du Tableau (affiche les 10 résultats de la page)
+        // 5. Mise à jour du Tableau
         renderData();
 
         // --- MISE À JOUR DE LA NAVIGATION (PAGINATION FOOTER) ---
@@ -1157,7 +1172,7 @@ async function fetchData(forceUpdate = false, page = 1) {
             }
         }
 
-        // 6. Mise à jour graphiques (utilise la route globale dashboard-stats pour rester précis)
+        // 6. Mise à jour graphiques
         renderCharts();
 
         if (currentUser.role !== 'EMPLOYEE') {
@@ -1176,6 +1191,7 @@ async function fetchData(forceUpdate = false, page = 1) {
         }
     }
 }
+
 
 
 
@@ -2876,16 +2892,17 @@ async function viewDocument(url, title) {
 
 
 // 1. La Recherche (Serveur)
+
 function filterTable() {
     const input = document.getElementById('search-input');
-    currentSearchText = input.value.trim();
-
-    // On annule le déclenchement précédent pour ne pas surcharger le serveur
+    
+    // On annule le compte à rebours précédent
     clearTimeout(searchTimeout);
 
-    // On attend 300ms après la dernière touche tapée
+    // On lance un nouveau compte à rebours de 300ms
     searchTimeout = setTimeout(() => {
-        fetchData(true, 1); // On relance la recherche à la page 1
+        activeFilters.search = input.value.trim(); // On enregistre le texte
+        fetchData(true, 1); // On lance la recherche
     }, 300);
 }
 
@@ -5426,6 +5443,30 @@ async function fetchMobileReports(page = 1) {
 
 
 
+function setEmployeeFilter(category, value) {
+    // 1. On met à jour la mémoire
+    activeFilters[category] = value;
+    
+    // 2. On change les couleurs des boutons pour que Bill voit ce qu'il a choisi
+    // On cherche le groupe de boutons (ex: filter-group-status)
+    const container = document.getElementById(`filter-group-${category}`);
+    if (container) {
+        container.querySelectorAll('.filter-chip').forEach(btn => {
+            // Si le bouton correspond à la valeur cliquée -> Bleu
+            if (btn.getAttribute('data-value') === value) {
+                btn.className = "filter-chip px-3 py-1.5 rounded-lg text-[10px] font-black border bg-blue-600 text-white border-blue-600 shadow-md transition-all";
+            } else {
+                // Sinon -> Blanc
+                btn.className = "filter-chip px-3 py-1.5 rounded-lg text-[10px] font-bold border bg-white text-slate-600 border-slate-200 hover:border-blue-300 transition-all";
+            }
+        });
+    }
+
+    // 3. On repart à la page 1 et on demande les données au serveur
+    fetchData(true, 1);
+}
+
+
 async function renderCharts() {
     // Changement de paradigme pour la scalabilité (20 ans / 10 000 employés)
     // On ne calcule plus en local car avec la pagination, la variable 'employees' est incomplète.
@@ -5587,6 +5628,7 @@ function setReportView(mode) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
