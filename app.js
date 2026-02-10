@@ -5161,6 +5161,9 @@ function changeReportTab(tab) {
 
 
 
+// --- VARIABLES DE PAGINATION ET RECHERCHE ---
+let currentEmpPage = 1;
+let currentEmpSearch = '';
 
 async function refreshAllData(force = false) {
     const now = Date.now();
@@ -5586,6 +5589,7 @@ function setReportView(mode) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
