@@ -5517,12 +5517,10 @@ function changeReportTab(tab) {
 
 
 
-
-
 async function fetchMobileReports(page = 1) {
     const container = document.getElementById('reports-list-container');
     const counterEl = document.getElementById('stat-visites-total');
-    const labelEl = document.getElementById('stat-report-label');
+    const labelEl = document.getElementById('stat-report-label'); // Le texte "Total Visites"
     const nameFilter = document.getElementById('filter-report-name')?.value.toLowerCase() || "";
     const periodFilter = document.getElementById('filter-report-date')?.value || "month";
 
@@ -5543,8 +5541,6 @@ async function fetchMobileReports(page = 1) {
         const r = await secureFetch(url);
         const result = await r.json();
 
-        // On extrait les données et les métadonnées (nb total de pages)
-        // Note: Si ton serveur ne renvoie pas encore de 'meta', on gère le fallback
         const data = result.data || result; 
         const totalCount = result.meta?.total || data.length;
         reportTotalPages = result.meta?.last_page || 1;
@@ -5562,7 +5558,7 @@ async function fetchMobileReports(page = 1) {
         let html = '';
 
         if (currentReportTab === 'visits') {
-            // --- LOGIQUE VISITES REGROUPÉES ---
+            // --- LOGIQUE VISITES REGROUPÉES AVEC ACCORDÉONS ---
             const grouped = {};
             data.forEach(v => {
                 const name = v.nom_agent || "Inconnu";
@@ -5570,29 +5566,64 @@ async function fetchMobileReports(page = 1) {
                 grouped[name].push(v);
             });
 
-            html = `<div class="col-span-full space-y-6">`;
+            html = `<div class="col-span-full space-y-4">`;
             for (const [name, visits] of Object.entries(grouped)) {
+                // Création d'un ID unique pour l'accordéon basé sur le nom
+                const accordionId = `acc-${name.replace(/\s+/g, '-')}`;
+                
                 html += `
-                    <div class="bg-white rounded-[2rem] shadow-sm border overflow-hidden animate-fadeIn">
-                        <div class="bg-slate-900 px-6 py-3 border-b flex justify-between items-center">
-                            <span class="font-black text-white text-xs uppercase tracking-widest">${name}</span>
-                            <span class="bg-blue-500 text-white px-2 py-0.5 rounded-lg text-[10px] font-bold">${visits.length} SUR CETTE PAGE</span>
+                    <div class="bg-white rounded-[2rem] shadow-sm border border-slate-200 overflow-hidden animate-fadeIn">
+                        <!-- ENTÊTE CLIQUABLE (ACCORDÉON) -->
+                        <div onclick="toggleAccordion('${accordionId}')" class="bg-slate-900 px-6 py-4 flex justify-between items-center cursor-pointer hover:bg-slate-800 transition-all">
+                            <div class="flex items-center gap-3">
+                                <div class="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold text-xs">
+                                    ${name.charAt(0)}
+                                </div>
+                                <span class="font-black text-white text-sm uppercase tracking-widest">${name}</span>
+                            </div>
+                            <div class="flex items-center gap-4">
+                                <span class="bg-white/10 text-white px-3 py-1 rounded-full text-[10px] font-bold">${visits.length} VISITES ICI</span>
+                                <i id="icon-${accordionId}" class="fa-solid fa-chevron-down text-white/50 transition-transform duration-300"></i>
+                            </div>
                         </div>
-                        <table class="w-full text-left"><tbody class="divide-y divide-slate-100">`;
+
+                        <!-- TABLEAU CACHÉ PAR DÉFAUT -->
+                        <div id="${accordionId}" class="hidden overflow-x-auto bg-slate-50/50">
+                            <table class="w-full text-left border-collapse">
+                                <thead class="bg-slate-100 border-b">
+                                    <tr class="text-[9px] font-black text-slate-400 uppercase">
+                                        <th class="p-4">Lieu visité</th>
+                                        <th class="p-4">Heure</th>
+                                        <th class="p-4 text-center">Preuve</th>
+                                        <th class="p-4 text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100">`;
+                
                 visits.forEach(v => {
                     html += `
-                        <tr class="hover:bg-blue-50/30">
-                            <td class="px-6 py-3 text-xs font-bold text-blue-600 w-1/3 uppercase">${v.lieu_nom}</td>
-                            <td class="px-6 py-3 text-[11px] text-slate-400 font-mono">${v.check_in ? new Date(v.check_in).toLocaleString([], {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'}) : '--'}</td>
-                            <td class="px-6 py-3 text-center">${v.proof_url ? `<button onclick="viewDocument('${v.proof_url}', 'Cachet')" class="text-emerald-500"><i class="fa-solid fa-camera-retro text-lg"></i></button>` : '<i class="fa-solid fa-ban text-slate-200"></i>'}</td>
-                            <td class="px-6 py-3 text-right text-[10px] text-slate-400 italic truncate max-w-[150px]">${v.notes || '-'}</td>
+                        <tr id="row-${v.id}" class="hover:bg-white transition-colors group">
+                            <td class="px-4 py-3">
+                                <div class="text-xs font-bold text-blue-600 uppercase">${v.lieu_nom}</div>
+                                <div class="text-[10px] text-slate-400 italic truncate max-w-[200px]">${v.notes || '-'}</div>
+                            </td>
+                            <td class="px-4 py-3 text-[10px] font-mono text-slate-500">${v.check_in ? new Date(v.check_in).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '--:--'}</td>
+                            <td class="px-4 py-3 text-center">
+                                ${v.proof_url ? `<button onclick="viewDocument('${v.proof_url}', 'Cachet')" class="text-emerald-500 hover:scale-110 transition-transform"><i class="fa-solid fa-camera-retro text-lg"></i></button>` : '<i class="fa-solid fa-ban text-slate-200"></i>'}
+                            </td>
+                            <td class="px-4 py-3 text-right">
+                                <!-- BOUTON SUPPRIMER DE LA VUE -->
+                                <button onclick="deleteVisitReport('${v.id}')" class="p-2 text-slate-300 hover:text-red-500 transition-all opacity-0 group-hover:opacity-100">
+                                    <i class="fa-solid fa-trash-can"></i>
+                                </button>
+                            </td>
                         </tr>`;
                 });
-                html += `</tbody></table></div>`;
+                html += `</tbody></table></div></div>`;
             }
             html += `</div>`;
         } else {
-            // --- LOGIQUE BILANS JOURNALIERS TABLEAU ---
+            // --- LOGIQUE BILANS JOURNALIERS TABLEAU (Inchangée) ---
             html = `<div class="col-span-full bg-white rounded-[2rem] shadow-sm border overflow-hidden animate-fadeIn"><table class="w-full text-left border-collapse">
                 <thead class="bg-slate-50 border-b"><tr class="text-[10px] font-black text-slate-400 uppercase">
                 <th class="p-4">Agent</th><th class="p-4">Date</th><th class="p-4">Résumé</th><th class="p-4 text-center">Stock</th><th class="p-4 text-right">Photo</th>
@@ -5633,6 +5664,57 @@ async function fetchMobileReports(page = 1) {
         container.innerHTML = '<div class="col-span-full text-center text-red-500 py-10 font-bold">Erreur de connexion aux données.</div>';
     }
 }
+
+// --- FONCTIONS AUXILIAIRES POUR L'ACCORDÉON ET LA SUPPRESSION ---
+
+function toggleAccordion(id) {
+    const content = document.getElementById(id);
+    const icon = document.getElementById('icon-' + id);
+    if (!content) return;
+    
+    const isHidden = content.classList.contains('hidden');
+    if (isHidden) {
+        content.classList.remove('hidden');
+        icon.style.transform = 'rotate(180deg)';
+    } else {
+        content.classList.add('hidden');
+        icon.style.transform = 'rotate(0deg)';
+    }
+}
+
+async function deleteVisitReport(id) {
+    const confirm = await Swal.fire({
+        title: 'Retirer du rapport ?',
+        text: "Cette visite sera supprimée définitivement.",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        confirmButtonText: 'Oui, supprimer'
+    });
+
+    if (confirm.isConfirmed) {
+        try {
+            const r = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/delete-visit-report`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id })
+            });
+            if (r.ok) {
+                document.getElementById('row-' + id).remove();
+                // Mise à jour du compteur visuel
+                const counterEl = document.getElementById('stat-visites-total');
+                if(counterEl) counterEl.innerText = parseInt(counterEl.innerText) - 1;
+            }
+        } catch (e) { Swal.fire('Erreur', 'Impossible de supprimer', 'error'); }
+    }
+}
+
+
+
+
+
+
+
 
 
 
@@ -5904,6 +5986,7 @@ function toggleDictation(targetId, btn) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
