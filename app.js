@@ -1014,7 +1014,6 @@ async function offerRegisterLocation(gps) {
             }
             if (currentUser.role !== 'EMPLOYEE') {
                 tasks.push(fetchLeaveRequests());
-                fetchEmployeeLeaveBalances();
                 tasks.push(triggerRobotCheck());
                 tasks.push(fetchLiveAttendance());
 
@@ -2125,57 +2124,6 @@ function loadMyProfile() {
 
 
 
-async function fetchEmployeeLeaveBalances() {
-    const body = document.getElementById('manager-leave-body');
-    if (!body || currentUser.role === 'EMPLOYEE') return;
-
-    body.innerHTML = '<tr><td colspan="4" class="p-6 text-center italic text-slate-400"><i class="fa-solid fa-circle-notch fa-spin mr-2"></i> Chargement des soldes...</td></tr>';
-
-    try {
-        // On réutilise fetchAllData qui charge déjà la liste des employés
-        // (En s'assurant que Make renvoie bien le Solde_Conges)
-        await fetchData(true); 
-        
-        body.innerHTML = '';
-        
-        employees.forEach(emp => {
-            // Seuls les actifs nous intéressent ici
-            if (emp.statut !== 'Actif') return; 
-
-            // Récupération des valeurs (s'assurer du nom de la colonne venant de Make)
-            const solde = parseFloat(emp.Solde_Conges || emp.solde_conges) || 0; 
-            const status = emp.Statut_Conge_Actuel || 'Aucune'; // A créer dans Airtable
-
-            let colorClass = 'text-emerald-600';
-            if (solde < 5) colorClass = 'text-red-600 font-bold';
-            else if (solde < 10) colorClass = 'text-orange-600';
-            
-            // Logique de demande en cours (on réutilise le statut existant)
-            const activeLeaveDot = allLeaves.some(l => l.nom === emp.nom && l.statut === 'en attente') 
-                                 ? '<span class="w-2 h-2 rounded-full bg-yellow-500 mr-2 inline-block"></span> En attente'
-                                 : 'Aucune';
-
-
-            body.innerHTML += `
-                <tr class="hover:bg-slate-50 transition-colors">
-                    <td class="px-8 py-3 text-sm font-bold text-slate-800">${emp.nom}</td>
-                    <td class="px-8 py-3 text-xs text-slate-500">${emp.dept}</td>
-                    <td class="px-8 py-3 text-center text-[10px] font-black">${activeLeaveDot}</td>
-                    <td class="px-8 py-3 text-right text-sm font-black ${colorClass}">${solde} jours</td>
-                </tr>
-            `;
-        });
-
-    } catch (e) {
-        console.error("Erreur chargement soldes :", e);
-        body.innerHTML = '<tr><td colspan="4" class="p-6 text-center text-red-500">Erreur de connexion au solde des congés.</td></tr>';
-    }
-}
-
-
-
-
-
 
 
 
@@ -3239,7 +3187,9 @@ function showLeaveDetail(btn) {
                 if(currentUser) refreshAllData();
             });
         
-    
+
+
+
 
 async function fetchLeaveRequests() {
     // CORRECTION 1 : On ne bloque plus les employés ici !
@@ -3270,7 +3220,9 @@ async function fetchLeaveRequests() {
                 debut: clean(l['Date Début'] || l['Date de début'] || l.debut) ? parseDateSmart(clean(l['Date Début'] || l['Date de début'] || l.debut)) : null,
                 fin: clean(l['Date Fin'] || l['Date de fin'] || l.fin) ? parseDateSmart(clean(l['Date Fin'] || l['Date de fin'] || l.fin)) : null,
                 motif: clean(l.motif || l.Motif || "Aucun motif"),
-                doc: clean(l.justificatif_link || l.Justificatif || l.doc || null)
+                doc: clean(l.justificatif_link || l.Justificatif || l.doc || null),
+                // RÉCUPÉRATION DU SOLDE (Vient de la jointure serveur)
+                solde: l.employee?.solde_conges || 0 
             };
         });
 
@@ -3287,7 +3239,6 @@ async function fetchLeaveRequests() {
 
                 if (pending.length > 0) {
                     pending.forEach(l => {
-                        // ON GARDE EXACTEMENT TON CODE DE NETTOYAGE
                         const cleanNom = (l.nom || 'Inconnu').replace(/"/g, '&quot;');
                         const cleanType = (l.type || 'Congé').replace(/"/g, '&quot;');
                         const cleanMotif = (l.motif || 'Aucun motif').replace(/"/g, '&quot;');
@@ -3299,10 +3250,17 @@ async function fetchLeaveRequests() {
                         const diffTime = l.fin && l.debut ? Math.abs(l.fin.getTime() - l.debut.getTime()) : 0;
                         const daysDifference = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
 
+                        // Logique de couleur pour le solde
+                        const soldeColor = l.solde <= 5 ? 'text-orange-600' : 'text-emerald-600';
+
                         body.innerHTML += `
                             <tr class="border-b hover:bg-slate-50 transition-colors">
                                 <td class="px-8 py-4">
                                     <div class="font-bold text-sm text-slate-700">${l.nom || 'Inconnu'}</div>
+                                    <!-- AJOUT DU SOLDE ICI -->
+                                    <div class="text-[9px] font-black uppercase ${soldeColor} mb-1">
+                                        Solde actuel : ${l.solde} JOURS
+                                    </div>
                                     <div class="text-[10px] text-slate-400 font-normal uppercase">${l.type || 'Congé'}</div>
                                 </td>
                                 <td class="px-8 py-4 text-xs text-slate-500">${dStart} ➔ ${dEnd}</td>
@@ -3323,7 +3281,6 @@ async function fetchLeaveRequests() {
                             </tr>`;
                     });
                 } else {
-                    // AU LIEU DE CACHER LE BLOC, ON AFFICHE CE MESSAGE DANS LE TABLEAU
                     body.innerHTML = `
                         <tr>
                             <td colspan="3" class="px-8 py-10 text-center text-slate-400">
@@ -3386,8 +3343,6 @@ async function fetchLeaveRequests() {
         if(myBody) myBody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-red-400">Erreur de chargement des congés.</td></tr>';
     }
 }
-
-
 
 
 
@@ -5628,6 +5583,7 @@ function setReportView(mode) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
