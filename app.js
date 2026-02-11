@@ -2293,6 +2293,11 @@ function switchView(v) {
         renderData();
     }
 
+    if (v === 'maintenance') {
+        // Pas de chargement automatique nécessaire pour l'instant
+        // On pourrait ajouter fetchServerStats() ici dans le futur (Vision 20 ans)
+    }
+            
     if (v === 'accounting') loadAccountingView();
 
     if(v === 'add-new') { 
@@ -5822,6 +5827,7 @@ function setReportView(mode) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
