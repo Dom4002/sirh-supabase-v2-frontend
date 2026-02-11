@@ -3247,8 +3247,8 @@ async function fetchLeaveRequests() {
                         const dStart = l.debut ? l.debut.toLocaleDateString('fr-FR') : '?';
                         const dEnd = l.fin ? l.fin.toLocaleDateString('fr-FR') : '?';
                         
-                        const diffTime = l.fin && l.debut ? Math.abs(l.fin.getTime().debut.getTime()) : 0;
-                        const daysDifference = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                        const diffTime = l.fin && l.debut ? Math.abs(l.fin.getTime() - 1.debut.getTime()) : 0;
+                        const daysDifference = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
 
                         // Logique de couleur pour le solde
                         const soldeColor = l.solde <= 5 ? 'text-orange-600' : 'text-emerald-600';
@@ -5583,6 +5583,7 @@ function setReportView(mode) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
