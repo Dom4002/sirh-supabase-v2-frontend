@@ -5622,26 +5622,88 @@ async function fetchMobileReports(page = 1) {
                 html += `</tbody></table></div></div>`;
             }
             html += `</div>`;
-        } else {
-            // --- LOGIQUE BILANS JOURNALIERS TABLEAU (Inchangée) ---
-            html = `<div class="col-span-full bg-white rounded-[2rem] shadow-sm border overflow-hidden animate-fadeIn"><table class="w-full text-left border-collapse">
-                <thead class="bg-slate-50 border-b"><tr class="text-[10px] font-black text-slate-400 uppercase">
-                <th class="p-4">Agent</th><th class="p-4">Date</th><th class="p-4">Résumé</th><th class="p-4 text-center">Stock</th><th class="p-4 text-right">Photo</th>
-                </tr></thead><tbody class="divide-y divide-slate-100">`;
+        } 
+        else {
+            // --- ONGLET BILANS JOURNALIERS (DAILY) AVEC ACCORDÉONS ---
+            const r = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/read-daily-reports`);
+            let data = await r.json();
 
+            if (nameFilter) data = data.filter(rep => rep.employees?.nom.toLowerCase().includes(nameFilter));
+            
+            if(labelEl) labelEl.innerText = "TOTAL BILANS JOURNALIERS";
+            if(counterEl) counterEl.innerText = data.length; 
+
+            container.innerHTML = '';
+            if (!data || data.length === 0) {
+                container.innerHTML = '<div class="col-span-full text-center text-slate-400 py-10 font-bold uppercase text-[10px]">Aucun bilan journalier à traiter</div>';
+                return;
+            }
+
+            // --- REGROUPEMENT PAR AGENT ---
+            const groupedDaily = {};
             data.forEach(rep => {
-                html += `
-                    <tr class="hover:bg-indigo-50/30 transition-colors">
-                        <td class="p-4 text-xs font-bold text-slate-700">${rep.employees?.nom || 'Inconnu'}</td>
-                        <td class="p-4 text-[11px] text-slate-500">${new Date(rep.report_date).toLocaleDateString()}</td>
-                        <td class="p-4 text-xs text-slate-600 italic max-w-md truncate" title="${rep.summary}">${rep.summary}</td>
-                        <td class="p-4 text-center">${rep.needs_restock ? '⚠️ REAPPRO' : '✅ OK'}</td>
-                        <td class="p-4 text-right">
-                            ${rep.photo_url ? `<button onclick="viewDocument('${rep.photo_url}', 'Cahier')" class="text-blue-500 hover:scale-110 transition-transform"><i class="fa-solid fa-file-image text-lg"></i></button>` : '<i class="fa-solid fa-ban text-slate-200"></i>'}
-                        </td>
-                    </tr>`;
+                const name = rep.employees?.nom || "Agent Inconnu";
+                if (!groupedDaily[name]) groupedDaily[name] = [];
+                groupedDaily[name].push(rep);
             });
-            html += `</tbody></table></div>`;
+
+            let html = `<div class="col-span-full space-y-3">`;
+
+            for (const [name, reports] of Object.entries(groupedDaily)) {
+                const agentId = reports[0].employee_id;
+                const hasStockAlert = reports.some(rp => rp.needs_restock); // Vérifie si une alerte stock existe dans le groupe
+                const accordionId = `daily-acc-${name.replace(/\s+/g, '-')}`;
+
+                html += `
+                    <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden animate-fadeIn">
+                        <!-- ENTÊTE ACCORDÉON BILAN -->
+                        <div onclick="toggleAccordion('${accordionId}')" class="flex items-center justify-between px-6 py-4 cursor-pointer hover:bg-slate-50 transition-colors">
+                            <div class="flex items-center gap-4">
+                                <div class="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-black text-sm">
+                                    ${name.charAt(0)}
+                                </div>
+                                <div>
+                                    <h4 class="font-black text-slate-800 text-sm uppercase tracking-tighter">${name}</h4>
+                                    <p class="text-[10px] text-slate-400 font-bold uppercase">${reports.length} bilans journaliers</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                ${hasStockAlert ? `<span class="bg-orange-100 text-orange-600 px-2 py-1 rounded-lg text-[9px] font-black animate-pulse"><i class="fa-solid fa-box-open mr-1"></i> ALERTE STOCK</span>` : ''}
+                                <i id="icon-${accordionId}" class="fa-solid fa-chevron-down text-slate-300 transition-transform duration-300"></i>
+                            </div>
+                        </div>
+
+                        <!-- LISTE DES BILANS CACHÉE -->
+                        <div id="${accordionId}" class="hidden border-t border-slate-100 bg-slate-50/50">
+                            <table class="w-full text-left">
+                                <tbody class="divide-y divide-slate-100">
+                `;
+
+                reports.forEach(rep => {
+                    html += `
+                        <tr id="row-daily-${rep.id}" class="hover:bg-white transition-colors group">
+                            <td class="px-6 py-4">
+                                <div class="text-[10px] font-black text-indigo-500 uppercase">${new Date(rep.report_date).toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long'})}</div>
+                                <div class="text-xs text-slate-600 mt-1 italic line-clamp-2">${rep.summary}</div>
+                            </td>
+                            <td class="px-6 py-4 text-center">
+                                ${rep.needs_restock ? '<span class="text-orange-500" title="Besoin de stock"><i class="fa-solid fa-circle-exclamation"></i></span>' : '<span class="text-emerald-400"><i class="fa-solid fa-circle-check"></i></span>'}
+                            </td>
+                            <td class="px-6 py-4 text-center">
+                                ${rep.photo_url ? `<button onclick="viewDocument('${rep.photo_url}', 'Cahier de rapport')" class="text-blue-500 hover:scale-125 transition-transform"><i class="fa-solid fa-file-image text-lg"></i></button>` : '<i class="fa-solid fa-ban text-slate-200"></i>'}
+                            </td>
+                            <td class="px-6 py-4 text-right">
+                                <button onclick="deleteDailyReport('${rep.id}')" class="p-2 text-slate-300 hover:text-red-500 transition-all opacity-0 group-hover:opacity-100">
+                                    <i class="fa-solid fa-check"></i> <!-- Icône "Lu / Validé" -->
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                });
+
+                html += `</tbody></table></div></div>`;
+            }
+            container.innerHTML = html + `</div>`;
         }
 
         // --- AJOUT DES BOUTONS DE PAGINATION (BAS DU CONTENEUR) ---
@@ -5974,7 +6036,26 @@ function toggleDictation(targetId, btn) {
 }
 
 
-
+async function deleteDailyReport(id) {
+    // On ne demande même pas de confirmation pour les bilans (pour aller vite), 
+    // on considère que cliquer sur "Vu" suffit à l'enlever de la liste
+    try {
+        const r = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/delete-daily-report`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id })
+        });
+        if (r.ok) {
+            document.getElementById('row-daily-' + id).style.opacity = '0';
+            setTimeout(() => {
+                document.getElementById('row-daily-' + id).remove();
+                // Mise à jour compteur
+                const counter = document.getElementById('stat-visites-total');
+                counter.innerText = parseInt(counter.innerText) - 1;
+            }, 300);
+        }
+    } catch (e) { console.error(e); }
+}
 
 
 
@@ -5986,6 +6067,7 @@ function toggleDictation(targetId, btn) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
