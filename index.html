@@ -703,13 +703,48 @@
 
 
 
-                    <!-- VUE 4: LOGS -->
-                    <section id="view-logs" class="view-section">
-                        <div class="bg-white rounded-3xl shadow-xl border overflow-hidden">
-                            <div class="p-8 border-b font-black text-slate-800 flex justify-between items-center uppercase text-sm">Journal d'Audit Système <button onclick="fetchLogs()" class="text-blue-600"><i class="fa-solid fa-rotate"></i></button></div>
-                            <div class="overflow-x-auto"><table class="w-full text-left whitespace-nowrap"><thead class="bg-slate-900 text-white text-[10px] uppercase"><tr><th class="p-5">Date</th><th class="p-5">Agent</th><th class="p-5">Action</th><th class="p-5">Détails</th></tr></thead><tbody id="logs-body"></tbody></table></div>
-                        </div>
-                    </section>
+<section id="view-logs" class="view-section">
+    <div class="bg-white rounded-3xl shadow-xl border overflow-hidden">
+        <div class="p-8 border-b font-black text-slate-800 flex justify-between items-center uppercase text-sm">
+            Journal d'Audit Système 
+            <button onclick="fetchLogs(1)" class="text-blue-600 hover:rotate-180 transition-transform duration-500">
+                <i class="fa-solid fa-rotate"></i>
+            </button>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left whitespace-nowrap">
+                <thead class="bg-slate-900 text-white text-[10px] uppercase">
+                    <tr><th class="p-5">Date</th><th class="p-5">Agent</th><th class="p-5">Action</th><th class="p-5">Détails</th></tr>
+                </thead>
+                <tbody id="logs-body"></tbody>
+            </table>
+        </div>
+        <!-- Pagination footer des logs (si tu l'as ajouté) serait ici -->
+    </div>
+
+    <!-- ======================================================= -->
+    <!-- NOUVEAU BLOC : MAINTENANCE SYSTÈME (LONG TERME)       -->
+    <!-- ======================================================= -->
+    <div class="mt-10 pt-8 border-t border-slate-200/60">
+        <div class="bg-slate-50 border border-slate-200 rounded-[2rem] p-8 flex flex-col md:flex-row items-center justify-between gap-6">
+            <div class="flex-1">
+                <h4 class="font-black text-slate-800 text-sm uppercase tracking-widest mb-2 flex items-center gap-2">
+                    <i class="fa-solid fa-server text-indigo-500"></i> Maintenance & Performance
+                </h4>
+                <p class="text-xs text-slate-500 leading-relaxed">
+                    Opération de nettoyage pour garantir la rapidité de l'application sur le long terme (20+ ans).
+                    <br>Ceci archivera les données historiques (> 1 an) et supprimera les fichiers lourds inutiles.
+                </p>
+            </div>
+            
+            <button onclick="runArchivingJob()" class="shrink-0 bg-white border-2 border-slate-200 text-slate-700 px-6 py-4 rounded-2xl font-bold text-[10px] uppercase tracking-widest shadow-sm hover:bg-slate-800 hover:text-white hover:border-slate-800 transition-all active:scale-95 flex items-center gap-3">
+                <i class="fa-solid fa-broom"></i>
+                Nettoyer le Système
+            </button>
+        </div>
+    </div>
+
+</section>
 
 
 
@@ -1456,6 +1491,7 @@
     </body>
 
     </html>
+
 
 
 
