@@ -1213,7 +1213,12 @@
     <div class="bg-white p-6 rounded-[2rem] shadow-sm border mb-6 flex flex-wrap gap-4 items-end">
         <div class="flex-1 min-w-[200px]">
             <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Rechercher un délégué</label>
-            <input type="text" id="filter-report-name" onkeyup="fetchMobileReports()" placeholder="Taper un nom..." class="w-full p-3 bg-slate-50 border-none rounded-2xl text-sm focus:ring-2 focus:ring-blue-500">
+
+        <input type="text" id="filter-report-name" 
+       onkeyup="handleReportSearch()" 
+       placeholder="Rechercher un délégué..." 
+       class="w-full p-3 bg-slate-50 border-none rounded-2xl text-sm focus:ring-2 focus:ring-blue-500">
+            
         </div>
         <div class="w-48">
             <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Période d'affichage</label>
@@ -1520,6 +1525,7 @@
     </body>
 
     </html>
+
 
 
 
