@@ -3259,7 +3259,7 @@ async function fetchLeaveRequests() {
                                     <div class="font-bold text-sm text-slate-700">${l.nom || 'Inconnu'}</div>
                                     <!-- AJOUT DU SOLDE ICI -->
                                     <div class="text-[9px] font-black uppercase ${soldeColor} mb-1">
-                                        Solde actuel : ${l.solde} JOURS
+                                    Solde actuel : ${l.solde + daysDifference} JOURS
                                     </div>
                                     <div class="text-[10px] text-slate-400 font-normal uppercase">${l.type || 'Congé'}</div>
                                 </td>
@@ -5583,6 +5583,7 @@ function setReportView(mode) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
