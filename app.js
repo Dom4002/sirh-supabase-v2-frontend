@@ -5540,68 +5540,94 @@ function setEmployeeFilter(category, value) {
 }
 
 
-async function renderCharts() {
-    // Changement de paradigme pour la scalabilité (20 ans / 10 000 employés)
-    // On ne calcule plus en local car avec la pagination, la variable 'employees' est incomplète.
-    // On interroge le "Cerveau" du serveur qui a la vision globale.
 
+
+
+
+async function renderCharts() {
     try {
         const response = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/get-dashboard-stats`);
         const stats = await response.json();
 
-        // --- 1. SYNCHRONISATION DES CHIFFRES DU DASHBOARD ---
+        // 1. Synchronisation des chiffres du Dashboard
         if(document.getElementById('stat-total')) document.getElementById('stat-total').innerText = stats.total;
         if(document.getElementById('stat-active')) document.getElementById('stat-active').innerText = stats.actifs;
 
-        // --- 2. RENDU CHART.JS (STATUT) ---
+        // 2. Rendu Chart.js (Statut) - Ce graphique fonctionne
         if (chartStatusInstance) chartStatusInstance.destroy();
-        const ctxStatus = document.getElementById('chartStatus').getContext('2d');
-        chartStatusInstance = new Chart(ctxStatus, {
-            type: 'doughnut',
-            data: {
-                labels: ['Actif', 'Congé', 'Sortie'],
-                datasets: [{
-                    // On utilise les données globales calculées par le serveur
-                    data: [stats.actifs, stats.enConge, stats.sortis],
-                    backgroundColor: ['#10b981', '#f59e0b', '#ef4444'], 
-                    borderWidth: 0
-                }]
-            },
-            options: { 
-                plugins: { legend: { position: 'bottom' } }, 
-                cutout: '70%',
-                animation: { duration: 800 }
-            }
-        });
+        const ctxStatus = document.getElementById('chartStatus')?.getContext('2d');
+        if (ctxStatus) { // Vérifie si le contexte est disponible
+            chartStatusInstance = new Chart(ctxStatus, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Actif', 'Congé', 'Sortie'],
+                    datasets: [{
+                        data: [stats.actifs, stats.enConge, stats.sortis],
+                        backgroundColor: ['#10b981', '#f59e0b', '#ef4444'], 
+                        borderWidth: 0
+                    }]
+                },
+                options: { 
+                    plugins: { legend: { position: 'bottom' } }, 
+                    cutout: '70%',
+                    animation: { duration: 800 }
+                }
+            });
+        } else {
+            console.warn("Impossible d'obtenir le contexte du graphique de statut.");
+        }
 
-        // --- 3. RENDU CHART.JS (DÉPARTEMENT) ---
+
+        // --- 3. RENDU CHART.JS (DÉPARTEMENT) - CORRIGÉ POUR ROBUSTESSE ---
         if (chartDeptInstance) chartDeptInstance.destroy();
-        const ctxDept = document.getElementById('chartDept').getContext('2d');
-        chartDeptInstance = new Chart(ctxDept, {
-            type: 'bar',
-            data: {
-                labels: Object.keys(stats.departements),
-                datasets: [{ 
-                    label: 'Collaborateurs', 
-                    data: Object.values(stats.departements), 
-                    backgroundColor: '#6366f1', 
-                    borderRadius: 8 
-                }]
-            },
-            options: { 
-                scales: { 
-                    y: { beginAtZero: true, ticks: { stepSize: 1 } }, 
-                    x: { grid: { display: false } } 
-                }, 
-                plugins: { legend: { display: false } } 
+        const ctxDept = document.getElementById('chartDept')?.getContext('2d'); // Utilise optional chaining (?)
+
+        // Ajout de logs de débogage pour voir les données
+        console.log("➡️ Données Département (stats.depts) :", stats.depts);
+        console.log("➡️ Contexte du graphique Département (ctxDept) :", ctxDept);
+
+        // On ne crée le graphique que si le contexte est valide ET qu'il y a des données
+        if (ctxDept && Object.keys(stats.depts).length > 0) {
+            chartDeptInstance = new Chart(ctxDept, {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(stats.depts),
+                    datasets: [{ 
+                        label: 'Collaborateurs', 
+                        data: Object.values(stats.depts), 
+                        backgroundColor: '#6366f1', 
+                        borderRadius: 8 
+                    }]
+                },
+                options: { 
+                    scales: { 
+                        y: { beginAtZero: true, ticks: { stepSize: 1 } }, 
+                        x: { grid: { display: false } } 
+                    }, 
+                    plugins: { legend: { display: false } } 
+                }
+            });
+        } else {
+            // Message si le graphique ne peut pas être rendu (ex: pas de données)
+            console.warn("Graphique de répartition par département non rendu : Contexte invalide ou aucune donnée.");
+            const chartContainer = document.getElementById('chartDept')?.parentElement;
+            if (chartContainer) {
+                chartContainer.innerHTML = `
+                    <p class="font-bold text-slate-700 mb-4 uppercase text-xs tracking-widest">Répartition par Département</p>
+                    <div class="text-center text-slate-400 text-sm italic p-4 bg-slate-50 rounded-lg">
+                        Aucune donnée départementale à afficher.
+                    </div>
+                `;
             }
-        });
+        }
 
     } catch (e) {
         console.error("Erreur de mise à jour des statistiques globales:", e);
+        // Si une erreur grave survient, on peut vider le canvas ou afficher un message général
+        const chartContainer = document.getElementById('w-charts-content');
+        if (chartContainer) chartContainer.innerHTML = '<p class="text-center text-red-500 font-bold p-6">Erreur de chargement des graphiques.</p>';
     }
 }
-
 
 
 
@@ -5701,6 +5727,7 @@ function setReportView(mode) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
