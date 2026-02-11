@@ -3247,8 +3247,8 @@ async function fetchLeaveRequests() {
                         const dStart = l.debut ? l.debut.toLocaleDateString('fr-FR') : '?';
                         const dEnd = l.fin ? l.fin.toLocaleDateString('fr-FR') : '?';
                         
-                        const diffTime = l.fin && l.debut ? Math.abs(l.fin.getTime() - l.debut.getTime()) : 0;
-                        const daysDifference = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+                        const diffTime = l.fin && l.debut ? Math.abs(l.fin.getTime().debut.getTime()) : 0;
+                        const daysDifference = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
                         // Logique de couleur pour le solde
                         const soldeColor = l.solde <= 5 ? 'text-orange-600' : 'text-emerald-600';
@@ -3259,7 +3259,7 @@ async function fetchLeaveRequests() {
                                     <div class="font-bold text-sm text-slate-700">${l.nom || 'Inconnu'}</div>
                                     <!-- AJOUT DU SOLDE ICI -->
                                     <div class="text-[9px] font-black uppercase ${soldeColor} mb-1">
-                                    Solde actuel : ${l.solde + daysDifference} JOURS
+                                    Solde actuel : ${l.solde} JOURS
                                     </div>
                                     <div class="text-[10px] text-slate-400 font-normal uppercase">${l.type || 'Congé'}</div>
                                 </td>
@@ -5583,6 +5583,7 @@ function setReportView(mode) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
