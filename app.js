@@ -5517,12 +5517,10 @@ function changeReportTab(tab) {
 
 
 
-
-
 async function fetchMobileReports(page = 1) {
     const container = document.getElementById('reports-list-container');
     const counterEl = document.getElementById('stat-visites-total');
-    const labelEl = document.getElementById('stat-report-label');
+    const labelEl = document.getElementById('stat-report-label'); // Le texte "Total Visites"
     const nameFilter = document.getElementById('filter-report-name')?.value.toLowerCase() || "";
     const periodFilter = document.getElementById('filter-report-date')?.value || "month";
 
@@ -5543,8 +5541,6 @@ async function fetchMobileReports(page = 1) {
         const r = await secureFetch(url);
         const result = await r.json();
 
-        // On extrait les données et les métadonnées (nb total de pages)
-        // Note: Si ton serveur ne renvoie pas encore de 'meta', on gère le fallback
         const data = result.data || result; 
         const totalCount = result.meta?.total || data.length;
         reportTotalPages = result.meta?.last_page || 1;
@@ -5562,7 +5558,7 @@ async function fetchMobileReports(page = 1) {
         let html = '';
 
         if (currentReportTab === 'visits') {
-            // --- LOGIQUE VISITES REGROUPÉES ---
+            // --- LOGIQUE VISITES REGROUPÉES AVEC ACCORDÉONS ---
             const grouped = {};
             data.forEach(v => {
                 const name = v.nom_agent || "Inconnu";
@@ -5570,47 +5566,144 @@ async function fetchMobileReports(page = 1) {
                 grouped[name].push(v);
             });
 
-            html = `<div class="col-span-full space-y-6">`;
+            html = `<div class="col-span-full space-y-4">`;
             for (const [name, visits] of Object.entries(grouped)) {
+                // Création d'un ID unique pour l'accordéon basé sur le nom
+                const accordionId = `acc-${name.replace(/\s+/g, '-')}`;
+                
                 html += `
-                    <div class="bg-white rounded-[2rem] shadow-sm border overflow-hidden animate-fadeIn">
-                        <div class="bg-slate-900 px-6 py-3 border-b flex justify-between items-center">
-                            <span class="font-black text-white text-xs uppercase tracking-widest">${name}</span>
-                            <span class="bg-blue-500 text-white px-2 py-0.5 rounded-lg text-[10px] font-bold">${visits.length} SUR CETTE PAGE</span>
+                    <div class="bg-white rounded-[2rem] shadow-sm border border-slate-200 overflow-hidden animate-fadeIn">
+                        <!-- ENTÊTE CLIQUABLE (ACCORDÉON) -->
+                        <div onclick="toggleAccordion('${accordionId}')" class="bg-slate-900 px-6 py-4 flex justify-between items-center cursor-pointer hover:bg-slate-800 transition-all">
+                            <div class="flex items-center gap-3">
+                                <div class="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold text-xs">
+                                    ${name.charAt(0)}
+                                </div>
+                                <span class="font-black text-white text-sm uppercase tracking-widest">${name}</span>
+                            </div>
+                            <div class="flex items-center gap-4">
+                                <span class="bg-white/10 text-white px-3 py-1 rounded-full text-[10px] font-bold">${visits.length} VISITES ICI</span>
+                                <i id="icon-${accordionId}" class="fa-solid fa-chevron-down text-white/50 transition-transform duration-300"></i>
+                            </div>
                         </div>
-                        <table class="w-full text-left"><tbody class="divide-y divide-slate-100">`;
+
+                        <!-- TABLEAU CACHÉ PAR DÉFAUT -->
+                        <div id="${accordionId}" class="hidden overflow-x-auto bg-slate-50/50">
+                            <table class="w-full text-left border-collapse">
+                                <thead class="bg-slate-100 border-b">
+                                    <tr class="text-[9px] font-black text-slate-400 uppercase">
+                                        <th class="p-4">Lieu visité</th>
+                                        <th class="p-4">Heure</th>
+                                        <th class="p-4 text-center">Preuve</th>
+                                        <th class="p-4 text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100">`;
+                
                 visits.forEach(v => {
                     html += `
-                        <tr class="hover:bg-blue-50/30">
-                            <td class="px-6 py-3 text-xs font-bold text-blue-600 w-1/3 uppercase">${v.lieu_nom}</td>
-                            <td class="px-6 py-3 text-[11px] text-slate-400 font-mono">${v.check_in ? new Date(v.check_in).toLocaleString([], {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'}) : '--'}</td>
-                            <td class="px-6 py-3 text-center">${v.proof_url ? `<button onclick="viewDocument('${v.proof_url}', 'Cachet')" class="text-emerald-500"><i class="fa-solid fa-camera-retro text-lg"></i></button>` : '<i class="fa-solid fa-ban text-slate-200"></i>'}</td>
-                            <td class="px-6 py-3 text-right text-[10px] text-slate-400 italic truncate max-w-[150px]">${v.notes || '-'}</td>
+                        <tr id="row-${v.id}" class="hover:bg-white transition-colors group">
+                            <td class="px-4 py-3">
+                                <div class="text-xs font-bold text-blue-600 uppercase">${v.lieu_nom}</div>
+                                <div class="text-[10px] text-slate-400 italic truncate max-w-[200px]">${v.notes || '-'}</div>
+                            </td>
+                            <td class="px-4 py-3 text-[10px] font-mono text-slate-500">${v.check_in ? new Date(v.check_in).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '--:--'}</td>
+                            <td class="px-4 py-3 text-center">
+                                ${v.proof_url ? `<button onclick="viewDocument('${v.proof_url}', 'Cachet')" class="text-emerald-500 hover:scale-110 transition-transform"><i class="fa-solid fa-camera-retro text-lg"></i></button>` : '<i class="fa-solid fa-ban text-slate-200"></i>'}
+                            </td>
+                            <td class="px-4 py-3 text-right">
+                                <!-- BOUTON SUPPRIMER DE LA VUE -->
+                                <button onclick="deleteVisitReport('${v.id}')" class="p-2 text-slate-300 hover:text-red-500 transition-all opacity-0 group-hover:opacity-100">
+                                    <i class="fa-solid fa-trash-can"></i>
+                                </button>
+                            </td>
                         </tr>`;
                 });
-                html += `</tbody></table></div>`;
+                html += `</tbody></table></div></div>`;
             }
             html += `</div>`;
-        } else {
-            // --- LOGIQUE BILANS JOURNALIERS TABLEAU ---
-            html = `<div class="col-span-full bg-white rounded-[2rem] shadow-sm border overflow-hidden animate-fadeIn"><table class="w-full text-left border-collapse">
-                <thead class="bg-slate-50 border-b"><tr class="text-[10px] font-black text-slate-400 uppercase">
-                <th class="p-4">Agent</th><th class="p-4">Date</th><th class="p-4">Résumé</th><th class="p-4 text-center">Stock</th><th class="p-4 text-right">Photo</th>
-                </tr></thead><tbody class="divide-y divide-slate-100">`;
+        } 
+        else {
+            // --- ONGLET BILANS JOURNALIERS (DAILY) AVEC ACCORDÉONS ---
+            const r = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/read-daily-reports`);
+            let data = await r.json();
 
+            if (nameFilter) data = data.filter(rep => rep.employees?.nom.toLowerCase().includes(nameFilter));
+            
+            if(labelEl) labelEl.innerText = "TOTAL BILANS JOURNALIERS";
+            if(counterEl) counterEl.innerText = data.length; 
+
+            container.innerHTML = '';
+            if (!data || data.length === 0) {
+                container.innerHTML = '<div class="col-span-full text-center text-slate-400 py-10 font-bold uppercase text-[10px]">Aucun bilan journalier à traiter</div>';
+                return;
+            }
+
+            // --- REGROUPEMENT PAR AGENT ---
+            const groupedDaily = {};
             data.forEach(rep => {
-                html += `
-                    <tr class="hover:bg-indigo-50/30 transition-colors">
-                        <td class="p-4 text-xs font-bold text-slate-700">${rep.employees?.nom || 'Inconnu'}</td>
-                        <td class="p-4 text-[11px] text-slate-500">${new Date(rep.report_date).toLocaleDateString()}</td>
-                        <td class="p-4 text-xs text-slate-600 italic max-w-md truncate" title="${rep.summary}">${rep.summary}</td>
-                        <td class="p-4 text-center">${rep.needs_restock ? '⚠️ REAPPRO' : '✅ OK'}</td>
-                        <td class="p-4 text-right">
-                            ${rep.photo_url ? `<button onclick="viewDocument('${rep.photo_url}', 'Cahier')" class="text-blue-500 hover:scale-110 transition-transform"><i class="fa-solid fa-file-image text-lg"></i></button>` : '<i class="fa-solid fa-ban text-slate-200"></i>'}
-                        </td>
-                    </tr>`;
+                const name = rep.employees?.nom || "Agent Inconnu";
+                if (!groupedDaily[name]) groupedDaily[name] = [];
+                groupedDaily[name].push(rep);
             });
-            html += `</tbody></table></div>`;
+
+            let html = `<div class="col-span-full space-y-3">`;
+
+            for (const [name, reports] of Object.entries(groupedDaily)) {
+                const agentId = reports[0].employee_id;
+                const hasStockAlert = reports.some(rp => rp.needs_restock); // Vérifie si une alerte stock existe dans le groupe
+                const accordionId = `daily-acc-${name.replace(/\s+/g, '-')}`;
+
+                html += `
+                    <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden animate-fadeIn">
+                        <!-- ENTÊTE ACCORDÉON BILAN -->
+                        <div onclick="toggleAccordion('${accordionId}')" class="flex items-center justify-between px-6 py-4 cursor-pointer hover:bg-slate-50 transition-colors">
+                            <div class="flex items-center gap-4">
+                                <div class="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-black text-sm">
+                                    ${name.charAt(0)}
+                                </div>
+                                <div>
+                                    <h4 class="font-black text-slate-800 text-sm uppercase tracking-tighter">${name}</h4>
+                                    <p class="text-[10px] text-slate-400 font-bold uppercase">${reports.length} bilans journaliers</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                ${hasStockAlert ? `<span class="bg-orange-100 text-orange-600 px-2 py-1 rounded-lg text-[9px] font-black animate-pulse"><i class="fa-solid fa-box-open mr-1"></i> ALERTE STOCK</span>` : ''}
+                                <i id="icon-${accordionId}" class="fa-solid fa-chevron-down text-slate-300 transition-transform duration-300"></i>
+                            </div>
+                        </div>
+
+                        <!-- LISTE DES BILANS CACHÉE -->
+                        <div id="${accordionId}" class="hidden border-t border-slate-100 bg-slate-50/50">
+                            <table class="w-full text-left">
+                                <tbody class="divide-y divide-slate-100">
+                `;
+
+                reports.forEach(rep => {
+                    html += `
+                        <tr id="row-daily-${rep.id}" class="hover:bg-white transition-colors group">
+                            <td class="px-6 py-4">
+                                <div class="text-[10px] font-black text-indigo-500 uppercase">${new Date(rep.report_date).toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long'})}</div>
+                                <div class="text-xs text-slate-600 mt-1 italic line-clamp-2">${rep.summary}</div>
+                            </td>
+                            <td class="px-6 py-4 text-center">
+                                ${rep.needs_restock ? '<span class="text-orange-500" title="Besoin de stock"><i class="fa-solid fa-circle-exclamation"></i></span>' : '<span class="text-emerald-400"><i class="fa-solid fa-circle-check"></i></span>'}
+                            </td>
+                            <td class="px-6 py-4 text-center">
+                                ${rep.photo_url ? `<button onclick="viewDocument('${rep.photo_url}', 'Cahier de rapport')" class="text-blue-500 hover:scale-125 transition-transform"><i class="fa-solid fa-file-image text-lg"></i></button>` : '<i class="fa-solid fa-ban text-slate-200"></i>'}
+                            </td>
+                            <td class="px-6 py-4 text-right">
+                                <button onclick="deleteDailyReport('${rep.id}')" class="p-2 text-slate-300 hover:text-red-500 transition-all opacity-0 group-hover:opacity-100">
+                                    <i class="fa-solid fa-check"></i> <!-- Icône "Lu / Validé" -->
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                });
+
+                html += `</tbody></table></div></div>`;
+            }
+            container.innerHTML = html + `</div>`;
         }
 
         // --- AJOUT DES BOUTONS DE PAGINATION (BAS DU CONTENEUR) ---
@@ -5633,6 +5726,57 @@ async function fetchMobileReports(page = 1) {
         container.innerHTML = '<div class="col-span-full text-center text-red-500 py-10 font-bold">Erreur de connexion aux données.</div>';
     }
 }
+
+// --- FONCTIONS AUXILIAIRES POUR L'ACCORDÉON ET LA SUPPRESSION ---
+
+function toggleAccordion(id) {
+    const content = document.getElementById(id);
+    const icon = document.getElementById('icon-' + id);
+    if (!content) return;
+    
+    const isHidden = content.classList.contains('hidden');
+    if (isHidden) {
+        content.classList.remove('hidden');
+        icon.style.transform = 'rotate(180deg)';
+    } else {
+        content.classList.add('hidden');
+        icon.style.transform = 'rotate(0deg)';
+    }
+}
+
+async function deleteVisitReport(id) {
+    const confirm = await Swal.fire({
+        title: 'Retirer du rapport ?',
+        text: "Cette visite sera supprimée définitivement.",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        confirmButtonText: 'Oui, supprimer'
+    });
+
+    if (confirm.isConfirmed) {
+        try {
+            const r = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/delete-visit-report`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id })
+            });
+            if (r.ok) {
+                document.getElementById('row-' + id).remove();
+                // Mise à jour du compteur visuel
+                const counterEl = document.getElementById('stat-visites-total');
+                if(counterEl) counterEl.innerText = parseInt(counterEl.innerText) - 1;
+            }
+        } catch (e) { Swal.fire('Erreur', 'Impossible de supprimer', 'error'); }
+    }
+}
+
+
+
+
+
+
+
 
 
 
@@ -5892,7 +6036,26 @@ function toggleDictation(targetId, btn) {
 }
 
 
-
+async function deleteDailyReport(id) {
+    // On ne demande même pas de confirmation pour les bilans (pour aller vite), 
+    // on considère que cliquer sur "Vu" suffit à l'enlever de la liste
+    try {
+        const r = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/delete-daily-report`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id })
+        });
+        if (r.ok) {
+            document.getElementById('row-daily-' + id).style.opacity = '0';
+            setTimeout(() => {
+                document.getElementById('row-daily-' + id).remove();
+                // Mise à jour compteur
+                const counter = document.getElementById('stat-visites-total');
+                counter.innerText = parseInt(counter.innerText) - 1;
+            }, 300);
+        }
+    } catch (e) { console.error(e); }
+}
 
 
 
@@ -5904,6 +6067,8 @@ function toggleDictation(targetId, btn) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
+
 
 
 
