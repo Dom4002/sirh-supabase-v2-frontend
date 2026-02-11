@@ -5820,6 +5820,63 @@ function setReportView(mode) {
 
 
 
+
+// --- UTILITAIRE : DICTÉE VOCALE (OPTIONNELLE) ---
+let recognition;
+
+function toggleDictation(targetId, btn) {
+    // 1. Vérification de compatibilité (si le téléphone ne peut pas, on prévient)
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+        return Swal.fire('Info', 'La dictée vocale n\'est pas disponible sur ce navigateur.', 'info');
+    }
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const target = document.getElementById(targetId);
+
+    // 2. Si on clique pour arrêter
+    if (recognition && recognition.started) {
+        recognition.stop();
+        return;
+    }
+
+    // 3. Configuration
+    recognition = new SpeechRecognition();
+    recognition.lang = 'fr-FR'; // Français
+    recognition.interimResults = false; 
+
+    // 4. Démarrage (Feedback visuel)
+    recognition.onstart = () => {
+        recognition.started = true;
+        btn.classList.remove('text-slate-400', 'bg-white');
+        btn.classList.add('text-white', 'bg-red-500', 'animate-pulse'); // Devient rouge et pulse
+        btn.innerHTML = '<i class="fa-solid fa-microphone-lines"></i>';
+    };
+
+    // 5. Fin (Retour à la normale)
+    recognition.onend = () => {
+        recognition.started = false;
+        btn.classList.remove('text-white', 'bg-red-500', 'animate-pulse');
+        btn.classList.add('text-slate-400', 'bg-white');
+        btn.innerHTML = '<i class="fa-solid fa-microphone"></i>';
+    };
+
+    // 6. Résultat (On AJOUTE le texte au lieu de remplacer)
+    recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        // On ajoute un espace si le champ n'est pas vide
+        const prefix = target.value ? " " : "";
+        target.value += prefix + transcript;
+    };
+
+    recognition.start();
+}
+
+
+
+
+
+
+
                 if ('serviceWorker' in navigator) {
                     window.addEventListener('load', () => {
                         navigator.serviceWorker.register('./sw.js')
@@ -5827,6 +5884,7 @@ function setReportView(mode) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
