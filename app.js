@@ -739,6 +739,9 @@ if(d.status === "success") {
 
 
 
+
+
+
 async function setSession(n, r, id, perms) {
     currentUser = { nom: n, role: r, id: id, permissions: perms };
     applyBranding();
@@ -769,8 +772,8 @@ async function setSession(n, r, id, perms) {
 
     // 4. RÉVÉLATION DE L'INTERFACE DÈS QUE POSSIBLE
     // On affiche la structure de l'app avant même que toutes les données soient là
-    appLayout.classList.remove('hidden');
-    appLayout.classList.add('ready'); 
+    appLayout.classList.remove('hidden'); // <-- Modification : Affiche l'app layout ici
+    appLayout.classList.add('ready');     // <-- Modification : Ajoute la classe ready ici
     
     // On fait disparaître le loader avec un délai pour l'effet visuel
     setTimeout(() => {
@@ -789,8 +792,8 @@ async function setSession(n, r, id, perms) {
         // Ces appels sont lancés, mais ne bloquent plus l'affichage initial de l'app
         // 'refreshAllData' est maintenant responsable du chargement des 'employees' paginés.
         // 'syncClockInterface' est rapide.
-        refreshAllData(false); // Pas de await ici !
-        syncClockInterface(); // Pas de await ici !
+        refreshAllData(false); // <-- Modification : Suppression du 'await'
+        syncClockInterface(); // <-- Modification : Suppression du 'await'
 
         await applyModulesUI(); 
         applyPermissionsUI(perms);
@@ -822,6 +825,10 @@ async function setSession(n, r, id, perms) {
         Swal.fire('Erreur', 'Impossible de démarrer l\'application. Réessayez.', 'error');
     }
 }
+
+
+
+
 
 
 async function triggerManualContractUpload(employeeId) {
@@ -1014,7 +1021,8 @@ async function offerRegisterLocation(gps) {
 
 
 
-  
+
+
 async function refreshAllData(force = false) {
     const now = Date.now();
     const icon = document.getElementById('refresh-icon'); 
@@ -1034,38 +1042,41 @@ async function refreshAllData(force = false) {
         }
         tasks.push(fetchFlashMessage().catch(e => console.warn("Flash ignoré", e)));
 
-        // --- CORRECTION MAJEURE ICI ---
-        // On appelle fetchData UNIQUEMENT si on n'est PAS sur la vue 'my-profile'
+        // --- GESTION OPTIMISÉE DU CHARGEMENT DES EMPLOYÉS ---
+        // On appelle fetchData (pour la liste paginée des collaborateurs)
+        // UNIQUEMENT si on n'est PAS sur la vue 'my-profile'
         // et si la liste est vide ou si un rafraîchissement forcé est demandé.
         if (currentView !== 'my-profile' && (force || employees.length === 0 || (now - lastFetchTimes.employees > REFRESH_THRESHOLD))) {
-            await fetchData(false, 1); // Toujours charger la page 1 par défaut
+            await fetchData(false, 1); // Toujours charger la page 1 par défaut pour la liste des collaborateurs
             lastFetchTimes.employees = now;
         }
 
-        // 3. Autres chargements spécifiques (inchangé)
+        // 3. Autres chargements spécifiques (pour les modules actifs)
         if (currentView === 'recruitment') tasks.push(fetchCandidates());
         if (currentView === 'logs') tasks.push(fetchLogs());
         
-        // La fonction loadMyProfile() est appelée directement dans switchView() quand on arrive sur 'my-profile'.
-        // Elle fera sa propre requête API pour obtenir les données spécifiques de l'utilisateur.
-        // Ce bloc reste pour déclencher fetchPayrollData() et fetchLeaveRequests() pour le profil personnel.
+        // Pour la vue 'Mon Profil' : on déclenche spécifiquement les données qui s'y trouvent
+        // (loadMyProfile() est déclenché par switchView('my-profile'))
         if (currentView === 'my-profile') {
-            // loadMyProfile(); // <-- Commenté car switchView() le déclenchera
-            tasks.push(fetchPayrollData()); // On va chercher les bulletins
-            tasks.push(fetchLeaveRequests()); // Pour les demandes personnelles
+            // loadMyProfile(); // <-- Cette ligne est bien commentée/retirée, car switchView() le fait
+            tasks.push(fetchPayrollData());    // On va chercher les bulletins de paie de l'utilisateur
+            tasks.push(fetchLeaveRequests());  // On va chercher les demandes de congés de l'utilisateur
         }
         
-        // Pour les managers/admin, on charge les demandes de congés et le tracker (non paginé)
+        // Pour les managers/admin (ceux qui ne sont pas 'EMPLOYEE'),
+        // on charge leurs demandes de congés à valider et le tracker en direct.
+        // Ce bloc est séparé du 'my-profile' pour éviter les confusions de rôle.
         if (currentUser.role !== 'EMPLOYEE') {
             tasks.push(fetchLeaveRequests()); // Pour les demandes en attente du manager
-            tasks.push(triggerRobotCheck());
-            tasks.push(fetchLiveAttendance());
+            tasks.push(triggerRobotCheck());  // Robot de surveillance des retours de congés
+            tasks.push(fetchLiveAttendance()); // Tracker de présence en direct
         }
-        // Le `else` original pour fetchLeaveRequests() est maintenant couvert par le bloc `if (currentView === 'my-profile')` ci-dessus.
+        // Il n'y a plus de `else` ici car toutes les conditions sont gérées par les `if` précédents.
 
+        // On attend que toutes les requêtes asynchrones soient terminées
         await Promise.all(tasks);
         
-        // Mise à jour finale de l'interface
+        // Mise à jour finale de l'interface du Dashboard si on est dessus
         if (currentView === 'dash') renderCharts();
 
         if(force) {
@@ -1074,11 +1085,17 @@ async function refreshAllData(force = false) {
         }
 
     } catch (error) {
-        console.error("Erreur Sync:", error);
+        console.error("Erreur Sync:", error); // Log l'erreur pour le débogage
     } finally {
+        // Enlève l'icône de chargement après un petit délai
         if(icon) setTimeout(() => icon.classList.remove('fa-spin'), 500);
     }
 }
+
+
+
+
+
 
 
 async function triggerGlobalPush(title, message) {
@@ -2001,7 +2018,8 @@ function formatGoogleLink(link) {
 
 
 
-function loadMyProfile() {
+
+async function loadMyProfile() {
     console.log("🔍 --- DÉBUT CHARGEMENT PROFIL PERSONNEL ---");
     console.log("👤 Utilisateur connecté :", currentUser);
 
@@ -2012,175 +2030,193 @@ function loadMyProfile() {
         return;
     }
 
-    // Affiche un loader pendant le chargement du profil
-    // document.getElementById('emp-name').innerText = "Chargement..."; // Optionnel
-    // document.getElementById('emp-job').innerText = "..."; // Optionnel
+    // --- 2. NETTOYAGE IMMÉDIAT DE L'INTERFACE POUR ÉVITER LE FLICKER ---
+    // On vide ou masque les champs avec des valeurs par défaut pour une UI fluide
+    document.getElementById('emp-name').innerText = "Chargement...";
+    document.getElementById('emp-job').innerText = "Chargement...";
+    document.getElementById('emp-email').value = "";
+    document.getElementById('emp-phone').value = "";
+    document.getElementById('emp-address').value = "";
+    document.getElementById('emp-dob').value = "";
+    document.getElementById('folder-docs-grid').innerHTML = '<div class="col-span-full text-center text-slate-400 py-10 italic">Chargement des documents...</div>';
+    
+    // Cacher les boutons spécifiques au mobile au démarrage pour éviter le flash
+    const dailyReportBtn = document.querySelector('[onclick="openDailyReportModal()"]');
+    if (dailyReportBtn) dailyReportBtn.style.display = 'none';
 
-    // --- NOUVEAU : APPEL ASYNCHRONE SPÉCIFIQUE AU SERVEUR POUR LE PROFIL DE L'UTILISATEUR ---
-    (async () => { // Utilisation d'une IIFE async pour gérer l'await
-        try {
-            const r = await secureFetch(`${URL_READ}?target_id=${encodeURIComponent(currentUser.id)}&agent=${encodeURIComponent(currentUser.nom)}`);
-            const result = await r.json();
-            
-            // Le serveur renvoie un objet {data: [...], meta: {}}, et data est un tableau avec 1 élément.
-            // On prend le premier élément de ce tableau pour avoir le profil de l'utilisateur.
-            const myRawData = result.data?.[0]; 
+    // Réinitialiser l'avatar visuel
+    const photoEl = document.getElementById('emp-photo-real');
+    const avatarEl = document.getElementById('emp-avatar');
+    if (photoEl) photoEl.classList.add('hidden');
+    if (avatarEl) {
+        avatarEl.classList.remove('hidden');
+        avatarEl.innerText = (currentUser.nom || "U").charAt(0).toUpperCase();
+    }
+    document.getElementById('emp-start-date').innerText = '--/--/----';
+    document.getElementById('emp-end-date').innerText = '--/--/----';
+    document.getElementById('leave-balance-display').innerText = '--';
 
-            if (!myRawData) {
-                console.error("❌ ÉCHEC : Impossible de trouver votre profil dans la base de données.");
-                Swal.fire('Erreur', 'Votre fiche employé est introuvable. Contactez l\'administrateur.', 'error');
-                return;
-            }
 
-            // --- MAPPING RAPIDE DES DONNÉES DU PROFIL (comme dans fetchData mais pour un seul) ---
-            const myData = {
-                id: myRawData.id, 
-                nom: myRawData.nom, 
-                date: myRawData.date_embauche, 
-                employee_type: myRawData.employee_type || 'OFFICE', 
-                poste: myRawData.poste, 
-                dept: myRawData.departement || "Non défini", 
-                solde_conges: parseFloat(myRawData.solde_conges) || 0, // Nom de colonne corrigé
-                limit: myRawData.type_contrat === 'CDI' ? '365' : (myRawData.type_contrat === 'CDD' ? '180' : '90'), 
-                photo: myRawData.photo_url || '', 
-                statut: myRawData.statut || 'Actif', 
-                email: myRawData.email, 
-                telephone: myRawData.telephone, 
-                adresse: myRawData.adresse, 
-                date_naissance: myRawData.date_naissance, 
-                role: myRawData.role || 'EMPLOYEE',
-                matricule: myRawData.matricule || 'N/A',
-                // Documents (s'assurer que les noms de colonnes sont corrects)
-                doc: myRawData.contrat_pdf_url || '',
-                cv_link: myRawData.cv_url || '',
-                id_card_link: myRawData.id_card_url || '',
-                diploma_link: myRawData.diploma_url || '',
-                attestation_link: myRawData.attestation_url || '',
-                lm_link: myRawData.lm_url || '',
-                contract_status: myRawData.contract_status || 'Non signé'
-            };
-            
-            // --- REMPLISSAGE DE L'INTERFACE AVEC VOS DONNÉES ---
-            document.getElementById('emp-name').innerText = myData.nom || "Utilisateur"; 
-            document.getElementById('emp-job').innerText = myData.poste || "Poste non défini";
-            
-            // Sidebar & Avatar (Le nom dans la sidebar est mis à jour par setSession, ici c'est pour la vue My Profile)
-            const nameDisplay = document.getElementById('name-display');
-            if (nameDisplay) nameDisplay.innerText = myData.nom || currentUser.nom; // Fallback au cas où
+    // --- 3. APPEL ASYNCHRONE SPÉCIFIQUE AU SERVEUR POUR LE PROFIL DE L'UTILISATEUR ---
+    try {
+        const r = await secureFetch(`${URL_READ}?target_id=${encodeURIComponent(currentUser.id)}&agent=${encodeURIComponent(currentUser.nom)}`);
+        const result = await r.json();
+        
+        // Le serveur renvoie un objet {data: [...], meta: {}}, et data est un tableau avec 1 élément.
+        // On prend le premier élément de ce tableau pour avoir le profil de l'utilisateur.
+        const myRawData = result.data?.[0]; 
 
-            const photoEl = document.getElementById('emp-photo-real');
-            const avatarEl = document.getElementById('emp-avatar');
-            
-            if(myData.photo && myData.photo.length > 10) { 
-                photoEl.src = formatGoogleLink(myData.photo); 
-                photoEl.classList.remove('hidden'); 
-                avatarEl.classList.add('hidden'); 
-            } else {
-                photoEl.classList.add('hidden'); 
-                avatarEl.classList.remove('hidden');
-                avatarEl.innerText = (myData.nom || "U").charAt(0).toUpperCase();
-            }
-
-            // Dates de contrat
-            if(myData.date) { 
-                let sD = parseDateSmart(myData.date); 
-                document.getElementById('emp-start-date').innerText = sD.toLocaleDateString('fr-FR'); 
-                let eD = new Date(sD); 
-                eD.setDate(eD.getDate() + (parseInt(myData.limit) || 365)); 
-                document.getElementById('emp-end-date').innerText = eD.toLocaleDateString('fr-FR'); 
-            }
-
-            // Formulaires (Infos personnelles toujours modifiables via toggleEditMode)
-            document.getElementById('emp-email').value = myData.email || ""; 
-            document.getElementById('emp-phone').value = myData.telephone || ""; 
-            document.getElementById('emp-address').value = myData.adresse || ""; 
-            document.getElementById('emp-dob').value = convertToInputDate(myData.date_naissance); 
-            
-            // --- GESTION DES DOCUMENTS AVEC DROITS D'ACCÈS ---
-            const dC = document.getElementById('doc-container'); 
-            if (dC) {
-                dC.innerHTML = '';
-                const allDocs = [ 
-                    { label: 'Contrat Actuel', link: myData.doc, icon: 'fa-file-signature', color: 'blue', key: 'contrat' }, 
-                    { label: 'Curriculum Vitae', link: myData.cv_link, icon: 'fa-file-pdf', color: 'indigo', key: 'cv' }, 
-                    { label: 'Lettre Motivation', link: myData.lm_link, icon: 'fa-envelope-open-text', color: 'pink', key: 'lm' },
-                    { label: 'Pièce d\'Identité', link: myData.id_card_link, icon: 'fa-id-card', color: 'slate', key: 'id_card' }, 
-                    { label: 'Diplômes/Certifs', link: myData.diploma_link, icon: 'fa-graduation-cap', color: 'emerald', key: 'diploma' },
-                    { label: 'Attestations', link: myData.attestation_link, icon: 'fa-file-invoice', color: 'orange', key: 'attestation' } 
-                ];
-
-                const VISIBLE_LIMIT = 4;
-                let gridHtml = '<div class="grid grid-cols-1 md:grid-cols-4 gap-4">'; 
-
-                allDocs.forEach((doc, index) => {
-                    const hasLink = doc.link && doc.link.length > 5;
-                    const safeLabel = doc.label.replace(/'/g, "\\'");
-                    const hiddenClass = index >= VISIBLE_LIMIT ? 'hidden more-docs' : '';
-
-                    const isAdminOrRH = (currentUser.role === 'ADMIN' || currentUser.role === 'RH');
-                    const canEdit = isAdminOrRH || (doc.key === 'id_card');
-
-                    gridHtml += `
-                        <div class="${hiddenClass} flex flex-col justify-between p-4 border border-slate-100 bg-white rounded-2xl hover:shadow-md transition-all group h-full">
-                            <div class="flex items-center gap-3 mb-4">
-                                <div class="bg-${doc.color}-50 text-${doc.color}-600 p-3 rounded-xl shrink-0">
-                                    <i class="fa-solid ${doc.icon} text-lg"></i>
-                                </div>
-                                <div class="overflow-hidden">
-                                    <p class="text-xs font-bold text-slate-700 truncate" title="${doc.label}">${doc.label}</p>
-                                    <p class="text-[9px] text-slate-400 font-bold uppercase tracking-wide">Document</p>
-                                </div>
-                            </div>
-                            <div class="flex gap-2 mt-auto">
-                                ${hasLink ? `
-                                <button onclick="viewDocument('${doc.link}', '${safeLabel}')" class="flex-1 py-2 text-[10px] font-bold uppercase bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white transition-all">
-                                    <i class="fa-solid fa-eye mr-1"></i> Voir
-                                </button>` : `
-                                <div class="flex-1 py-2 text-[10px] font-bold uppercase bg-slate-50 text-slate-300 rounded-lg text-center cursor-not-allowed">
-                                    Vide
-                                </div>`}
-                                
-                                ${canEdit ? `
-                                <button onclick="updateSingleDoc('${doc.key}', '${myData.id}')" class="w-10 flex items-center justify-center bg-slate-100 text-slate-500 rounded-lg hover:bg-slate-800 hover:text-white transition-all">
-                                    <i class="fa-solid fa-pen"></i>
-                                </button>` : ''}
-                            </div>
-                        </div>`;
-                });
-                gridHtml += '</div>';
-                
-                if (allDocs.length > VISIBLE_LIMIT) {
-                    gridHtml += `<div class="text-center mt-4 pt-2 border-t border-slate-50"><button onclick="toggleMoreDocs(this)" class="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-full text-xs font-bold text-slate-500 hover:text-blue-600 hover:border-blue-200 transition-all shadow-sm"><i class="fa-solid fa-circle-plus"></i> Voir plus</button></div>`;
-                }
-                dC.innerHTML = gridHtml;
-            }
-
-            const leaveBalanceEl = document.getElementById('leave-balance-display');
-            const solde = parseFloat(myData.solde_conges) || 0; // Utilisation de myData.solde_conges (du direct fetch)
-            
-            if(leaveBalanceEl) {
-                leaveBalanceEl.innerText = `${solde} jours`;
-                if (solde <= 5) {
-                    leaveBalanceEl.className = "text-4xl font-black mt-2 text-orange-600";
-                } else {
-                    leaveBalanceEl.className = "text-4xl font-black mt-2 text-indigo-600";
-                }
-            }
-
-            const dailyReportBtn = document.querySelector('[onclick="openDailyReportModal()"]');
-            if (dailyReportBtn) {
-                if (myData.employee_type === 'MOBILE') {
-                    dailyReportBtn.style.display = 'flex';
-                } else {
-                    dailyReportBtn.style.display = 'none';
-                }
-            }
-                    
-        } catch (e) {
-            console.error("Erreur de chargement du profil personnel:", e);
-            Swal.fire('Erreur', 'Impossible de charger votre profil. Veuillez réessayer.', 'error');
+        if (!myRawData) {
+            console.error("❌ ÉCHEC : Impossible de trouver votre profil dans la base de données.");
+            Swal.fire('Erreur', 'Votre fiche employé est introuvable. Contactez l\'administrateur.', 'error');
+            return;
         }
-    })(); // Exécute la fonction asynchrone immédiatement
+
+        // --- 4. MAPPING RAPIDE DES DONNÉES DU PROFIL (comme dans fetchData mais pour un seul) ---
+        const myData = {
+            id: myRawData.id, 
+            nom: myRawData.nom, 
+            date: myRawData.date_embauche, 
+            employee_type: myRawData.employee_type || 'OFFICE', 
+            poste: myRawData.poste, 
+            dept: myRawData.departement || "Non défini", 
+            solde_conges: parseFloat(myRawData.solde_conges) || 0, // Nom de colonne corrigé du serveur
+            limit: myRawData.type_contrat === 'CDI' ? '365' : (myRawData.type_contrat === 'CDD' ? '180' : '90'), 
+            photo: myRawData.photo_url || '', 
+            statut: myRawData.statut || 'Actif', 
+            email: myRawData.email, 
+            telephone: myRawData.telephone, 
+            adresse: myRawData.adresse, 
+            date_naissance: myRawData.date_naissance, 
+            role: myRawData.role || 'EMPLOYEE',
+            matricule: myRawData.matricule || 'N/A',
+            // Documents (s'assurer que les noms de colonnes sont corrects)
+            doc: myRawData.contrat_pdf_url || '',
+            cv_link: myRawData.cv_url || '',
+            id_card_link: myRawData.id_card_url || '',
+            diploma_link: myRawData.diploma_url || '',
+            attestation_link: myRawData.attestation_url || '',
+            lm_link: myRawData.lm_url || '',
+            contract_status: myRawData.contract_status || 'Non signé'
+        };
+        
+        // --- 5. REMPLISSAGE FINAL DE L'INTERFACE AVEC LES DONNÉES CORRECTES ---
+        document.getElementById('emp-name').innerText = myData.nom || "Utilisateur"; 
+        document.getElementById('emp-job').innerText = myData.poste || "Poste non défini";
+        
+        const nameDisplay = document.getElementById('name-display');
+        if (nameDisplay) nameDisplay.innerText = myData.nom || currentUser.nom;
+
+        // Affichage de la photo ou de l'avatar
+        if(myData.photo && myData.photo.length > 10) { 
+            photoEl.src = formatGoogleLink(myData.photo); 
+            photoEl.classList.remove('hidden'); 
+            avatarEl.classList.add('hidden'); 
+        } else {
+            photoEl.classList.add('hidden'); 
+            avatarEl.classList.remove('hidden');
+            avatarEl.innerText = (myData.nom || "U").charAt(0).toUpperCase();
+        }
+
+        // Dates de contrat
+        if(myData.date) { 
+            let sD = parseDateSmart(myData.date); 
+            document.getElementById('emp-start-date').innerText = sD.toLocaleDateString('fr-FR'); 
+            let eD = new Date(sD); 
+            eD.setDate(eD.getDate() + (parseInt(myData.limit) || 365)); 
+            document.getElementById('emp-end-date').innerText = eD.toLocaleDateString('fr-FR'); 
+        }
+
+        // Formulaires (Infos personnelles)
+        document.getElementById('emp-email').value = myData.email || ""; 
+        document.getElementById('emp-phone').value = myData.telephone || ""; 
+        document.getElementById('emp-address').value = myData.adresse || ""; 
+        document.getElementById('emp-dob').value = convertToInputDate(myData.date_naissance); 
+        
+        // Gestion des documents
+        const dC = document.getElementById('doc-container'); 
+        if (dC) {
+            dC.innerHTML = ''; // Nettoie avant de reconstruire
+            const allDocs = [ 
+                { label: 'Contrat Actuel', link: myData.doc, icon: 'fa-file-signature', color: 'blue', key: 'contrat' }, 
+                { label: 'Curriculum Vitae', link: myData.cv_link, icon: 'fa-file-pdf', color: 'indigo', key: 'cv' }, 
+                { label: 'Lettre Motivation', link: myData.lm_link, icon: 'fa-envelope-open-text', color: 'pink', key: 'lm' },
+                { label: 'Pièce d\'Identité', link: myData.id_card_link, icon: 'fa-id-card', color: 'slate', key: 'id_card' }, 
+                { label: 'Diplômes/Certifs', link: myData.diploma_link, icon: 'fa-graduation-cap', color: 'emerald', key: 'diploma' },
+                { label: 'Attestations', link: myData.attestation_link, icon: 'fa-file-invoice', color: 'orange', key: 'attestation' } 
+            ];
+
+            const VISIBLE_LIMIT = 4;
+            let gridHtml = '<div class="grid grid-cols-1 md:grid-cols-4 gap-4">'; 
+
+            allDocs.forEach((doc, index) => {
+                const hasLink = doc.link && doc.link.length > 5;
+                const safeLabel = doc.label.replace(/'/g, "\\'");
+                const hiddenClass = index >= VISIBLE_LIMIT ? 'hidden more-docs' : '';
+
+                const isAdminOrRH = (currentUser.role === 'ADMIN' || currentUser.role === 'RH');
+                const canEdit = isAdminOrRH || (doc.key === 'id_card');
+
+                gridHtml += `
+                    <div class="${hiddenClass} flex flex-col justify-between p-4 border border-slate-100 bg-white rounded-2xl hover:shadow-md transition-all group h-full">
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="bg-${doc.color}-50 text-${doc.color}-600 p-3 rounded-xl shrink-0">
+                                <i class="fa-solid ${doc.icon} text-lg"></i>
+                            </div>
+                            <div class="overflow-hidden">
+                                <p class="text-xs font-bold text-slate-700 truncate" title="${doc.label}">${doc.label}</p>
+                                <p class="text-[9px] text-slate-400 font-bold uppercase tracking-wide">Document</p>
+                            </div>
+                        </div>
+                        <div class="flex gap-2 mt-auto">
+                            ${hasLink ? `
+                            <button onclick="viewDocument('${doc.link}', '${safeLabel}')" class="flex-1 py-2 text-[10px] font-bold uppercase bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white transition-all">
+                                <i class="fa-solid fa-eye mr-1"></i> Voir
+                            </button>` : `
+                            <div class="flex-1 py-2 text-[10px] font-bold uppercase bg-slate-50 text-slate-300 rounded-lg text-center cursor-not-allowed">
+                                Vide
+                            </div>`}
+                            
+                            ${canEdit ? `
+                            <button onclick="updateSingleDoc('${doc.key}', '${myData.id}')" class="w-10 flex items-center justify-center bg-slate-100 text-slate-500 rounded-lg hover:bg-slate-800 hover:text-white transition-all">
+                                <i class="fa-solid fa-pen"></i>
+                            </button>` : ''}
+                        </div>
+                    </div>`;
+            });
+            gridHtml += '</div>';
+            
+            if (allDocs.length > VISIBLE_LIMIT) {
+                gridHtml += `<div class="text-center mt-4 pt-2 border-t border-slate-50"><button onclick="toggleMoreDocs(this)" class="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-full text-xs font-bold text-slate-500 hover:text-blue-600 hover:border-blue-200 transition-all shadow-sm"><i class="fa-solid fa-circle-plus"></i> Voir plus</button></div>`;
+            }
+            dC.innerHTML = gridHtml;
+        }
+
+        const leaveBalanceEl = document.getElementById('leave-balance-display');
+        const solde = parseFloat(myData.solde_conges) || 0; 
+        
+        if(leaveBalanceEl) {
+            leaveBalanceEl.innerText = `${solde} jours`;
+            if (solde <= 5) {
+                leaveBalanceEl.className = "text-4xl font-black mt-2 text-orange-600";
+            } else {
+                leaveBalanceEl.className = "text-4xl font-black mt-2 text-indigo-600";
+            }
+        }
+
+        // Afficher/Cacher le bouton "Rapport de Fin de Journée" après avoir chargé le bon profil
+        if (dailyReportBtn) { // On s'assure que l'élément a été trouvé au début
+            if (myData.employee_type === 'MOBILE') {
+                dailyReportBtn.style.display = 'flex'; // Visible
+            } else {
+                dailyReportBtn.style.display = 'none'; // Caché pour OFFICE et FIXED
+            }
+        }
+                
+    } catch (e) {
+        console.error("Erreur de chargement du profil personnel:", e);
+        Swal.fire('Erreur', 'Impossible de charger votre profil. Veuillez réessayer.', 'error');
+    }
 }
 
 
@@ -5665,6 +5701,7 @@ function setReportView(mode) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
