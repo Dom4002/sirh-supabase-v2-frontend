@@ -10,6 +10,51 @@
             };
 
 
+// Fonction utilitaire pour compresser les images avant l'upload
+async function compressImage(file, maxWidth = 1200, quality = 0.7) {
+    return new Promise((resolve) => {
+        if (!file || !file.type.startsWith('image/')) {
+            resolve(file); // Si ce n'est pas une image, on ne compresse pas
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+
+                if (width > maxWidth) {
+                    height *= maxWidth / width;
+                    width = maxWidth;
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+
+                // Convertir le canvas en Blob (fichier)
+                canvas.toBlob(
+                    (blob) => {
+                        resolve(blob);
+                    },
+                    file.type, // Garder le type original de l'image (ex: image/jpeg)
+                    quality // Qualité de compression (0.7 = 70%)
+                );
+            };
+            img.onerror = () => resolve(file); // En cas d'erreur de chargement, renvoyer le fichier original
+        };
+        reader.onerror = () => resolve(file); // En cas d'erreur de lecture, renvoyer le fichier original
+    });
+}
+
+
 let reportPage = 1;
 let reportTotalPages = 1;
 
@@ -1804,6 +1849,12 @@ async function handleClockInOut() {
         outcome = formValues.outcome;
         report = formValues.report;
         isLastExit = formValues.isLastExit;
+
+
+        if (proofBlob) {
+        Swal.update({ text: 'Compression de la photo en cours...' });
+        proofBlob = await compressImage(proofBlob);
+    }
     }
     
     // --- POINTAGE GPS & ENVOI ---
@@ -2582,8 +2633,12 @@ async function triggerRobotCheck() {
                     fd.append('role', getVal('f-role'));
                     fd.append('agent', currentUser ? currentUser.nom : "Système");
 
-                    // 3. Ajout de la photo de profil (Obligatoire)
-                    fd.append('photo', capturedBlob, 'photo_profil.jpg');
+                 // 3. Ajout de la photo de profil (Obligatoire)
+                // --- NOUVEAU : COMPRESSION DE LA PHOTO D'ONBOARDING ---
+                Swal.update({ text: 'Compression de la photo de profil...' });
+                const compressedProfilePhoto = await compressImage(capturedBlob);
+                fd.append('photo', compressedProfilePhoto, 'photo_profil.jpg');
+
 
                     // 4. Ajout des documents KYC (Optionnels)
                     // IMPORTANT : On vérifie s'ils existent AVANT de les ajouter
@@ -3554,16 +3609,25 @@ async function processLeave(recordId, decision, daysToDeduct = 0) {
         if (file) saveDoc(target, file);
     }
 
-    function saveDoc(target, fileOrBlob) {
-        docBlobs[target] = fileOrBlob;
+
+
+
+
+
+      async function saveDoc(target, fileOrBlob) { // Rendre asynchrone
+        // --- NOUVEAU : Compression si c'est une image ---
+        Swal.update({ text: 'Compression du document en cours...' }); // Affiche un loader si nécessaire
+        const processedFile = await compressImage(fileOrBlob);
+        docBlobs[target] = processedFile; // Stocke la version compressée
+
         const preview = document.getElementById('preview-' + target);
         const icon = document.getElementById('icon-' + target);
         
-        if(preview) { // Si on est dans le formulaire onboarding
-            preview.src = URL.createObjectURL(fileOrBlob);
+        if(preview) {
+            preview.src = URL.createObjectURL(processedFile); // Utilise processedFile ici
             preview.classList.remove('hidden');
             if(icon) icon.classList.add('hidden');
-        } else if(target === 'leave_justif') { // Si on est dans les congés
+        } else if(target === 'leave_justif') {
             document.getElementById('leave-doc-preview').innerHTML = '<i class="fa-solid fa-check text-emerald-500"></i>';
         }
     }
@@ -3582,15 +3646,20 @@ async function processLeave(recordId, decision, daysToDeduct = 0) {
             confirmButtonColor: '#2563eb'
         });
 
-        if (file) {
+
+                if (file) {
             Swal.fire({ title: 'Envoi...', didOpen: () => Swal.showLoading(), allowOutsideClick: false });
             const fd = new FormData();
             fd.append('id', employeeId);
             fd.append('agent', currentUser.nom);
-            fd.append('agent_role', currentUser.role); // ✅ AJOUTER CETTE LIGNE
-            fd.append('new_photo', file); // On utilise le même champ binaire que ton scénario
-            fd.append('doc_type', docKey); // <--- C'est ça qui ne sera plus "undefined" !
-
+            fd.append('agent_role', currentUser.role); 
+            
+            // --- NOUVEAU : COMPRESSION POUR LA MISE À JOUR ---
+            Swal.update({ text: 'Compression du document en cours...' });
+            const compressedFile = await compressImage(file);
+            fd.append('new_photo', compressedFile); // Champ utilisé par ton serveur
+            fd.append('doc_type', docKey); 
+            
             try {
                 const r = await secureFetch(URL_EMPLOYEE_UPDATE, { method: 'POST', body: fd });
                 if (r.ok) {
@@ -3598,7 +3667,7 @@ async function processLeave(recordId, decision, daysToDeduct = 0) {
                     refreshAllData();
                 }
             } catch (e) { Swal.fire('Erreur', e.message, 'error'); }
-        }
+        }     
     }
 
 
@@ -4836,9 +4905,11 @@ async function sendMessage(e) {
     fd.append('agent', currentUser.nom);
     fd.append('message', txt);
     
-    if (hasFile) {
-        // --- CORRECTION DU NOM ICI : 'chat_file' au lieu de 'file' ---
-        fd.append('chat_file', fileInput.files[0]); 
+if (hasFile) {
+        // --- NOUVEAU : COMPRESSION POUR LE CHAT ---
+        Swal.update({ text: 'Compression du fichier en cours...' });
+        const compressedChatFile = await compressImage(fileInput.files[0]);
+        fd.append('chat_file', compressedChatFile); 
     }
 
     try {
@@ -5153,9 +5224,10 @@ async function openDailyReportModal() {
             fd.append('summary', formValues.summary);
             fd.append('needs_restock', formValues.needs_restock);
             
-            // Si une photo a été choisie, on l'ajoute
             if (formValues.photo) {
-                fd.append('report_doc', formValues.photo); 
+                Swal.update({ text: 'Compression de la photo en cours...' });
+                const compressedPhoto = await compressImage(formValues.photo);
+                fd.append('report_doc', compressedPhoto); 
             }
 
             // Note: On ne met PAS de 'Content-Type': 'application/json' car c'est du FormData
@@ -5593,6 +5665,7 @@ function setReportView(mode) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
