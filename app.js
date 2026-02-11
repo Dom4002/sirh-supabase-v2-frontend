@@ -3222,7 +3222,7 @@ async function fetchLeaveRequests() {
                 motif: clean(l.motif || l.Motif || "Aucun motif"),
                 doc: clean(l.justificatif_link || l.Justificatif || l.doc || null),
                 // RÉCUPÉRATION DU SOLDE (Vient de la jointure serveur)
-                solde: l.employee?.solde_conges || 0 
+                solde: l.solde_actuel || 0
             };
         });
 
@@ -5583,6 +5583,7 @@ function setReportView(mode) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
