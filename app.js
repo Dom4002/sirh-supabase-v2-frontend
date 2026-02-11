@@ -9,6 +9,8 @@
                 leave_justif: null
             };
 
+let logsPage = 1;
+let logsTotalPages = 1;
 
 // Fonction utilitaire pour compresser les images avant l'upload
 async function compressImage(file, maxWidth = 1200, quality = 0.7) {
@@ -2320,7 +2322,7 @@ function switchView(v) {
     }
 
     if(v === 'settings') fetchZones(); 
-    if(v === 'logs') fetchLogs(); 
+    if(v === 'logs') fetchLogs(1); 
     if(v === 'recruitment') fetchCandidates();
     if(v === 'my-profile') {
         loadMyProfile(); 
@@ -2836,24 +2838,73 @@ async function applyModulesUI() {
 
 
 
-        async function fetchLogs() {
-                const tbody = document.getElementById('logs-body');
-                tbody.innerHTML = '<tr><td colspan="4" class="p-6 text-center italic text-slate-400">Chargement...</td></tr>';
-                try {
-                    const res = await secureFetch(`${URL_READ_LOGS}?agent=${encodeURIComponent(currentUser.nom)}`); 
-                    const raw = await res.json();
-                    tbody.innerHTML = '';
-                    [...raw].reverse().forEach(log => {
-                        let date, agent, action, details;
-                        if (Array.isArray(log)) { date=log[0]; agent=log[1]; action=log[2]; details=log[4]; } 
-                        else { date=log.date||log.Timestamp||log.created_at; agent=log.agent||'Système'; action=log.action||'-'; details=log.détails||log.details||'-'; }
-                        const dF = date ? new Date(date).toLocaleString('fr-FR', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '-';
-                        
-                        // UTILISATION DE escapeHTML ICI
-                        tbody.innerHTML += `<tr class="border-b"><td class="p-4 text-xs font-mono">${dF}</td><td class="p-4 font-bold text-slate-700">${escapeHTML(agent)}</td><td class="p-4"><span class="bg-blue-50 text-blue-600 px-2 py-1 rounded text-[10px] font-black">${escapeHTML(action)}</span></td><td class="p-4 text-xs text-slate-500">${escapeHTML(details)}</td></tr>`;
-                    });
-                } catch(e) { tbody.innerHTML = `<tr><td colspan="4" class="text-red-500 p-4 font-bold text-center">${escapeHTML(e.message)}</td></tr>`; }
-            }
+
+
+async function fetchLogs(page = 1) { // Accepte un paramètre de page
+    const tbody = document.getElementById('logs-body');
+    if (!tbody) return;
+
+    // Affiche un loader pendant le chargement
+    tbody.innerHTML = '<tr><td colspan="4" class="p-6 text-center italic text-slate-400"><i class="fa-solid fa-circle-notch fa-spin mr-2"></i> Chargement des logs...</td></tr>';
+    
+    logsPage = page; // Met à jour la page actuelle
+
+    try {
+        const r = await secureFetch(`${URL_READ_LOGS}?page=${page}&limit=20&agent=${encodeURIComponent(currentUser.nom)}`);
+        const result = await r.json();
+
+        const raw = result.data || [];
+        const meta = result.meta || { total: raw.length, page: 1, last_page: 1 };
+
+        logsTotalPages = meta.last_page; // Met à jour le nombre total de pages
+
+        tbody.innerHTML = ''; // Vide l'ancien contenu
+
+        if (raw.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="4" class="p-6 text-center text-slate-400 italic">Aucun log trouvé pour cette page.</td></tr>`;
+            return;
+        }
+
+        raw.forEach(log => {
+            const dateF = log.created_at ? new Date(log.created_at).toLocaleString('fr-FR', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '-';
+            
+            tbody.innerHTML += `
+                <tr class="border-b hover:bg-slate-50 transition-colors">
+                    <td class="p-4 text-xs font-mono">${dateF}</td>
+                    <td class="p-4 font-bold text-slate-700">${escapeHTML(log.agent || 'Système')}</td>
+                    <td class="p-4"><span class="bg-blue-50 text-blue-600 px-2 py-1 rounded text-[10px] font-black">${escapeHTML(log.action || '-')}</span></td>
+                    <td class="p-4 text-xs text-slate-500">${escapeHTML(log.details || '-')}</td>
+                </tr>`;
+        });
+        
+        // --- INJECTION DES BOUTONS DE PAGINATION ---
+        const logsContainer = document.getElementById('view-logs');
+        const oldPagination = document.getElementById('logs-pagination-controls');
+        if(oldPagination) oldPagination.remove(); // Supprime l'ancienne barre si elle existe
+
+        const paginationHtml = `
+            <div id="logs-pagination-controls" class="flex justify-between items-center mt-6 p-4 bg-white rounded-2xl border shadow-sm animate-fadeIn">
+                <button onclick="fetchLogs(${logsPage - 1})" ${logsPage <= 1 ? 'disabled' : ''} 
+                    class="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-[10px] font-black uppercase text-slate-600 disabled:opacity-30 hover:bg-slate-100 transition-all shadow-sm">
+                    <i class="fa-solid fa-chevron-left"></i> Précédent
+                </button>
+                <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Page ${logsPage} / ${logsTotalPages}</span>
+                <button onclick="fetchLogs(${logsPage + 1})" ${logsPage >= logsTotalPages ? 'disabled' : ''} 
+                    class="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-[10px] font-black uppercase text-slate-600 disabled:opacity-30 hover:bg-slate-100 transition-all shadow-sm">
+                    Suivant <i class="fa-solid fa-chevron-right"></i>
+                </button>
+            </div>
+        `;
+        if(logsContainer) logsContainer.insertAdjacentHTML('beforeend', paginationHtml);
+
+    } catch(e) { 
+        console.error("Erreur fetchLogs:", e);
+        tbody.innerHTML = `<tr><td colspan="4" class="text-red-500 p-4 font-bold text-center">${escapeHTML(e.message || "Erreur de chargement des logs.")}</td></tr>`;
+    }
+}
+
+
+
 
 async function viewDocument(url, title) {
         if (!url || url === '#' || url === 'null') {
@@ -5727,6 +5778,7 @@ function setReportView(mode) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
