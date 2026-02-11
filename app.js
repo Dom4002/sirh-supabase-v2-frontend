@@ -5514,26 +5514,19 @@ function changeReportTab(tab) {
     }
 }
 
-
-
-
 async function fetchMobileReports(page = 1) {
     const container = document.getElementById('reports-list-container');
     const counterEl = document.getElementById('stat-visites-total');
-    const labelEl = document.getElementById('stat-report-label'); // Le texte "Total Visites"
+    const labelEl = document.getElementById('stat-report-label'); 
     const nameFilter = document.getElementById('filter-report-name')?.value.toLowerCase() || "";
     const periodFilter = document.getElementById('filter-report-date')?.value || "month";
 
     if (!container) return;
     
-    // On mémorise la page actuelle
     reportPage = page;
-
-    // On affiche le loader
     container.innerHTML = '<div class="col-span-full text-center p-10"><i class="fa-solid fa-circle-notch fa-spin text-blue-500 text-3xl"></i></div>';
 
     try {
-        // --- PRÉPARATION DE L'URL AVEC PAGINATION ET FILTRES ---
         const limit = 20;
         const endpoint = currentReportTab === 'visits' ? 'read-visit-reports' : 'read-daily-reports';
         const url = `${SIRH_CONFIG.apiBaseUrl}/${endpoint}?page=${page}&limit=${limit}&name=${encodeURIComponent(nameFilter)}&period=${periodFilter}`;
@@ -5545,13 +5538,12 @@ async function fetchMobileReports(page = 1) {
         const totalCount = result.meta?.total || data.length;
         reportTotalPages = result.meta?.last_page || 1;
 
-        // Mise à jour des compteurs
         if(labelEl) labelEl.innerText = currentReportTab === 'visits' ? "TOTAL VISITES (MOIS)" : "TOTAL BILANS JOURNALIERS";
         if(counterEl) counterEl.innerText = totalCount; 
 
         container.innerHTML = '';
         if (!data || data.length === 0) {
-            container.innerHTML = '<div class="col-span-full text-center text-slate-400 py-10">Aucune donnée trouvée pour cette page.</div>';
+            container.innerHTML = '<div class="col-span-full text-center text-slate-400 py-10 uppercase font-black text-[10px] tracking-widest">Aucune donnée trouvée</div>';
             return;
         }
 
@@ -5568,43 +5560,33 @@ async function fetchMobileReports(page = 1) {
 
             html = `<div class="col-span-full space-y-4">`;
             for (const [name, visits] of Object.entries(grouped)) {
-                // Création d'un ID unique pour l'accordéon basé sur le nom
-                const accordionId = `acc-${name.replace(/\s+/g, '-')}`;
+                const accordionId = `acc-vis-${name.replace(/\s+/g, '-')}`;
                 
                 html += `
                     <div class="bg-white rounded-[2rem] shadow-sm border border-slate-200 overflow-hidden animate-fadeIn">
-                        <!-- ENTÊTE CLIQUABLE (ACCORDÉON) -->
                         <div onclick="toggleAccordion('${accordionId}')" class="bg-slate-900 px-6 py-4 flex justify-between items-center cursor-pointer hover:bg-slate-800 transition-all">
                             <div class="flex items-center gap-3">
-                                <div class="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold text-xs">
-                                    ${name.charAt(0)}
-                                </div>
+                                <div class="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold text-xs">${name.charAt(0)}</div>
                                 <span class="font-black text-white text-sm uppercase tracking-widest">${name}</span>
                             </div>
                             <div class="flex items-center gap-4">
-                                <span class="bg-white/10 text-white px-3 py-1 rounded-full text-[10px] font-bold">${visits.length} VISITES ICI</span>
+                                <span class="bg-white/10 text-white px-3 py-1 rounded-full text-[10px] font-bold">${visits.length} VISITES</span>
                                 <i id="icon-${accordionId}" class="fa-solid fa-chevron-down text-white/50 transition-transform duration-300"></i>
                             </div>
                         </div>
-
-                        <!-- TABLEAU CACHÉ PAR DÉFAUT -->
                         <div id="${accordionId}" class="hidden overflow-x-auto bg-slate-50/50">
-                            <table class="w-full text-left border-collapse">
+                            <table class="w-full text-left">
                                 <thead class="bg-slate-100 border-b">
                                     <tr class="text-[9px] font-black text-slate-400 uppercase">
-                                        <th class="p-4">Lieu visité</th>
-                                        <th class="p-4">Heure</th>
-                                        <th class="p-4 text-center">Preuve</th>
-                                        <th class="p-4 text-right">Actions</th>
+                                        <th class="p-4">Lieu visité</th><th class="p-4">Heure</th><th class="p-4 text-center">Preuve</th><th class="p-4 text-right">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-slate-100">`;
-                
                 visits.forEach(v => {
                     html += `
-                        <tr id="row-${v.id}" class="hover:bg-white transition-colors group">
+                        <tr id="row-vis-${v.id}" class="hover:bg-white transition-colors group">
                             <td class="px-4 py-3">
-                                <div class="text-xs font-bold text-blue-600 uppercase">${v.lieu_nom}</div>
+                                <div class="text-xs font-bold text-blue-600 uppercase">${v.lieu_nom || 'Inconnu'}</div>
                                 <div class="text-[10px] text-slate-400 italic truncate max-w-[200px]">${v.notes || '-'}</div>
                             </td>
                             <td class="px-4 py-3 text-[10px] font-mono text-slate-500">${v.check_in ? new Date(v.check_in).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '--:--'}</td>
@@ -5612,10 +5594,7 @@ async function fetchMobileReports(page = 1) {
                                 ${v.proof_url ? `<button onclick="viewDocument('${v.proof_url}', 'Cachet')" class="text-emerald-500 hover:scale-110 transition-transform"><i class="fa-solid fa-camera-retro text-lg"></i></button>` : '<i class="fa-solid fa-ban text-slate-200"></i>'}
                             </td>
                             <td class="px-4 py-3 text-right">
-                                <!-- BOUTON SUPPRIMER DE LA VUE -->
-                                <button onclick="deleteVisitReport('${v.id}')" class="p-2 text-slate-300 hover:text-red-500 transition-all opacity-0 group-hover:opacity-100">
-                                    <i class="fa-solid fa-trash-can"></i>
-                                </button>
+                                <button onclick="deleteVisitReport('${v.id}')" class="p-2 text-slate-300 hover:text-red-500 transition-all opacity-0 group-hover:opacity-100"><i class="fa-solid fa-trash-can"></i></button>
                             </td>
                         </tr>`;
                 });
@@ -5624,22 +5603,7 @@ async function fetchMobileReports(page = 1) {
             html += `</div>`;
         } 
         else {
-            // --- ONGLET BILANS JOURNALIERS (DAILY) AVEC ACCORDÉONS ---
-            const r = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/read-daily-reports`);
-            let data = await r.json();
-
-            if (nameFilter) data = data.filter(rep => rep.employees?.nom.toLowerCase().includes(nameFilter));
-            
-            if(labelEl) labelEl.innerText = "TOTAL BILANS JOURNALIERS";
-            if(counterEl) counterEl.innerText = data.length; 
-
-            container.innerHTML = '';
-            if (!data || data.length === 0) {
-                container.innerHTML = '<div class="col-span-full text-center text-slate-400 py-10 font-bold uppercase text-[10px]">Aucun bilan journalier à traiter</div>';
-                return;
-            }
-
-            // --- REGROUPEMENT PAR AGENT ---
+            // --- LOGIQUE BILANS JOURNALIERS (DAILY) AVEC ACCORDÉONS ---
             const groupedDaily = {};
             data.forEach(rep => {
                 const name = rep.employees?.nom || "Agent Inconnu";
@@ -5647,38 +5611,25 @@ async function fetchMobileReports(page = 1) {
                 groupedDaily[name].push(rep);
             });
 
-            let html = `<div class="col-span-full space-y-3">`;
-
+            html = `<div class="col-span-full space-y-3">`;
             for (const [name, reports] of Object.entries(groupedDaily)) {
-                const agentId = reports[0].employee_id;
-                const hasStockAlert = reports.some(rp => rp.needs_restock); // Vérifie si une alerte stock existe dans le groupe
-                const accordionId = `daily-acc-${name.replace(/\s+/g, '-')}`;
+                const accordionId = `acc-day-${name.replace(/\s+/g, '-')}`;
+                const hasStockAlert = reports.some(rp => rp.needs_restock);
 
                 html += `
                     <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden animate-fadeIn">
-                        <!-- ENTÊTE ACCORDÉON BILAN -->
                         <div onclick="toggleAccordion('${accordionId}')" class="flex items-center justify-between px-6 py-4 cursor-pointer hover:bg-slate-50 transition-colors">
                             <div class="flex items-center gap-4">
-                                <div class="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-black text-sm">
-                                    ${name.charAt(0)}
-                                </div>
-                                <div>
-                                    <h4 class="font-black text-slate-800 text-sm uppercase tracking-tighter">${name}</h4>
-                                    <p class="text-[10px] text-slate-400 font-bold uppercase">${reports.length} bilans journaliers</p>
-                                </div>
+                                <div class="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-black text-sm">${name.charAt(0)}</div>
+                                <div><h4 class="font-black text-slate-800 text-sm uppercase tracking-tighter">${name}</h4><p class="text-[10px] text-slate-400 font-bold uppercase">${reports.length} bilans</p></div>
                             </div>
                             <div class="flex items-center gap-3">
-                                ${hasStockAlert ? `<span class="bg-orange-100 text-orange-600 px-2 py-1 rounded-lg text-[9px] font-black animate-pulse"><i class="fa-solid fa-box-open mr-1"></i> ALERTE STOCK</span>` : ''}
+                                ${hasStockAlert ? `<span class="bg-orange-100 text-orange-600 px-2 py-1 rounded-lg text-[9px] font-black animate-pulse">ALERTE STOCK</span>` : ''}
                                 <i id="icon-${accordionId}" class="fa-solid fa-chevron-down text-slate-300 transition-transform duration-300"></i>
                             </div>
                         </div>
-
-                        <!-- LISTE DES BILANS CACHÉE -->
                         <div id="${accordionId}" class="hidden border-t border-slate-100 bg-slate-50/50">
-                            <table class="w-full text-left">
-                                <tbody class="divide-y divide-slate-100">
-                `;
-
+                            <table class="w-full text-left"><tbody class="divide-y divide-slate-100">`;
                 reports.forEach(rep => {
                     html += `
                         <tr id="row-daily-${rep.id}" class="hover:bg-white transition-colors group">
@@ -5687,33 +5638,25 @@ async function fetchMobileReports(page = 1) {
                                 <div class="text-xs text-slate-600 mt-1 italic line-clamp-2">${rep.summary}</div>
                             </td>
                             <td class="px-6 py-4 text-center">
-                                ${rep.needs_restock ? '<span class="text-orange-500" title="Besoin de stock"><i class="fa-solid fa-circle-exclamation"></i></span>' : '<span class="text-emerald-400"><i class="fa-solid fa-circle-check"></i></span>'}
-                            </td>
-                            <td class="px-6 py-4 text-center">
-                                ${rep.photo_url ? `<button onclick="viewDocument('${rep.photo_url}', 'Cahier de rapport')" class="text-blue-500 hover:scale-125 transition-transform"><i class="fa-solid fa-file-image text-lg"></i></button>` : '<i class="fa-solid fa-ban text-slate-200"></i>'}
+                                ${rep.photo_url ? `<button onclick="viewDocument('${rep.photo_url}', 'Cahier')" class="text-blue-500 hover:scale-125 transition-transform"><i class="fa-solid fa-file-image text-lg"></i></button>` : '<i class="fa-solid fa-ban text-slate-200"></i>'}
                             </td>
                             <td class="px-6 py-4 text-right">
-                                <button onclick="deleteDailyReport('${rep.id}')" class="p-2 text-slate-300 hover:text-red-500 transition-all opacity-0 group-hover:opacity-100">
-                                    <i class="fa-solid fa-check"></i> <!-- Icône "Lu / Validé" -->
-                                </button>
+                                <button onclick="deleteDailyReport('${rep.id}')" class="p-2 text-slate-300 hover:text-red-500 transition-all opacity-0 group-hover:opacity-100"><i class="fa-solid fa-check"></i></button>
                             </td>
-                        </tr>
-                    `;
+                        </tr>`;
                 });
-
                 html += `</tbody></table></div></div>`;
             }
-            container.innerHTML = html + `</div>`;
+            html += `</div>`;
         }
 
-        // --- AJOUT DES BOUTONS DE PAGINATION (BAS DU CONTENEUR) ---
         const paginationHtml = `
             <div class="col-span-full flex justify-between items-center mt-6 px-4">
-                <button onclick="fetchMobileReports(${reportPage - 1})" ${reportPage <= 1 ? 'disabled' : ''} class="px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-black uppercase text-slate-600 disabled:opacity-30 transition-all hover:bg-slate-50 shadow-sm">
+                <button onclick="fetchMobileReports(${reportPage - 1})" ${reportPage <= 1 ? 'disabled' : ''} class="px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-black uppercase text-slate-600 disabled:opacity-30 hover:bg-slate-50 shadow-sm transition-all">
                     <i class="fa-solid fa-chevron-left mr-2"></i> Précédent
                 </button>
                 <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Page ${reportPage} / ${reportTotalPages}</span>
-                <button onclick="fetchMobileReports(${reportPage + 1})" ${reportPage >= reportTotalPages ? 'disabled' : ''} class="px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-black uppercase text-slate-600 disabled:opacity-30 transition-all hover:bg-slate-50 shadow-sm">
+                <button onclick="fetchMobileReports(${reportPage + 1})" ${reportPage >= reportTotalPages ? 'disabled' : ''} class="px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-black uppercase text-slate-600 disabled:opacity-30 hover:bg-slate-50 shadow-sm transition-all">
                     Suivant <i class="fa-solid fa-chevron-right ml-2"></i>
                 </button>
             </div>
@@ -5723,53 +5666,26 @@ async function fetchMobileReports(page = 1) {
 
     } catch (e) {
         console.error("Erreur de chargement des rapports:", e);
-        container.innerHTML = '<div class="col-span-full text-center text-red-500 py-10 font-bold">Erreur de connexion aux données.</div>';
+        container.innerHTML = '<div class="col-span-full text-center text-red-500 py-10 font-bold uppercase text-[10px]">Erreur de connexion aux données</div>';
     }
 }
 
-// --- FONCTIONS AUXILIAIRES POUR L'ACCORDÉON ET LA SUPPRESSION ---
 
-function toggleAccordion(id) {
-    const content = document.getElementById(id);
-    const icon = document.getElementById('icon-' + id);
-    if (!content) return;
-    
-    const isHidden = content.classList.contains('hidden');
-    if (isHidden) {
-        content.classList.remove('hidden');
-        icon.style.transform = 'rotate(180deg)';
-    } else {
-        content.classList.add('hidden');
-        icon.style.transform = 'rotate(0deg)';
-    }
-}
 
-async function deleteVisitReport(id) {
-    const confirm = await Swal.fire({
-        title: 'Retirer du rapport ?',
-        text: "Cette visite sera supprimée définitivement.",
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#ef4444',
-        confirmButtonText: 'Oui, supprimer'
-    });
 
-    if (confirm.isConfirmed) {
-        try {
-            const r = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/delete-visit-report`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id })
-            });
-            if (r.ok) {
-                document.getElementById('row-' + id).remove();
-                // Mise à jour du compteur visuel
-                const counterEl = document.getElementById('stat-visites-total');
-                if(counterEl) counterEl.innerText = parseInt(counterEl.innerText) - 1;
-            }
-        } catch (e) { Swal.fire('Erreur', 'Impossible de supprimer', 'error'); }
-    }
-}
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6036,26 +5952,46 @@ function toggleDictation(targetId, btn) {
 }
 
 
+
+
+
+
+function toggleAccordion(id) {
+    const content = document.getElementById(id);
+    const icon = document.getElementById('icon-' + id);
+    if (!content) return;
+    const isHidden = content.classList.contains('hidden');
+    if (isHidden) {
+        content.classList.remove('hidden');
+        if (icon) icon.style.transform = 'rotate(180deg)';
+    } else {
+        content.classList.add('hidden');
+        if (icon) icon.style.transform = 'rotate(0deg)';
+    }
+}
+
+async function deleteVisitReport(id) {
+    const confirm = await Swal.fire({ title: 'Supprimer ?', text: "Cette visite sera retirée définitivement.", icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444' });
+    if (confirm.isConfirmed) {
+        try {
+            const r = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/delete-visit-report`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
+            if (r.ok) { document.getElementById('row-vis-' + id).remove(); }
+        } catch (e) { console.error(e); }
+    }
+}
+
 async function deleteDailyReport(id) {
-    // On ne demande même pas de confirmation pour les bilans (pour aller vite), 
-    // on considère que cliquer sur "Vu" suffit à l'enlever de la liste
     try {
-        const r = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/delete-daily-report`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id })
-        });
+        const r = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/delete-daily-report`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
         if (r.ok) {
-            document.getElementById('row-daily-' + id).style.opacity = '0';
-            setTimeout(() => {
-                document.getElementById('row-daily-' + id).remove();
-                // Mise à jour compteur
-                const counter = document.getElementById('stat-visites-total');
-                counter.innerText = parseInt(counter.innerText) - 1;
-            }, 300);
+            const row = document.getElementById('row-daily-' + id);
+            row.style.opacity = '0';
+            setTimeout(() => row.remove(), 300);
         }
     } catch (e) { console.error(e); }
 }
+
+
 
 
 
@@ -6067,6 +6003,7 @@ async function deleteDailyReport(id) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
