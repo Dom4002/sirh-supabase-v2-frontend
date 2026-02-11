@@ -3586,6 +3586,50 @@ async function fetchFlashMessage() {
 
 
 
+
+
+
+
+
+
+
+async function runArchivingJob() {
+    const confirm = await Swal.fire({
+        title: 'Lancer la maintenance ?',
+        text: "Cela va déplacer les vieilles données vers les archives et supprimer les anciennes photos de visite pour libérer de l'espace.",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#0f172a',
+        confirmButtonText: 'Oui, nettoyer maintenant'
+    });
+
+    if (confirm.isConfirmed) {
+        Swal.fire({ title: 'Maintenance en cours...', didOpen: () => Swal.showLoading() });
+        
+        try {
+            const r = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/run-archiving-job`, { method: 'POST' });
+            const data = await r.json();
+            
+            Swal.fire({
+                title: 'Terminé !',
+                html: `
+                    <div class="text-left text-sm">
+                        <p><strong>Logs archivés :</strong> ${data.report.logs}</p>
+                        <p><strong>Photos supprimées :</strong> ${data.report.photos_deleted}</p>
+                        <p><strong>Employés archivés :</strong> ${data.report.employees}</p>
+                    </div>
+                `,
+                icon: 'success'
+            });
+        } catch (e) {
+            Swal.fire('Erreur', e.message, 'error');
+        }
+    }
+}
+
+
+
+
 async function processLeave(recordId, decision, daysToDeduct = 0) {
     // daysToDeduct est maintenant le nombre de jours calculé entre début et fin
 
@@ -5778,6 +5822,7 @@ function setReportView(mode) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
