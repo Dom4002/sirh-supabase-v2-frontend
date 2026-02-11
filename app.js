@@ -6011,24 +6011,35 @@ function handleReportSearch() {
 
 
 
+
 function filterAuditTableLocally(term) {
     const rows = document.querySelectorAll('#reports-list-container tbody tr');
-    let visibleCount = 0;
+    const counterEl = document.getElementById('stat-visites-total');
+    
+    let totalVisitsVisible = 0;
 
     rows.forEach(row => {
         const text = row.innerText.toLowerCase();
+        // On récupère le chiffre des visites dans la 2ème colonne (index 1)
+        const visitCount = parseInt(row.cells[1]?.innerText) || 0;
+
         if (text.includes(term)) {
             row.style.display = "";
-            visibleCount++;
+            // ON ADDITIONNE LES VISITES DES LIGNES VISIBLES
+            totalVisitsVisible += visitCount;
         } else {
             row.style.display = "none";
         }
     });
 
-    // Optionnel : mettre à jour le compteur bleu avec le nombre de résultats trouvés
-    const counterEl = document.getElementById('stat-visites-total');
-    if (counterEl) counterEl.innerText = visibleCount;
+    // Mise à jour du compteur bleu avec la SOMME et non le nombre de lignes
+    if (counterEl) {
+        counterEl.innerText = totalVisitesVisible;
+    }
 }
+
+
+
 
 
 
@@ -6040,6 +6051,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
