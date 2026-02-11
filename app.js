@@ -3222,7 +3222,7 @@ async function fetchLeaveRequests() {
                 motif: clean(l.motif || l.Motif || "Aucun motif"),
                 doc: clean(l.justificatif_link || l.Justificatif || l.doc || null),
                 // RÉCUPÉRATION DU SOLDE (Vient de la jointure serveur)
-                solde: l.solde_actuel || 0
+                solde: l.solde_actuel || 0 
             };
         });
 
@@ -3247,7 +3247,7 @@ async function fetchLeaveRequests() {
                         const dStart = l.debut ? l.debut.toLocaleDateString('fr-FR') : '?';
                         const dEnd = l.fin ? l.fin.toLocaleDateString('fr-FR') : '?';
                         
-                        const diffTime = l.fin && l.debut ? Math.abs(l.fin.getTime() - 1.debut.getTime()) : 0;
+                        const diffTime = l.fin && l.debut ? Math.abs(l.fin.getTime() - l.debut.getTime()) : 0;
                         const daysDifference = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
 
                         // Logique de couleur pour le solde
@@ -3259,7 +3259,7 @@ async function fetchLeaveRequests() {
                                     <div class="font-bold text-sm text-slate-700">${l.nom || 'Inconnu'}</div>
                                     <!-- AJOUT DU SOLDE ICI -->
                                     <div class="text-[9px] font-black uppercase ${soldeColor} mb-1">
-                                    Solde actuel : ${l.solde} JOURS
+                                        Solde actuel : ${l.solde} JOURS
                                     </div>
                                     <div class="text-[10px] text-slate-400 font-normal uppercase">${l.type || 'Congé'}</div>
                                 </td>
@@ -5583,11 +5583,6 @@ function setReportView(mode) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
-
-
-
-
-
 
 
 
