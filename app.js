@@ -5497,6 +5497,9 @@ window.reportViewMode = 'list';
 // 1. CHANGER D'ONGLET
 function changeReportTab(tab) {
     currentReportTab = tab;
+
+    document.getElementById('filter-report-name').value = ""; 
+
     document.querySelectorAll('.report-tab-btn').forEach(btn => {
         btn.classList.remove('text-blue-600', 'border-blue-600');
         btn.classList.add('text-slate-400', 'border-transparent');
@@ -5992,6 +5995,40 @@ async function deleteDailyReport(id) {
 }
 
 
+// Cette fonction décide quel moteur de recherche lancer selon l'onglet actif
+function handleReportSearch() {
+    const searchTerm = document.getElementById('filter-report-name').value.toLowerCase();
+
+    if (currentReportTab === 'audit') {
+        // Si on est sur l'audit, on filtre le tableau déjà chargé (très rapide)
+        filterAuditTableLocally(searchTerm);
+    } else {
+        // Sinon, on lance la recherche classique (serveur) pour les visites ou bilans
+        fetchMobileReports(1); 
+    }
+}
+
+
+
+
+function filterAuditTableLocally(term) {
+    const rows = document.querySelectorAll('#reports-list-container tbody tr');
+    let visibleCount = 0;
+
+    rows.forEach(row => {
+        const text = row.innerText.toLowerCase();
+        if (text.includes(term)) {
+            row.style.display = "";
+            visibleCount++;
+        } else {
+            row.style.display = "none";
+        }
+    });
+
+    // Optionnel : mettre à jour le compteur bleu avec le nombre de résultats trouvés
+    const counterEl = document.getElementById('stat-visites-total');
+    if (counterEl) counterEl.innerText = visibleCount;
+}
 
 
 
@@ -6003,6 +6040,7 @@ async function deleteDailyReport(id) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
