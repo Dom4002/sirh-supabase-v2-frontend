@@ -1811,8 +1811,17 @@ async function handleClockInOut() {
                     </div>
                 </div>
 
-                <textarea id="swal-report" class="swal2-textarea" style="height: 60px; margin-top:0;" placeholder="Notes..."></textarea>
-
+            <div class="relative mt-2">
+                <textarea id="swal-report" class="swal2-textarea" style="height: 80px; margin-top:0;" placeholder="Écrivez vos notes ici..."></textarea>
+                
+                <!-- LE PETIT BOUTON DISCRET EN BAS À DROITE -->
+                <button type="button" onclick="toggleDictation('swal-report', this)" 
+                    class="absolute bottom-3 right-3 p-2 rounded-full bg-white border border-slate-200 text-slate-400 shadow-sm hover:text-blue-600 transition-all z-10"
+                    title="Dicter le rapport">
+                    <i class="fa-solid fa-microphone"></i>
+                </button>
+            </div>
+            
                 <div class="mt-4 p-3 bg-red-50 rounded-xl border border-red-100 flex items-center gap-3">
                     <input type="checkbox" id="last-exit-check" class="w-5 h-5 accent-red-600">
                     <label for="last-exit-check" class="text-[10px] font-black text-red-700 uppercase text-left">C'est ma dernière sortie (Fin de journée)</label>
@@ -5319,7 +5328,18 @@ async function openDailyReportModal() {
         title: 'Bilan de la journée',
         html: `
             <p class="text-[10px] text-slate-400 uppercase font-black mb-2">Résumé global de vos activités</p>
-            <textarea id="daily-summary" class="swal2-textarea" style="height: 100px" placeholder="Nombre de visites, difficultés, commandes..."></textarea>
+
+
+            <!-- CONTENEUR RELATIF -->
+            <div class="relative">
+                <textarea id="daily-summary" class="swal2-textarea" style="height: 100px; margin-top:0;" placeholder="Nombre de visites, difficultés..."></textarea>
+                
+                <!-- LE MICRO -->
+                <button type="button" onclick="toggleDictation('daily-summary', this)" 
+                    class="absolute bottom-3 right-3 p-2 rounded-full bg-white border border-slate-200 text-slate-400 shadow-sm hover:text-blue-600 transition-all z-10">
+                    <i class="fa-solid fa-microphone"></i>
+                </button>
+            </div>
             
             <!-- NOUVEAU : Zone Photo -->
             <div class="my-4 text-left">
@@ -5884,6 +5904,7 @@ function toggleDictation(targetId, btn) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
