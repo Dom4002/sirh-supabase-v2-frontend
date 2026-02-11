@@ -5499,6 +5499,7 @@ function changeReportTab(tab) {
     currentReportTab = tab;
 
     document.getElementById('filter-report-name').value = ""; 
+    document.getElementById('stat-report-label').classList.remove('text-blue-400');
 
     document.querySelectorAll('.report-tab-btn').forEach(btn => {
         btn.classList.remove('text-blue-600', 'border-blue-600');
@@ -6015,29 +6016,40 @@ function handleReportSearch() {
 function filterAuditTableLocally(term) {
     const rows = document.querySelectorAll('#reports-list-container tbody tr');
     const counterEl = document.getElementById('stat-visites-total');
+    const labelEl = document.getElementById('stat-report-label');
     
-    let totalVisitsVisible = 0;
+    let sumVisits = 0;
+    let resultsCount = 0;
 
     rows.forEach(row => {
-        const text = row.innerText.toLowerCase();
-        // On récupère le chiffre des visites dans la 2ème colonne (index 1)
-        const visitCount = parseInt(row.cells[1]?.innerText) || 0;
+        // On récupère le texte du nom (colonne 1) et du matricule pour la recherche
+        const agentInfo = row.cells[0].innerText.toLowerCase();
+        
+        // On cible précisément le chiffre dans la bulle bleue (colonne 2)
+        const visitCount = parseInt(row.cells[1].querySelector('span').innerText) || 0;
 
-        if (text.includes(term)) {
+        if (agentInfo.includes(term)) {
             row.style.display = "";
-            // ON ADDITIONNE LES VISITES DES LIGNES VISIBLES
-            totalVisitsVisible += visitCount;
+            sumVisits += visitCount; // On additionne les vraies visites
+            resultsCount++;
         } else {
             row.style.display = "none";
         }
     });
 
-    // Mise à jour du compteur bleu avec la SOMME et non le nombre de lignes
-    if (counterEl) {
-        counterEl.innerText = totalVisitesVisible;
+    // --- MISE À JOUR DE L'INTERFACE ---
+    if (counterEl) counterEl.innerText = sumVisits;
+
+    if (labelEl) {
+        if (term.length > 0) {
+            labelEl.innerText = `RÉSULTAT POUR "${term.toUpperCase()}"`;
+            labelEl.classList.add('text-blue-400'); // Change la couleur pour alerter que c'est un filtre
+        } else {
+            labelEl.innerText = "VISITES CUMULÉES (ÉQUIPE)";
+            labelEl.classList.remove('text-blue-400');
+        }
     }
 }
-
 
 
 
@@ -6051,6 +6063,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
