@@ -221,6 +221,11 @@
         <button data-perm="can_see_audit" onclick="switchView('logs')" class="nav-btn w-full flex items-center gap-4 p-4 rounded-xl transition-all hover:text-white group">
             <i class="fa-solid fa-list-check w-5"></i> <span class="font-semibold">Audit Sécurité</span>
         </button>
+
+        <button data-perm="can_manage_config" onclick="switchView('maintenance')" class="nav-btn w-full flex items-center gap-4 p-4 rounded-xl transition-all hover:text-white group">
+            <i class="fa-solid fa-server w-5 text-red-400"></i> 
+            <span class="font-semibold text-red-300 group-hover:text-white">Maintenance Système</span>
+        </button>
     </div>
 </div>
                     
@@ -712,6 +717,67 @@
                     </section>
 
 
+
+                <!-- VUE : MAINTENANCE SYSTÈME -->
+<section id="view-maintenance" class="view-section">
+    <div class="flex justify-between items-center mb-8">
+        <div>
+            <h2 class="text-2xl font-black text-slate-800 tracking-tight">Maintenance & Archivage</h2>
+            <p class="text-sm text-slate-500 font-bold uppercase tracking-widest">Gestion de la santé de l'application</p>
+        </div>
+        <div class="px-4 py-2 bg-emerald-50 text-emerald-700 rounded-lg text-xs font-black border border-emerald-100 flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> SYSTÈME OPÉRATIONNEL
+        </div>
+    </div>
+
+    <!-- CARTE D'ARCHIVAGE AUTOMATIQUE -->
+    <div class="bg-white rounded-[2.5rem] shadow-xl border border-slate-200 overflow-hidden relative">
+        <!-- Bandeau décoratif -->
+        <div class="h-2 bg-gradient-to-r from-slate-700 to-slate-900"></div>
+        
+        <div class="p-8 md:p-12">
+            <div class="flex flex-col md:flex-row gap-8 items-start">
+                
+                <!-- Icône et Description -->
+                <div class="flex-1">
+                    <div class="w-16 h-16 bg-red-50 text-red-600 rounded-2xl flex items-center justify-center text-3xl mb-6 shadow-sm">
+                        <i class="fa-solid fa-database"></i>
+                    </div>
+                    <h3 class="text-xl font-black text-slate-800 mb-2">Nettoyage et Archivage des Données</h3>
+                    <p class="text-slate-500 text-sm leading-relaxed mb-6">
+                        Cette procédure permet de maintenir la rapidité de l'application sur le long terme. 
+                        Elle déplace les données "froides" vers le stockage d'archive et libère de l'espace disque.
+                    </p>
+                    
+                    <!-- Liste des actions -->
+                    <div class="bg-slate-50 rounded-2xl p-5 border border-slate-100 space-y-3">
+                        <div class="flex items-center gap-3">
+                            <i class="fa-solid fa-check text-emerald-500"></i>
+                            <span class="text-xs font-bold text-slate-600">Archive les Logs de sécurité de plus d'un an.</span>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <i class="fa-solid fa-check text-emerald-500"></i>
+                            <span class="text-xs font-bold text-slate-600">Supprime les photos de visite > 12 mois (Gain stockage).</span>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <i class="fa-solid fa-check text-emerald-500"></i>
+                            <span class="text-xs font-bold text-slate-600">Archive les dossiers employés "Sortis" depuis > 6 mois.</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Zone d'Action -->
+                <div class="w-full md:w-1/3 bg-slate-50 rounded-3xl p-6 border border-slate-200 text-center">
+                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Action Administrateur</p>
+                    <button onclick="runArchivingJob()" class="w-full bg-slate-900 text-white py-4 rounded-xl font-black text-xs uppercase tracking-widest shadow-xl hover:bg-red-600 transition-all active:scale-95 flex items-center justify-center gap-3">
+                        <i class="fa-solid fa-recycle"></i> Lancer le Nettoyage
+                    </button>
+                    <p class="text-[9px] text-slate-400 mt-4 italic">Action recommandée 1 fois par trimestre.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
 
                     <!-- VUE : MESSAGERIE D'ÉQUIPE -->
 <section id="view-chat" class="view-section h-full flex flex-col">
@@ -1456,7 +1522,6 @@
     </body>
 
     </html>
-
 
 
 
