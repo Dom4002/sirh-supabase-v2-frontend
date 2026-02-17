@@ -1,4 +1,4 @@
-
+ 
 
 
             let docBlobs = {
@@ -2021,27 +2021,11 @@ async function handleClockInOut() {
         const response = await secureFetch(URL_CLOCK_ACTION, { method: 'POST', body: fd });
         const resData = await response.json();
 
-
-
-                if (response.ok) {
-    if (isLastExit) localStorage.setItem(`clock_out_done_${userId}`, 'true');
-    syncClockInterface();
-
-    // UN REÇU DE CONFIRMATION VISUEL
-    Swal.fire({
-        icon: 'success',
-        title: 'Rapport Transmis ✅',
-        html: `
-            <div class="text-left text-xs space-y-2 p-2 bg-slate-50 rounded-xl border">
-                <p>📍 <strong>Lieu :</strong> ${resData.zone}</p>
-                <p>📦 <strong>Produits :</strong> ${selectedProducts.length > 0 ? selectedProducts.join(', ') : 'Aucun'}</p>
-                <p>🕒 <strong>Heure :</strong> ${new Date().toLocaleTimeString()}</p>
-            </div>
-            <p class="text-[10px] text-slate-400 mt-4 uppercase font-bold">Enregistré sur le serveur sécurisé</p>
-        `,
-        confirmButtonColor: '#2563eb'
-    });
-} else { throw new Error(resData.error); }
+        if (response.ok) {
+            if (isLastExit) localStorage.setItem(`clock_out_done_${userId}`, 'true');
+            syncClockInterface();
+            Swal.fire('Succès', `Pointage validé : ${resData.zone}`, 'success');
+        } else { throw new Error(resData.error); }
     } catch (e) { 
         Swal.fire('Erreur', e.message, 'error'); 
     }
@@ -5850,22 +5834,12 @@ function changeReportTab(tab) {
 
 async function fetchMobileReports(page = 1) {
     const container = document.getElementById('reports-list-container');
-    const nameFilterRow = document.getElementById('filter-report-name')?.parentElement; // La barre de recherche
     const counterEl = document.getElementById('stat-visites-total');
     const labelEl = document.getElementById('stat-report-label');
     const nameFilter = document.getElementById('filter-report-name')?.value.toLowerCase() || "";
     const periodFilter = document.getElementById('filter-report-date')?.value || "month";
 
     if (!container) return;
-
-                // --- SÉCURITÉ DE RÔLE : ON CACHE CE QUI NE CONCERNE PAS LE DÉLÉGUÉ ---
-    if (currentUser.role === 'EMPLOYEE') {
-        if(nameFilterRow) nameFilterRow.style.display = 'none'; // Elle ne cherche pas les autres
-        if(tabAudit) tabAudit.style.display = 'none'; // Elle ne voit pas la synthèse globale
-
-         const welcomeMsg = document.getElementById('stat-report-label');
-         if(welcomeMsg) welcomeMsg.innerText = "VOS VISITES CERTIFIÉES";
-    }
     
     reportPage = page;
     container.innerHTML = '<div class="col-span-full text-center p-10"><i class="fa-solid fa-circle-notch fa-spin text-blue-500 text-3xl"></i></div>';
@@ -5928,55 +5902,29 @@ async function fetchMobileReports(page = 1) {
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-slate-100">`;
- // --- Dans fetchMobileReports, boucle visits.forEach ---
-visits.forEach(v => {
-    const timeIn = v.check_in ? new Date(v.check_in).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '--:--';
-    
-    // On transforme la liste des produits (JSON) en petites bulles bleues
-    const badgesProduits = (v.produits || []).map(p => `
-        <span class="bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded-md text-[8px] font-black border border-blue-100 uppercase">
-            ${p}
-        </span>
-    `).join('');
-
-    html += `
-        <tr id="row-vis-${v.id}" class="hover:bg-blue-50/30 transition-colors group border-b last:border-0">
-            <td class="px-6 py-4">
-                <!-- NOM DU LIEU -->
-                <div class="text-xs font-black text-slate-800 uppercase tracking-tighter">${v.lieu_nom || 'Inconnu'}</div>
-                
-                <!-- INDICATEUR DE SYNCHRO (LE POINT CRUCIAL) -->
-                <div class="flex items-center gap-1.5 mt-1">
-                    <div class="flex items-center justify-center w-3 h-3 rounded-full bg-emerald-100">
-                        <i class="fa-solid fa-check text-[7px] text-emerald-600"></i>
-                    </div>
-                    <span class="text-[8px] font-black text-emerald-600 uppercase tracking-widest">Transmis au serveur</span>
-                </div>
-            </td>
-
-            <td class="px-6 py-4">
-                <div class="text-[10px] font-mono text-slate-500">${timeIn}</div>
-                <div class="text-[9px] text-slate-400 font-bold uppercase">${new Date(v.check_in).toLocaleDateString()}</div>
-            </td>
-
-            <td class="px-6 py-4">
-                <!-- LISTE DES PRODUITS PRÉSENTÉS -->
-                <div class="flex flex-wrap gap-1 max-w-[150px]">
-                    ${badgesProduits || '<span class="text-[8px] text-slate-300 italic">Aucun produit présenté</span>'}
-                </div>
-            </td>
-
-            <td class="px-6 py-4 text-center">
-                ${v.proof_url ? 
-                    `<button onclick="viewDocument('${v.proof_url}', 'Preuve Cachet')" class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white transition-all">
-                        <i class="fa-solid fa-camera-retro"></i>
-                    </button>` : 
-                    '<i class="fa-solid fa-ban text-slate-200"></i>'
-                }
-            </td>
-        </tr>
-    `;
-});
+                visits.forEach(v => {
+                    html += `
+                        <tr id="row-vis-${v.id}" class="hover:bg-white transition-colors group">
+                            <td class="px-4 py-3 text-xs font-bold text-blue-600 uppercase break-words">${v.lieu_nom || 'Inconnu'}</td>
+                            <td class="px-4 py-3 text-[10px] font-mono text-slate-500">${v.check_in ? new Date(v.check_in).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '--:--'}</td>
+                            <td class="px-4 py-3 text-center">
+                                ${v.proof_url ? `<button onclick="viewDocument('${v.proof_url}', 'Cachet')" class="text-emerald-500 hover:scale-110 transition-transform"><i class="fa-solid fa-camera-retro text-lg"></i></button>` : '<i class="fa-solid fa-ban text-slate-200"></i>'}
+                            </td>
+                            <!-- ICI : MODIFICATION POUR LE TEXTE DÉROULANT -->
+                                    <td class="px-4 py-3 text-right">
+                                        <div class="text-[10px] text-slate-400 italic line-clamp-1 cursor-pointer transition-all duration-300"
+                                             onmouseenter="peakText(this)" 
+                                             onmouseleave="unpeakText(this)" 
+                                             onclick="toggleTextFixed(this)"
+                                             data-fixed="false">
+                                            ${v.notes || 'R.A.S'}
+                                        </div>
+                                        <div class="flex justify-end gap-2 mt-1">
+                                            <button onclick="event.stopPropagation(); deleteVisitReport('${v.id}')" class="text-slate-200 hover:text-red-500 transition-colors"><i class="fa-solid fa-trash-can text-xs"></i></button>
+                                        </div>
+                                    </td>
+                        </tr>`;
+                });
                 html += `</tbody></table></div></div>`;
             }
             html += `</div>`;
@@ -6443,7 +6391,6 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
-
 
 
 
