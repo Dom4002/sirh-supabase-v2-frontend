@@ -551,6 +551,34 @@
                         <option value="SECRETAIRE">SECRETAIRE</option>
                     </select>
                 </div>
+
+                                <!-- === NOUVEAU BLOC : CONFIGURATION HIÉRARCHIQUE === -->
+                <div class="md:col-span-2 bg-indigo-50 p-5 rounded-2xl border border-indigo-100 mt-4">
+                    <div class="flex items-center gap-2 mb-4">
+                        <i class="fa-solid fa-sitemap text-indigo-500"></i>
+                        <p class="text-[10px] font-black text-indigo-500 uppercase tracking-widest">Hiérarchie & Responsabilités</p>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- OPTION A : RESPONSABLE DIRECT (N+1) -->
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Qui est son chef ? (N+1)</label>
+                            <select id="f-manager" class="w-full p-3 bg-white border border-indigo-200 rounded-xl text-sm font-medium text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500">
+                                <option value="">-- Aucun / Autonome --</option>
+                                <!-- Ce contenu sera rempli automatiquement par le JS -->
+                            </select>
+                            <p class="text-[9px] text-slate-400 mt-1 italic">L'employé apparaîtra dans le tableau de bord de ce manager.</p>
+                        </div>
+                
+                        <!-- OPTION B : PÉRIMÈTRE DE GESTION (SCOPE) -->
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Zone ou Dép. Géré (Optionnel)</label>
+                            <input type="text" id="f-scope" class="w-full p-3 bg-white border border-indigo-200 rounded-xl text-sm font-medium text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Ex: Commercial, Cotonou...">
+                            <p class="text-[9px] text-slate-400 mt-1 italic">Séparez par des virgules (ex: "Nord, Logistique").</p>
+                        </div>
+                    </div>
+                </div>
+                <!-- === FIN DU BLOC === -->
             </div>
 
             <div class="flex flex-col items-center justify-start p-4 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
@@ -1394,6 +1422,34 @@
                         </label>
                     </div>
                 </div>
+                
+                                <!-- === NOUVEAU BLOC : MODIFICATION HIÉRARCHIE === -->
+                <div class="mt-6 p-5 bg-indigo-50 rounded-2xl border border-indigo-100">
+                    <div class="flex items-center gap-2 mb-4">
+                        <i class="fa-solid fa-user-lock text-indigo-500"></i>
+                        <p class="text-[10px] font-black text-indigo-500 uppercase tracking-widest">Administration Hiérarchique</p>
+                    </div>
+                
+                    <div class="grid grid-cols-1 gap-4">
+                        <!-- OPTION A : Responsable N+1 -->
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Responsable Direct (N+1)</label>
+                            <select id="edit-manager" class="w-full p-3 bg-white border border-indigo-200 rounded-xl text-sm font-medium text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500">
+                                <option value="">-- Aucun / Autonome --</option>
+                                <!-- Rempli par JS -->
+                            </select>
+                            <p class="text-[9px] text-slate-400 mt-1 italic">Cet employé apparaîtra dans le tableau de ce manager.</p>
+                        </div>
+                
+                        <!-- OPTION B : Périmètre (Scope) -->
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Zone ou Dép. Géré (Optionnel)</label>
+                            <input type="text" id="edit-scope" class="w-full p-3 bg-white border border-indigo-200 rounded-xl text-sm font-medium text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Ex: Cotonou, Logistique...">
+                            <p class="text-[9px] text-slate-400 mt-1 italic">Séparez les zones par des virgules. Laissez vide si ce n'est pas un directeur.</p>
+                        </div>
+                    </div>
+                </div>
+                <!-- === FIN DU BLOC === -->
 
                 <button type="submit" class="w-full bg-slate-900 text-white py-4 rounded-xl font-bold shadow-lg uppercase tracking-widest hover:bg-slate-800 transition-all">
                     SAUVEGARDER LES MODIFICATIONS
@@ -1525,6 +1581,7 @@
     </body>
 
     </html>
+
 
 
 
