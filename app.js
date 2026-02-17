@@ -5023,6 +5023,26 @@ function toggleWidget(widgetId) {
 
 
 
+// --- UTILITAIRE : TEXTE DÉROULANT ---
+function toggleText(el) {
+    // Si le texte est coupé (contient la classe line-clamp-1)
+    if (el.classList.contains('line-clamp-1')) {
+        // ON OUVRE
+        el.classList.remove('line-clamp-1'); // Enlève la limite de ligne
+        el.classList.remove('truncate'); // Enlève la coupe brutale
+        
+        // On ajoute un style pour mettre en valeur le texte ouvert
+        el.classList.add('whitespace-normal', 'bg-yellow-50', 'p-2', 'rounded', 'text-slate-800', 'border', 'border-yellow-200');
+    } else {
+        // ON FERME
+        el.classList.add('line-clamp-1'); // Remet la limite
+        
+        // On enlève le style de mise en valeur
+        el.classList.remove('whitespace-normal', 'bg-yellow-50', 'p-2', 'rounded', 'text-slate-800', 'border', 'border-yellow-200');
+    }
+}
+
+
 function applyWidgetPreferences() {
     // On ajoute les IDs du menu (commençant par m-) à la liste
     const widgets = [
@@ -5619,10 +5639,11 @@ function changeReportTab(tab) {
     }
 }
 
+
 async function fetchMobileReports(page = 1) {
     const container = document.getElementById('reports-list-container');
     const counterEl = document.getElementById('stat-visites-total');
-    const labelEl = document.getElementById('stat-report-label'); 
+    const labelEl = document.getElementById('stat-report-label');
     const nameFilter = document.getElementById('filter-report-name')?.value.toLowerCase() || "";
     const periodFilter = document.getElementById('filter-report-date')?.value || "month";
 
@@ -5655,7 +5676,7 @@ async function fetchMobileReports(page = 1) {
         let html = '';
 
         if (currentReportTab === 'visits') {
-            // --- LOGIQUE VISITES REGROUPÉES AVEC ACCORDÉONS ---
+            // --- VISITES (Onglet 1) ---
             const grouped = {};
             data.forEach(v => {
                 const name = v.nom_agent || "Inconnu";
@@ -5666,7 +5687,6 @@ async function fetchMobileReports(page = 1) {
             html = `<div class="col-span-full space-y-4">`;
             for (const [name, visits] of Object.entries(grouped)) {
                 const accordionId = `acc-vis-${name.replace(/\s+/g, '-')}`;
-                
                 html += `
                     <div class="bg-white rounded-[2rem] shadow-sm border border-slate-200 overflow-hidden animate-fadeIn">
                         <div onclick="toggleAccordion('${accordionId}')" class="bg-slate-900 px-6 py-4 flex justify-between items-center cursor-pointer hover:bg-slate-800 transition-all">
@@ -5683,23 +5703,29 @@ async function fetchMobileReports(page = 1) {
                             <table class="w-full text-left">
                                 <thead class="bg-slate-100 border-b">
                                     <tr class="text-[9px] font-black text-slate-400 uppercase">
-                                        <th class="p-4">Lieu visité</th><th class="p-4">Heure</th><th class="p-4 text-center">Preuve</th><th class="p-4 text-right">Action</th>
+                                        <th class="p-4 w-1/4">Lieu</th>
+                                        <th class="p-4 w-1/4">Heure</th>
+                                        <th class="p-4 w-1/4 text-center">Preuve</th>
+                                        <th class="p-4 w-1/4 text-right">Note (Toucher pour lire)</th>
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-slate-100">`;
                 visits.forEach(v => {
                     html += `
                         <tr id="row-vis-${v.id}" class="hover:bg-white transition-colors group">
-                            <td class="px-4 py-3">
-                                <div class="text-xs font-bold text-blue-600 uppercase">${v.lieu_nom || 'Inconnu'}</div>
-                                <div class="text-[10px] text-slate-400 italic truncate max-w-[200px]">${v.notes || '-'}</div>
-                            </td>
+                            <td class="px-4 py-3 text-xs font-bold text-blue-600 uppercase break-words">${v.lieu_nom || 'Inconnu'}</td>
                             <td class="px-4 py-3 text-[10px] font-mono text-slate-500">${v.check_in ? new Date(v.check_in).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '--:--'}</td>
                             <td class="px-4 py-3 text-center">
                                 ${v.proof_url ? `<button onclick="viewDocument('${v.proof_url}', 'Cachet')" class="text-emerald-500 hover:scale-110 transition-transform"><i class="fa-solid fa-camera-retro text-lg"></i></button>` : '<i class="fa-solid fa-ban text-slate-200"></i>'}
                             </td>
-                            <td class="px-4 py-3 text-right">
-                                <button onclick="deleteVisitReport('${v.id}')" class="p-2 text-slate-300 hover:text-red-500 transition-all opacity-0 group-hover:opacity-100"><i class="fa-solid fa-trash-can"></i></button>
+                            <!-- ICI : MODIFICATION POUR LE TEXTE DÉROULANT -->
+                            <td class="px-4 py-3 text-right cursor-pointer" onclick="toggleText(this.querySelector('div'))">
+                                <div class="text-[10px] text-slate-400 italic line-clamp-1 hover:text-blue-600 transition-colors">
+                                    ${v.notes || 'R.A.S'}
+                                </div>
+                                <div class="flex justify-end gap-2 mt-1">
+                                    <button onclick="event.stopPropagation(); deleteVisitReport('${v.id}')" class="text-slate-200 hover:text-red-500 transition-colors"><i class="fa-solid fa-trash-can text-xs"></i></button>
+                                </div>
                             </td>
                         </tr>`;
                 });
@@ -5708,7 +5734,7 @@ async function fetchMobileReports(page = 1) {
             html += `</div>`;
         } 
         else {
-            // --- LOGIQUE BILANS JOURNALIERS (DAILY) AVEC ACCORDÉONS ---
+            // --- BILANS JOURNALIERS (Onglet 2) ---
             const groupedDaily = {};
             data.forEach(rep => {
                 const name = rep.employees?.nom || "Agent Inconnu";
@@ -5734,19 +5760,28 @@ async function fetchMobileReports(page = 1) {
                             </div>
                         </div>
                         <div id="${accordionId}" class="hidden border-t border-slate-100 bg-slate-50/50">
-                            <table class="w-full text-left"><tbody class="divide-y divide-slate-100">`;
+                            <table class="w-full text-left">
+                                <tbody class="divide-y divide-slate-100">`;
                 reports.forEach(rep => {
                     html += `
                         <tr id="row-daily-${rep.id}" class="hover:bg-white transition-colors group">
-                            <td class="px-6 py-4">
+                            <td class="px-6 py-4 w-1/4">
                                 <div class="text-[10px] font-black text-indigo-500 uppercase">${new Date(rep.report_date).toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long'})}</div>
-                                <div class="text-xs text-slate-600 mt-1 italic line-clamp-2">${rep.summary}</div>
+                                <div class="text-center mt-2">${rep.needs_restock ? '<span class="text-orange-500 text-[10px] font-bold"><i class="fa-solid fa-box-open"></i> REAPPRO</span>' : '<span class="text-emerald-400 text-[10px]">OK</span>'}</div>
                             </td>
-                            <td class="px-6 py-4 text-center">
-                                ${rep.photo_url ? `<button onclick="viewDocument('${rep.photo_url}', 'Cahier')" class="text-blue-500 hover:scale-125 transition-transform"><i class="fa-solid fa-file-image text-lg"></i></button>` : '<i class="fa-solid fa-ban text-slate-200"></i>'}
+                            
+                            <!-- ICI : TEXTE DÉROULANT POUR LE RÉSUMÉ -->
+                            <td class="px-6 py-4 w-2/4 cursor-pointer" onclick="toggleText(this.querySelector('div'))">
+                                <div class="text-xs text-slate-600 italic line-clamp-1 hover:text-blue-600 transition-colors">
+                                    ${rep.summary || "Aucun texte."}
+                                </div>
                             </td>
-                            <td class="px-6 py-4 text-right">
-                                <button onclick="deleteDailyReport('${rep.id}')" class="p-2 text-slate-300 hover:text-red-500 transition-all opacity-0 group-hover:opacity-100"><i class="fa-solid fa-check"></i></button>
+
+                            <td class="px-6 py-4 w-1/4 text-right">
+                                <div class="flex items-center justify-end gap-3">
+                                    ${rep.photo_url ? `<button onclick="viewDocument('${rep.photo_url}', 'Cahier')" class="text-blue-500 hover:scale-125 transition-transform"><i class="fa-solid fa-file-image text-lg"></i></button>` : '<i class="fa-solid fa-ban text-slate-200"></i>'}
+                                    <button onclick="deleteDailyReport('${rep.id}')" class="text-slate-300 hover:text-red-500 transition-all"><i class="fa-solid fa-check"></i></button>
+                                </div>
                             </td>
                         </tr>`;
                 });
@@ -5757,25 +5792,18 @@ async function fetchMobileReports(page = 1) {
 
         const paginationHtml = `
             <div class="col-span-full flex justify-between items-center mt-6 px-4">
-                <button onclick="fetchMobileReports(${reportPage - 1})" ${reportPage <= 1 ? 'disabled' : ''} class="px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-black uppercase text-slate-600 disabled:opacity-30 hover:bg-slate-50 shadow-sm transition-all">
-                    <i class="fa-solid fa-chevron-left mr-2"></i> Précédent
-                </button>
+                <button onclick="fetchMobileReports(${reportPage - 1})" ${reportPage <= 1 ? 'disabled' : ''} class="px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-black uppercase text-slate-600 disabled:opacity-30 transition-all shadow-sm"><i class="fa-solid fa-chevron-left mr-2"></i> Précédent</button>
                 <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Page ${reportPage} / ${reportTotalPages}</span>
-                <button onclick="fetchMobileReports(${reportPage + 1})" ${reportPage >= reportTotalPages ? 'disabled' : ''} class="px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-black uppercase text-slate-600 disabled:opacity-30 hover:bg-slate-50 shadow-sm transition-all">
-                    Suivant <i class="fa-solid fa-chevron-right ml-2"></i>
-                </button>
-            </div>
-        `;
+                <button onclick="fetchMobileReports(${reportPage + 1})" ${reportPage >= reportTotalPages ? 'disabled' : ''} class="px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-black uppercase text-slate-600 disabled:opacity-30 transition-all shadow-sm">Suivant <i class="fa-solid fa-chevron-right ml-2"></i></button>
+            </div>`;
 
         container.innerHTML = html + paginationHtml;
 
     } catch (e) {
-        console.error("Erreur de chargement des rapports:", e);
-        container.innerHTML = '<div class="col-span-full text-center text-red-500 py-10 font-bold uppercase text-[10px]">Erreur de connexion aux données</div>';
+        console.error("Erreur rapports:", e);
+        container.innerHTML = '<div class="col-span-full text-center text-red-500 py-10 font-bold uppercase text-[10px]">Erreur de connexion</div>';
     }
 }
-
-
 
 
 
@@ -6164,6 +6192,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
