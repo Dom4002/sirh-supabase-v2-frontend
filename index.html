@@ -183,6 +183,11 @@
             <i class="fa-solid fa-map-location-dot w-5"></i> <span class="font-semibold">Lieux & Sites</span>
         </button>
 
+        <button onclick="switchView('products')" class="nav-btn w-full flex items-center gap-4 p-4 rounded-xl transition-all hover:text-white group">
+            <i class="fa-solid fa-pills w-5"></i> 
+            <span class="font-semibold">Catalogue Produits</span>
+        </button>
+
         <!-- Rapports : can_view_reports -->
         <button data-perm="can_manage_mobile" onclick="switchView('mobile-planning')" class="nav-btn w-full flex items-center gap-4 p-4 rounded-xl transition-all hover:text-white group">
             <i class="fa-solid fa-calendar-days w-5"></i> <span class="font-semibold">Plannings & Missions</span>
@@ -1164,6 +1169,26 @@
     </div>
 </section>
 
+
+
+        <section id="view-products" class="view-section">
+    <div class="flex justify-between items-center mb-8">
+        <div>
+            <h2 class="text-2xl font-black text-slate-800 tracking-tighter uppercase">Catalogue Produits</h2>
+            <p class="text-xs font-bold text-slate-400 uppercase">Support de promotion médicale</p>
+        </div>
+        <!-- Bouton visible par les Boss via data-perm -->
+        <button data-perm="can_manage_config" onclick="openAddProductModal()" class="bg-blue-600 text-white px-6 py-3 rounded-xl font-bold text-xs shadow-lg hover:scale-105 transition-all">
+            + NOUVEAU PRODUIT
+        </button>
+    </div>
+
+    <!-- Grille des produits -->
+    <div id="products-grid" class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        <!-- Rempli par le JS -->
+    </div>
+</section>
+        
 
         <section id="view-mobile-locations" class="view-section">
     <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
