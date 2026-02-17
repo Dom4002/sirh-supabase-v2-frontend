@@ -1888,10 +1888,24 @@ async function handleClockInOut() {
                 </div>
 
             <div class="relative mt-2">
+            
+                        <div class="text-left mb-4">
+                            <label class="text-[10px] font-black text-slate-400 uppercase">Produits présentés au praticien</label>
+                            <div id="product-selection-grid" class="grid grid-cols-2 gap-2 mt-2">
+                                ${(window.globalProducts || []).map(p => `
+                                    <label class="cursor-pointer group">
+                                        <input type="checkbox" name="presented_prod" value="${p.name}" class="peer sr-only">
+                                        <div class="p-2 border rounded-xl text-[9px] font-bold text-slate-500 bg-white peer-checked:bg-blue-600 peer-checked:text-white peer-checked:border-blue-600 transition-all flex items-center gap-2">
+                                            <i class="fa-solid fa-pills opacity-50"></i> ${p.name}
+                                        </div>
+                                    </label>
+                                `).join('')}
+                            </div>
+                            ${(!window.globalProducts || window.globalProducts.length === 0) ? '<p class="text-[9px] text-slate-400 italic">Aucun produit dans le catalogue.</p>' : ''}
+                        </div>
+
                 <textarea id="swal-report" class="swal2-textarea" style="height: 80px; margin-top:0;" placeholder="Écrivez vos notes ici..."></textarea>
-                
-                <!-- LE PETIT BOUTON DISCRET EN BAS À DROITE -->
-                <button type="button" onclick="toggleDictation('swal-report', this)" 
+               <button type="button" onclick="toggleDictation('swal-report', this)" 
                     class="absolute bottom-3 right-3 p-2 rounded-full bg-white border border-slate-200 text-slate-400 shadow-sm hover:text-blue-600 transition-all z-10"
                     title="Dicter le rapport">
                     <i class="fa-solid fa-microphone"></i>
@@ -1937,6 +1951,8 @@ async function handleClockInOut() {
             willClose: () => { if(proofStream) proofStream.getTracks().forEach(t => t.stop()); },
             preConfirm: () => {
                 const outcomeVal = document.getElementById('swal-outcome').value;
+                const selectedProducts = Array.from(document.querySelectorAll('input[name="presented_prod"]:checked')).map(cb => cb.value);
+                        
                 if (outcomeVal === 'VU' && !proofBlob) {
                     Swal.showValidationMessage('📸 Photo du cachet obligatoire !');
                     return false;
@@ -1944,7 +1960,9 @@ async function handleClockInOut() {
                 return { 
                     outcome: outcomeVal, 
                     report: document.getElementById('swal-report').value,
-                    isLastExit: document.getElementById('last-exit-check').checked
+                    isLastExit: document.getElementById('last-exit-check').checked,
+                    products: selectedProducts // <--- ON RÉCUPÈRE LE TABLEAU
+
                 };
             }
         });
@@ -1978,6 +1996,7 @@ async function handleClockInOut() {
         if (outcome) fd.append('outcome', outcome);
         if (report) fd.append('report', report);
         if (proofBlob) fd.append('proof_photo', proofBlob, 'capture.jpg');
+        if (formValues.products) fd.append('presented_products', JSON.stringify(formValues.products));
         if (isLastExit) fd.append('is_last_exit', 'true');
 
         const response = await secureFetch(URL_CLOCK_ACTION, { method: 'POST', body: fd });
@@ -6309,6 +6328,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
