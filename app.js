@@ -1183,6 +1183,8 @@ async function fetchData(forceUpdate = false, page = 1) {
                 adresse: x.adresse, 
                 date_naissance: x.date_naissance, 
                 role: x.role || 'EMPLOYEE',
+                manager_id: x.manager_id || '', 
+                scope: x.management_scope || [], 
                 matricule: x.matricule || 'N/A',
                 doc: x.contrat_pdf_url || '',
                 cv_link: x.cv_url || '',
@@ -1249,6 +1251,22 @@ async function fetchData(forceUpdate = false, page = 1) {
 
 
 
+async function populateManagerSelects() {
+    // On remplit les listes déroulantes avec tous les employés actifs
+    // (Dans le futur, on pourra filtrer pour ne montrer que les cadres)
+    const optionsHtml = employees
+        .filter(e => e.statut === 'Actif')
+        .map(e => `<option value="${e.id}">${e.nom} (${e.poste})</option>`)
+        .join('');
+
+    const defaultOpt = `<option value="">-- Aucun / Autonome --</option>`;
+
+    const createSelect = document.getElementById('f-manager');
+    const editSelect = document.getElementById('edit-manager');
+
+    if (createSelect) createSelect.innerHTML = defaultOpt + optionsHtml;
+    if (editSelect) editSelect.innerHTML = defaultOpt + optionsHtml;
+}
 
 
     function renderData() { 
@@ -2313,6 +2331,7 @@ function switchView(v) {
         const form = document.getElementById('form-onboarding');
         if(form) form.reset(); 
         resetCamera(); 
+        populateManagerSelects();
     }
 
     if (v === 'chat') {
@@ -2377,7 +2396,21 @@ function switchView(v) {
     
 
     function openEditModal(id) {
+                
         const e = employees.find(x => x.id === id);
+
+            // Dans openEditModal(id)...
+                populateManagerSelects(); // Mettre à jour la liste
+            
+                // Pré-remplir le manager actuel
+                const mgrSelect = document.getElementById('edit-manager');
+                if(mgrSelect) mgrSelect.value = e.manager_id || "";
+            
+                // Pré-remplir le scope (on transforme le tableau en texte séparé par virgules)
+                const scopeInput = document.getElementById('edit-scope');
+                if(scopeInput) scopeInput.value = (e.scope || []).join(', ');
+
+                
         if (e) {
             // 1. Afficher la modale
             document.getElementById('edit-modal').classList.remove('hidden');
@@ -2458,7 +2491,9 @@ async function submitUpdate(e) {
         const typeContrat = document.getElementById('edit-type-contrat').value;
         const typeActivité = document.getElementById('edit-type').value;
 
-        
+        const managerId = document.getElementById('edit-manager').value;
+        const scopeVal = document.getElementById('edit-scope').value;
+        const scopeArray = scopeVal ? scopeVal.split(',').map(s=>s.trim()) : [];
         // NOUVEAU : Récupération Date & Checkbox
         const newStartDate = document.getElementById('edit-start-date').value;
         const forceInit = document.getElementById('edit-init-check').checked;
@@ -2469,6 +2504,8 @@ async function submitUpdate(e) {
         const params = new URLSearchParams({
             id: id,
             agent: currentUser.nom,
+            manager_id: managerId,
+            scope: JSON.stringify(scopeArray) // On encode le tableau
             statut: statut,
             role: role,
             dept: dept,
@@ -2690,6 +2727,12 @@ async function triggerRobotCheck() {
                 Swal.update({ text: 'Compression de la photo de profil...' });
                 const compressedProfilePhoto = await compressImage(capturedBlob);
                 fd.append('photo', compressedProfilePhoto, 'photo_profil.jpg');
+
+
+                        fd.append('manager_id', document.getElementById('f-manager').value);
+                        // On envoie le scope comme une chaine JSON pour que le serveur le parse
+                        const scopeVal = document.getElementById('f-scope').value;
+                        fd.append('scope', scopeVal ? JSON.stringify(scopeVal.split(',').map(s=>s.trim())) : '[]');
 
 
                     // 4. Ajout des documents KYC (Optionnels)
@@ -6063,6 +6106,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
