@@ -854,7 +854,7 @@ async function setSession(n, r, id, perms) {
         // 'syncClockInterface' est rapide.
         refreshAllData(false); // <-- Modification : Suppression du 'await'
         syncClockInterface(); // <-- Modification : Suppression du 'await'
-
+        fetchProducts(); // <--- AJOUTE CETTE LIGNE ICI
         await applyModulesUI(); 
         applyPermissionsUI(perms);
 
@@ -1826,6 +1826,11 @@ async function syncClockInterface() {
 
 
 
+
+
+
+
+
 async function handleClockInOut() {
     const userId = currentUser.id;
     const today = new Date().toLocaleDateString('fr-CA');
@@ -1863,6 +1868,26 @@ async function handleClockInOut() {
 
     // --- BLOC CAMÉRA LIVE POUR LA SORTIE MOBILE ---
     if (action === 'CLOCK_OUT' && isMobile) {
+
+        // 1. Préparation de la liste des boutons à cocher à partir des produits en mémoire
+        const productsInMemory = window.globalProducts || [];
+        let productButtonsHTML = "";
+
+        if (productsInMemory.length > 0) {
+            productButtonsHTML = productsInMemory.map(p => `
+                <label class="cursor-pointer flex-1 min-w-[120px]">
+                    <input type="checkbox" name="presented_prod" value="${p.name}" class="peer sr-only">
+                    <div class="p-2 border-2 border-slate-100 rounded-xl text-[10px] font-black text-slate-500 bg-white 
+                                peer-checked:bg-blue-600 peer-checked:text-white peer-checked:border-blue-600 
+                                transition-all flex items-center gap-2 shadow-sm uppercase">
+                        <i class="fa-solid fa-pills"></i> ${p.name}
+                    </div>
+                </label>
+            `).join('');
+        } else {
+            productButtonsHTML = '<div class="col-span-full p-4 bg-slate-50 border border-dashed rounded-xl text-center text-[9px] text-slate-400 italic">Aucun produit dans le catalogue.</div>';
+        }
+                            
         const { value: resultValues } = await Swal.fire({
             title: 'Fin de visite',
             html: `
@@ -1876,18 +1901,11 @@ async function handleClockInOut() {
                     </select>
                 </div>
 
-                <!-- SÉLECTION DES PRODUITS (Support visuel) -->
+                <!-- SÉLECTION DES PRODUITS (DYNAMIQUE) -->
                 <div class="text-left mb-4">
-                    <label class="text-[10px] font-black text-slate-400 uppercase">Produits présentés</label>
-                    <div id="product-selection-grid" class="grid grid-cols-2 gap-2 mt-2 max-h-40 overflow-y-auto p-1 custom-scroll">
-                        ${(window.globalProducts || []).map(p => `
-                            <label class="cursor-pointer group">
-                                <input type="checkbox" name="presented_prod" value="${p.name}" class="peer sr-only">
-                                <div class="p-2 border rounded-xl text-[9px] font-bold text-slate-500 bg-white peer-checked:bg-blue-600 peer-checked:text-white peer-checked:border-blue-600 transition-all flex items-center gap-2">
-                                    <i class="fa-solid fa-pills opacity-50"></i> ${p.name}
-                                </div>
-                            </label>
-                        `).join('')}
+                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Produits présentés (Multi-choix)</label>
+                    <div id="product-selection-grid" class="flex flex-wrap gap-2 mt-2 max-h-40 overflow-y-auto p-1 custom-scroll">
+                        ${productButtonsHTML}
                     </div>
                 </div>
 
@@ -1949,11 +1967,16 @@ async function handleClockInOut() {
                     Swal.showValidationMessage('📸 Photo du cachet obligatoire !');
                     return false;
                 }
+                
+                // On récupère les produits cochés
+                const checkboxes = document.querySelectorAll('input[name="presented_prod"]:checked');
+                const products = Array.from(checkboxes).map(cb => cb.value);
+
                 return { 
                     outcome: outcomeVal, 
                     report: document.getElementById('swal-report').value,
                     isLastExit: document.getElementById('last-exit-check').checked,
-                    products: Array.from(document.querySelectorAll('input[name="presented_prod"]:checked')).map(cb => cb.value)
+                    products: products
                 };
             }
         });
@@ -1990,8 +2013,8 @@ async function handleClockInOut() {
         if (proofBlob) fd.append('proof_photo', proofBlob, 'capture.jpg');
         if (isLastExit) fd.append('is_last_exit', 'true');
         
-        // --- UTILISATION DES PRODUITS SÉCURISÉE ---
-        if (selectedProducts.length > 0) {
+        // Envoi des produits sous forme de tableau JSON
+        if (selectedProducts && selectedProducts.length > 0) {
             fd.append('presented_products', JSON.stringify(selectedProducts));
         }
 
@@ -2007,6 +2030,8 @@ async function handleClockInOut() {
         Swal.fire('Erreur', e.message, 'error'); 
     }
 }
+
+
 
 
 
@@ -6366,6 +6391,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
