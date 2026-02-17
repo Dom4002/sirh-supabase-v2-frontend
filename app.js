@@ -1829,8 +1829,6 @@ async function syncClockInterface() {
 
 
 
-
-
 async function handleClockInOut() {
     const userId = currentUser.id;
     const today = new Date().toLocaleDateString('fr-CA');
@@ -1858,15 +1856,15 @@ async function handleClockInOut() {
         if (action === 'CLOCK_IN' && inDone) return Swal.fire('Oups', 'Entrée déjà validée.', 'info');
     }
 
-    // --- INITIALISATION DES VARIABLES POUR ÉVITER L'ERREUR ---
+    // --- INITIALISATION DES VARIABLES (POUR TOUTE LA FONCTION) ---
     let outcome = null;
     let report = null;
     let proofStream = null;
     let proofBlob = null; 
     let isLastExit = false;
-    let selectedProducts = []; // Pour stocker les médicaments cochés
+    let selectedProducts = []; 
 
-    // --- BLOC CAMÉRA LIVE POUR LA SORTIE MOBILE ---
+    // --- BLOC CAMÉRA LIVE + PRODUITS POUR LA SORTIE MOBILE ---
     if (action === 'CLOCK_OUT' && isMobile) {
 
         // 1. Préparation de la liste des boutons à cocher à partir des produits en mémoire
@@ -1885,7 +1883,7 @@ async function handleClockInOut() {
                 </label>
             `).join('');
         } else {
-            productButtonsHTML = '<div class="col-span-full p-4 bg-slate-50 border border-dashed rounded-xl text-center text-[9px] text-slate-400 italic">Aucun produit dans le catalogue.</div>';
+            productButtonsHTML = '<div class="col-span-full p-4 bg-slate-50 border border-dashed rounded-xl text-center text-[9px] text-slate-400 italic">Aucun produit chargé dans le catalogue.</div>';
         }
                             
         const { value: resultValues } = await Swal.fire({
@@ -1901,7 +1899,6 @@ async function handleClockInOut() {
                     </select>
                 </div>
 
-                <!-- SÉLECTION DES PRODUITS (DYNAMIQUE) -->
                 <div class="text-left mb-4">
                     <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Produits présentés (Multi-choix)</label>
                     <div id="product-selection-grid" class="flex flex-wrap gap-2 mt-2 max-h-40 overflow-y-auto p-1 custom-scroll">
@@ -1914,13 +1911,13 @@ async function handleClockInOut() {
                     <img id="proof-image" class="w-full h-full object-cover hidden absolute top-0 left-0">
                     <canvas id="proof-canvas" class="hidden"></canvas>
                     <div class="absolute bottom-2 left-0 right-0 flex justify-center gap-2 z-10">
-                        <button type="button" id="btn-snap" class="bg-white text-slate-900 px-4 py-1 rounded-full text-xs font-bold shadow-lg">CAPTURER LE CACHET</button>
-                        <button type="button" id="btn-retry" class="hidden bg-orange-500 text-white px-3 py-1 rounded-full text-xs font-bold shadow-lg">REFAIRE</button>
+                        <button type="button" id="btn-snap" class="bg-white text-slate-900 px-4 py-1 rounded-full text-xs font-bold shadow-lg">📸 PHOTO CACHET</button>
+                        <button type="button" id="btn-retry" class="hidden bg-orange-500 text-white px-4 py-1 rounded-full text-xs font-bold shadow-lg">REFAIRE</button>
                     </div>
                 </div>
 
                 <div class="relative mt-2">
-                    <textarea id="swal-report" class="swal2-textarea" style="height: 80px; margin-top:0;" placeholder="Notes..."></textarea>
+                    <textarea id="swal-report" class="swal2-textarea" style="height: 80px; margin:0;" placeholder="Notes..."></textarea>
                     <button type="button" onclick="toggleDictation('swal-report', this)" class="absolute bottom-3 right-3 p-2 rounded-full bg-white border border-slate-200 text-slate-400 shadow-sm z-10"><i class="fa-solid fa-microphone"></i></button>
                 </div>
 
@@ -1941,7 +1938,7 @@ async function handleClockInOut() {
 
                 navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
                     .then(stream => { proofStream = stream; video.srcObject = stream; })
-                    .catch(err => Swal.showValidationMessage("Caméra bloquée"));
+                    .catch(err => Swal.showValidationMessage("Caméra inaccessible"));
 
                 btnSnap.onclick = () => {
                     canvas.width = video.videoWidth; canvas.height = video.videoHeight;
@@ -1967,11 +1964,8 @@ async function handleClockInOut() {
                     Swal.showValidationMessage('📸 Photo du cachet obligatoire !');
                     return false;
                 }
-                
-                // On récupère les produits cochés
                 const checkboxes = document.querySelectorAll('input[name="presented_prod"]:checked');
                 const products = Array.from(checkboxes).map(cb => cb.value);
-
                 return { 
                     outcome: outcomeVal, 
                     report: document.getElementById('swal-report').value,
@@ -2013,7 +2007,6 @@ async function handleClockInOut() {
         if (proofBlob) fd.append('proof_photo', proofBlob, 'capture.jpg');
         if (isLastExit) fd.append('is_last_exit', 'true');
         
-        // Envoi des produits sous forme de tableau JSON
         if (selectedProducts && selectedProducts.length > 0) {
             fd.append('presented_products', JSON.stringify(selectedProducts));
         }
@@ -2021,32 +2014,28 @@ async function handleClockInOut() {
         const response = await secureFetch(URL_CLOCK_ACTION, { method: 'POST', body: fd });
         const resData = await response.json();
 
+        if (response.ok) {
+            if (isLastExit) localStorage.setItem(`clock_out_done_${userId}`, 'true');
+            syncClockInterface();
 
-
-                if (response.ok) {
-    if (isLastExit) localStorage.setItem(`clock_out_done_${userId}`, 'true');
-    syncClockInterface();
-
-    // UN REÇU DE CONFIRMATION VISUEL
-    Swal.fire({
-        icon: 'success',
-        title: 'Rapport Transmis ✅',
-        html: `
-            <div class="text-left text-xs space-y-2 p-2 bg-slate-50 rounded-xl border">
-                <p>📍 <strong>Lieu :</strong> ${resData.zone}</p>
-                <p>📦 <strong>Produits :</strong> ${selectedProducts.length > 0 ? selectedProducts.join(', ') : 'Aucun'}</p>
-                <p>🕒 <strong>Heure :</strong> ${new Date().toLocaleTimeString()}</p>
-            </div>
-            <p class="text-[10px] text-slate-400 mt-4 uppercase font-bold">Enregistré sur le serveur sécurisé</p>
-        `,
-        confirmButtonColor: '#2563eb'
-    });
-} else { throw new Error(resData.error); }
+            Swal.fire({
+                icon: 'success',
+                title: 'Rapport Transmis ✅',
+                html: `
+                    <div class="text-left text-xs space-y-2 p-2 bg-slate-50 rounded-xl border">
+                        <p>📍 <strong>Lieu :</strong> ${resData.zone}</p>
+                        <p>📦 <strong>Produits :</strong> ${selectedProducts.length > 0 ? selectedProducts.join(', ') : 'Aucun'}</p>
+                        <p>🕒 <strong>Heure :</strong> ${new Date().toLocaleTimeString()}</p>
+                    </div>
+                    <p class="text-[10px] text-slate-400 mt-4 uppercase font-bold text-center">Enregistré sur le serveur sécurisé</p>
+                `,
+                confirmButtonColor: '#2563eb'
+            });
+        } else { throw new Error(resData.error); }
     } catch (e) { 
         Swal.fire('Erreur', e.message, 'error'); 
     }
 }
-
 
 
 
@@ -6443,6 +6432,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
