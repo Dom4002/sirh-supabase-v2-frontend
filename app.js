@@ -259,7 +259,65 @@ const PremiumUI = {
 
 
 
+// --- LOGIQUE ACTIONS DE MASSE (MANQUANTE) ---
+function toggleBulkActions() {
+    const checkboxes = document.querySelectorAll('.emp-select-checkbox:checked');
+    const bar = document.getElementById('bulk-action-bar');
+    const countSpan = document.getElementById('selected-count');
 
+    if (bar && countSpan) {
+        if (checkboxes.length > 0) {
+            bar.classList.remove('hidden');
+            countSpan.innerText = checkboxes.length;
+        } else {
+            bar.classList.add('hidden');
+        }
+    }
+}
+
+async function openBulkManagerModal() {
+    const selectedIds = Array.from(document.querySelectorAll('.emp-select-checkbox:checked')).map(cb => cb.value);
+    
+    // On charge une liste large pour le select
+    const r = await secureFetch(`${URL_READ}?limit=1000&status=Actif`); 
+    const result = await r.json();
+    const potentialManagers = result.data || [];
+
+    let options = `<option value="">-- Aucun / Détacher --</option>`;
+    potentialManagers.forEach(m => {
+        if (!selectedIds.includes(m.id)) {
+            options += `<option value="${m.id}">${m.nom} (${m.poste})</option>`;
+        }
+    });
+
+    const { value: managerId } = await Swal.fire({
+        title: `Assigner ${selectedIds.length} personnes`,
+        html: `
+            <p class="text-sm text-slate-500 mb-4">Choisissez le responsable hiérarchique direct (N+1).</p>
+            <select id="bulk-manager-select" class="swal2-input text-sm">${options}</select>
+        `,
+        showCancelButton: true,
+        confirmButtonText: 'Valider',
+        confirmButtonColor: '#0f172a',
+        preConfirm: () => document.getElementById('bulk-manager-select').value
+    });
+
+    if (typeof managerId !== 'undefined') {
+        Swal.fire({ title: 'Mise à jour...', didOpen: () => Swal.showLoading() });
+        try {
+            const res = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/bulk-assign-manager`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ employee_ids: selectedIds, manager_id: managerId || null })
+            });
+            if (res.ok) {
+                Swal.fire('Succès', 'Hiérarchie mise à jour !', 'success');
+                fetchData(true);
+                document.getElementById('bulk-action-bar').classList.add('hidden');
+            }
+        } catch (e) { Swal.fire('Erreur', e.message, 'error'); }
+    }
+}
 
 
             // Fonction mathématique pour calculer la distance entre deux points GPS
@@ -2505,7 +2563,7 @@ async function submitUpdate(e) {
             id: id,
             agent: currentUser.nom,
             manager_id: managerId,
-            scope: JSON.stringify(scopeArray) // On encode le tableau
+            scope: JSON.stringify(scopeArray), // On encode le tableau
             statut: statut,
             role: role,
             dept: dept,
@@ -6106,6 +6164,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
