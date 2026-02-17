@@ -2366,7 +2366,10 @@ function switchView(v) {
     }
     
     // --- CHARGEMENTS AUTOMATIQUES CORRIGÉS ---
-    
+
+            // Dans ta fonction switchView(v)...
+    if (v === 'products') fetchProducts();
+            
     // 1. Dashboard (Statistiques et Live Tracker)
     if (v === 'dash') {
         renderCharts();
@@ -2437,6 +2440,61 @@ function switchView(v) {
     }, 50);
 }
 
+
+
+async function openAddProductModal() {
+    const { value: formValues } = await Swal.fire({
+        title: 'Nouveau Médicament',
+        html: `
+            <input id="prod-name" class="swal2-input" placeholder="Nom du produit (ex: Thermodol)">
+            <input id="prod-dosage" class="swal2-input" placeholder="Dosage (ex: 500mg)">
+            <textarea id="prod-desc" class="swal2-textarea" placeholder="Description / Indications..."></textarea>
+            <div class="mt-4 text-left">
+                <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Photo du produit</label>
+                <input type="file" id="prod-image" class="block w-full text-xs text-slate-500 mt-2
+                  file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0
+                  file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700">
+            </div>
+        `,
+        showCancelButton: true,
+        confirmButtonText: 'Enregistrer',
+        confirmButtonColor: '#2563eb',
+        preConfirm: () => {
+            return {
+                name: document.getElementById('prod-name').value,
+                dosage: document.getElementById('prod-dosage').value,
+                description: document.getElementById('prod-desc').value,
+                image: document.getElementById('prod-image').files[0]
+            }
+        }
+    });
+
+    if (formValues) {
+        if (!formValues.name) return Swal.fire('Erreur', 'Le nom est obligatoire', 'error');
+
+        Swal.fire({ title: 'Enregistrement...', didOpen: () => Swal.showLoading() });
+
+        const fd = new FormData();
+        fd.append('name', formValues.name);
+        fd.append('dosage', formValues.dosage);
+        fd.append('description', formValues.description);
+        if (formValues.image) fd.append('image', formValues.image);
+
+        try {
+            const response = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/write-product`, {
+                method: 'POST',
+                body: fd
+            });
+
+            if (response.ok) {
+                Swal.fire('Succès !', 'Produit ajouté au catalogue.', 'success');
+                fetchProducts(); // Recharge la grille immédiatement
+            }
+        } catch (e) {
+            Swal.fire('Erreur', e.message, 'error');
+        }
+    }
+}
 
 
 
@@ -5612,8 +5670,48 @@ async function handleZonesCSVFile(event) {
 
 
 
+let globalProducts = [];
+async function fetchProducts() {
+    const grid = document.getElementById('products-grid');
+    if (!grid) return;
 
+    grid.innerHTML = '<div class="col-span-full text-center p-10"><i class="fa-solid fa-circle-notch fa-spin text-blue-500 text-3xl"></i></div>';
 
+    try {
+        const r = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/read-products`);
+        const products = await r.json();
+
+        grid.innerHTML = '';
+        if (products.length === 0) {
+            grid.innerHTML = '<p class="col-span-full text-center text-slate-400 py-10">Aucun produit dans le catalogue.</p>';
+            return;
+        }
+
+        products.forEach(p => {
+            grid.innerHTML += `
+                <div class="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden group hover:shadow-xl transition-all">
+                    <div class="h-40 bg-slate-100 overflow-hidden">
+                        <img src="${p.image_url || 'https://via.placeholder.com/300x200?text=Pas+de+photo'}" class="w-full h-full object-cover group-hover:scale-110 transition-transform">
+                    </div>
+                    <div class="p-5">
+                        <h4 class="font-black text-slate-800 uppercase text-sm mb-1">${p.name}</h4>
+                        <p class="text-[10px] font-bold text-blue-600 uppercase mb-3">${p.dosage || 'Dosage non précisé'}</p>
+                        <p class="text-xs text-slate-500 line-clamp-3 mb-4 italic">${p.description || 'Pas de description.'}</p>
+                        <button onclick="viewProductDetail('${p.id}')" class="w-full py-2 bg-slate-50 text-slate-400 rounded-xl text-[10px] font-black uppercase group-hover:bg-blue-600 group-hover:text-white transition-all">Voir la fiche</button>
+                    </div>
+                </div>
+            `;
+        });
+        
+        // On stocke la liste en global pour la suite (logique de visite)
+        window.globalProducts = products;
+
+    } catch (e) { console.error("Erreur produits:", e); }
+}
+
+// Ajouter le chargement automatique dans switchView
+// (Modifie ta fonction switchView existante pour inclure ceci) :
+// if (v === 'products') fetchProducts();
 
 
 
@@ -5731,7 +5829,6 @@ async function fetchMobileReports(page = 1) {
                                 ${v.proof_url ? `<button onclick="viewDocument('${v.proof_url}', 'Cachet')" class="text-emerald-500 hover:scale-110 transition-transform"><i class="fa-solid fa-camera-retro text-lg"></i></button>` : '<i class="fa-solid fa-ban text-slate-200"></i>'}
                             </td>
                             <!-- ICI : MODIFICATION POUR LE TEXTE DÉROULANT -->
-                                    // ... (code précédent des lignes du tableau)
                                     <td class="px-4 py-3 text-right">
                                         <div class="text-[10px] text-slate-400 italic line-clamp-1 cursor-pointer transition-all duration-300"
                                              onmouseenter="peakText(this)" 
@@ -5744,7 +5841,6 @@ async function fetchMobileReports(page = 1) {
                                             <button onclick="event.stopPropagation(); deleteVisitReport('${v.id}')" class="text-slate-200 hover:text-red-500 transition-colors"><i class="fa-solid fa-trash-can text-xs"></i></button>
                                         </div>
                                     </td>
-                                    // ...
                         </tr>`;
                 });
                 html += `</tbody></table></div></div>`;
@@ -5789,7 +5885,6 @@ async function fetchMobileReports(page = 1) {
                             </td>
                             
                             <!-- ICI : TEXTE DÉROULANT POUR LE RÉSUMÉ -->
-                                    // ... (code précédent des lignes du tableau daily)
                                     <td class="px-6 py-4 w-2/4">
                                         <div class="text-xs text-slate-600 italic line-clamp-1 cursor-pointer transition-all duration-300"
                                              onmouseenter="peakText(this)" 
@@ -5799,8 +5894,6 @@ async function fetchMobileReports(page = 1) {
                                             ${rep.summary || "Aucun texte."}
                                         </div>
                                     </td>
-                                    // ...
-
                             <td class="px-6 py-4 w-1/4 text-right">
                                 <div class="flex items-center justify-end gap-3">
                                     ${rep.photo_url ? `<button onclick="viewDocument('${rep.photo_url}', 'Cahier')" class="text-blue-500 hover:scale-125 transition-transform"><i class="fa-solid fa-file-image text-lg"></i></button>` : '<i class="fa-solid fa-ban text-slate-200"></i>'}
@@ -6216,6 +6309,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
