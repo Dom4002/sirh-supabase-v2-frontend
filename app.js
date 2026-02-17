@@ -5689,7 +5689,6 @@ async function handleZonesCSVFile(event) {
 
 
 
-let globalProducts = [];
 async function fetchProducts() {
     const grid = document.getElementById('products-grid');
     if (!grid) return;
@@ -5699,41 +5698,83 @@ async function fetchProducts() {
     try {
         const r = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/read-products`);
         const products = await r.json();
+        window.globalProducts = products; // On stocke pour la fiche détail
 
         grid.innerHTML = '';
         if (products.length === 0) {
-            grid.innerHTML = '<p class="col-span-full text-center text-slate-400 py-10">Aucun produit dans le catalogue.</p>';
+            grid.innerHTML = '<p class="col-span-full text-center text-slate-400 py-10 italic">Aucun produit disponible.</p>';
             return;
         }
 
         products.forEach(p => {
+            // Sécurité pour l'image
+            const img = p.image_url && p.image_url.length > 10 ? p.image_url : 'https://cdn-icons-png.flaticon.com/512/883/883360.png';
+
             grid.innerHTML += `
-                <div class="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden group hover:shadow-xl transition-all">
-                    <div class="h-40 bg-slate-100 overflow-hidden">
-                        <img src="${p.image_url || 'https://via.placeholder.com/300x200?text=Pas+de+photo'}" class="w-full h-full object-cover group-hover:scale-110 transition-transform">
+                <div class="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden group hover:shadow-2xl hover:-translate-y-1 transition-all duration-300">
+                    <div class="h-48 bg-slate-50 overflow-hidden flex items-center justify-center p-4">
+                        <img src="${img}" class="max-w-full max-h-full object-contain group-hover:scale-110 transition-transform duration-500" 
+                             onerror="this.src='https://cdn-icons-png.flaticon.com/512/883/883360.png'">
                     </div>
-                    <div class="p-5">
-                        <h4 class="font-black text-slate-800 uppercase text-sm mb-1">${p.name}</h4>
-                        <p class="text-[10px] font-bold text-blue-600 uppercase mb-3">${p.dosage || 'Dosage non précisé'}</p>
-                        <p class="text-xs text-slate-500 line-clamp-3 mb-4 italic">${p.description || 'Pas de description.'}</p>
-                        <button onclick="viewProductDetail('${p.id}')" class="w-full py-2 bg-slate-50 text-slate-400 rounded-xl text-[10px] font-black uppercase group-hover:bg-blue-600 group-hover:text-white transition-all">Voir la fiche</button>
+                    <div class="p-6">
+                        <div class="flex justify-between items-start mb-2">
+                            <h4 class="font-black text-slate-800 uppercase text-sm leading-tight">${p.name}</h4>
+                            <span class="bg-blue-50 text-blue-600 px-2 py-0.5 rounded text-[8px] font-black">${p.dosage || 'N/A'}</span>
+                        </div>
+                        <p class="text-[11px] text-slate-400 line-clamp-2 mb-4 italic">${p.description || 'Aucune description fournie.'}</p>
+                        <button onclick="viewProductDetail('${p.id}')" class="w-full py-3 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-600 shadow-lg transition-all">
+                            Voir la fiche
+                        </button>
                     </div>
                 </div>
             `;
         });
-        
-        // On stocke la liste en global pour la suite (logique de visite)
-        window.globalProducts = products;
-
-    } catch (e) { console.error("Erreur produits:", e); }
+    } catch (e) { console.error(e); }
 }
 
-// Ajouter le chargement automatique dans switchView
-// (Modifie ta fonction switchView existante pour inclure ceci) :
-// if (v === 'products') fetchProducts();
 
 
+function viewProductDetail(id) {
+    // On cherche le produit dans notre liste globale
+    const p = window.globalProducts.find(prod => prod.id === id);
+    if (!p) return;
 
+    const img = p.image_url && p.image_url.length > 10 ? p.image_url : 'https://cdn-icons-png.flaticon.com/512/883/883360.png';
+
+    Swal.fire({
+        width: '600px',
+        padding: '0',
+        showConfirmButton: true,
+        confirmButtonText: 'Fermer la présentation',
+        confirmButtonColor: '#0f172a',
+        customClass: { popup: 'rounded-[2.5rem] overflow-hidden' },
+        html: `
+            <div class="text-left">
+                <!-- Image de présentation -->
+                <div class="h-64 bg-slate-100 flex items-center justify-center p-8">
+                    <img src="${img}" class="max-h-full object-contain shadow-2xl rounded-xl">
+                </div>
+                
+                <div class="p-8">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-2xl font-black text-slate-800 uppercase tracking-tighter">${p.name}</h3>
+                        <span class="bg-blue-600 text-white px-4 py-1 rounded-full text-xs font-black uppercase">${p.dosage || 'Standard'}</span>
+                    </div>
+                    
+                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Indications et Description</p>
+                    <div class="bg-slate-50 p-5 rounded-2xl border border-slate-100 text-slate-600 text-sm leading-relaxed italic">
+                        "${p.description || 'Détails non renseignés par la direction médicale.'}"
+                    </div>
+
+                    <div class="mt-6 flex items-center gap-3 p-4 bg-blue-50 rounded-2xl border border-blue-100">
+                        <i class="fa-solid fa-circle-info text-blue-500"></i>
+                        <p class="text-[10px] text-blue-700 font-bold leading-tight">Ce support visuel est destiné à l'usage exclusif du délégué pendant l'entretien médical.</p>
+                    </div>
+                </div>
+            </div>
+        `
+    });
+}
 
 
 // ============================================================
@@ -6328,6 +6369,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
