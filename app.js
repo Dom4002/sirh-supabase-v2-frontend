@@ -5023,22 +5023,34 @@ function toggleWidget(widgetId) {
 
 
 
-// --- UTILITAIRE : TEXTE DÉROULANT ---
-function toggleText(el) {
-    // Si le texte est coupé (contient la classe line-clamp-1)
-    if (el.classList.contains('line-clamp-1')) {
-        // ON OUVRE
-        el.classList.remove('line-clamp-1'); // Enlève la limite de ligne
-        el.classList.remove('truncate'); // Enlève la coupe brutale
-        
-        // On ajoute un style pour mettre en valeur le texte ouvert
-        el.classList.add('whitespace-normal', 'bg-yellow-50', 'p-2', 'rounded', 'text-slate-800', 'border', 'border-yellow-200');
+// --- SYSTÈME DE LECTURE INTELLIGENTE DES NOTES ---
+
+// 1. Pour le survol (Ordinateur)
+function peakText(el) {
+    el.classList.remove('line-clamp-1');
+    el.classList.add('whitespace-normal', 'bg-blue-50', 'p-3', 'rounded-xl', 'text-slate-800', 'border', 'border-blue-200', 'shadow-xl', 'z-50', 'relative');
+}
+
+// 2. Pour quitter le survol (Ordinateur)
+function unpeakText(el) {
+    if (el.dataset.fixed !== 'true') { // On ne ferme pas si l'utilisateur a cliqué pour le bloquer
+        el.classList.add('line-clamp-1');
+        el.classList.remove('whitespace-normal', 'bg-blue-50', 'p-3', 'rounded-xl', 'text-slate-800', 'border', 'border-blue-200', 'shadow-xl', 'z-50', 'relative');
+    }
+}
+
+// 3. Pour le clic (Mobile ou blocage sur Ordinateur)
+function toggleTextFixed(el) {
+    const isFixed = el.dataset.fixed === 'true';
+    el.dataset.fixed = isFixed ? 'false' : 'true';
+    
+    if (!isFixed) {
+        peakText(el);
+        el.classList.replace('bg-blue-50', 'bg-amber-50'); // Couleur différente pour dire "bloqué ouvert"
+        el.classList.replace('border-blue-200', 'border-amber-200');
     } else {
-        // ON FERME
-        el.classList.add('line-clamp-1'); // Remet la limite
-        
-        // On enlève le style de mise en valeur
-        el.classList.remove('whitespace-normal', 'bg-yellow-50', 'p-2', 'rounded', 'text-slate-800', 'border', 'border-yellow-200');
+        el.dataset.fixed = 'false';
+        unpeakText(el);
     }
 }
 
@@ -5719,14 +5731,20 @@ async function fetchMobileReports(page = 1) {
                                 ${v.proof_url ? `<button onclick="viewDocument('${v.proof_url}', 'Cachet')" class="text-emerald-500 hover:scale-110 transition-transform"><i class="fa-solid fa-camera-retro text-lg"></i></button>` : '<i class="fa-solid fa-ban text-slate-200"></i>'}
                             </td>
                             <!-- ICI : MODIFICATION POUR LE TEXTE DÉROULANT -->
-                            <td class="px-4 py-3 text-right cursor-pointer" onclick="toggleText(this.querySelector('div'))">
-                                <div class="text-[10px] text-slate-400 italic line-clamp-1 hover:text-blue-600 transition-colors">
-                                    ${v.notes || 'R.A.S'}
-                                </div>
-                                <div class="flex justify-end gap-2 mt-1">
-                                    <button onclick="event.stopPropagation(); deleteVisitReport('${v.id}')" class="text-slate-200 hover:text-red-500 transition-colors"><i class="fa-solid fa-trash-can text-xs"></i></button>
-                                </div>
-                            </td>
+                                    // ... (code précédent des lignes du tableau)
+                                    <td class="px-4 py-3 text-right">
+                                        <div class="text-[10px] text-slate-400 italic line-clamp-1 cursor-pointer transition-all duration-300"
+                                             onmouseenter="peakText(this)" 
+                                             onmouseleave="unpeakText(this)" 
+                                             onclick="toggleTextFixed(this)"
+                                             data-fixed="false">
+                                            ${v.notes || 'R.A.S'}
+                                        </div>
+                                        <div class="flex justify-end gap-2 mt-1">
+                                            <button onclick="event.stopPropagation(); deleteVisitReport('${v.id}')" class="text-slate-200 hover:text-red-500 transition-colors"><i class="fa-solid fa-trash-can text-xs"></i></button>
+                                        </div>
+                                    </td>
+                                    // ...
                         </tr>`;
                 });
                 html += `</tbody></table></div></div>`;
@@ -5771,11 +5789,17 @@ async function fetchMobileReports(page = 1) {
                             </td>
                             
                             <!-- ICI : TEXTE DÉROULANT POUR LE RÉSUMÉ -->
-                            <td class="px-6 py-4 w-2/4 cursor-pointer" onclick="toggleText(this.querySelector('div'))">
-                                <div class="text-xs text-slate-600 italic line-clamp-1 hover:text-blue-600 transition-colors">
-                                    ${rep.summary || "Aucun texte."}
-                                </div>
-                            </td>
+                                    // ... (code précédent des lignes du tableau daily)
+                                    <td class="px-6 py-4 w-2/4">
+                                        <div class="text-xs text-slate-600 italic line-clamp-1 cursor-pointer transition-all duration-300"
+                                             onmouseenter="peakText(this)" 
+                                             onmouseleave="unpeakText(this)" 
+                                             onclick="toggleTextFixed(this)"
+                                             data-fixed="false">
+                                            ${rep.summary || "Aucun texte."}
+                                        </div>
+                                    </td>
+                                    // ...
 
                             <td class="px-6 py-4 w-1/4 text-right">
                                 <div class="flex items-center justify-end gap-3">
@@ -6192,6 +6216,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
