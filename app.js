@@ -2380,7 +2380,18 @@ function switchView(v) {
 }
 
 
-// --- LOGIQUE ACTIONS DE MASSE (MANQUANTE) ---
+
+
+
+
+
+
+
+
+// ============================================================
+// LOGIQUE ACTIONS DE MASSE (MANQUANTE DANS TON FICHIER)
+// ============================================================
+
 function toggleBulkActions() {
     const checkboxes = document.querySelectorAll('.emp-select-checkbox:checked');
     const bar = document.getElementById('bulk-action-bar');
@@ -2399,46 +2410,60 @@ function toggleBulkActions() {
 async function openBulkManagerModal() {
     const selectedIds = Array.from(document.querySelectorAll('.emp-select-checkbox:checked')).map(cb => cb.value);
     
-    // On charge une liste large pour le select
-    const r = await secureFetch(`${URL_READ}?limit=1000&status=Actif`); 
-    const result = await r.json();
-    const potentialManagers = result.data || [];
+    if (selectedIds.length === 0) return;
 
-    let options = `<option value="">-- Aucun / Détacher --</option>`;
-    potentialManagers.forEach(m => {
-        if (!selectedIds.includes(m.id)) {
-            options += `<option value="${m.id}">${m.nom} (${m.poste})</option>`;
-        }
-    });
+    // On charge une liste large pour le select des managers potentiels
+    try {
+        const r = await secureFetch(`${URL_READ}?limit=500&status=Actif`); 
+        const result = await r.json();
+        const potentialManagers = result.data || [];
 
-    const { value: managerId } = await Swal.fire({
-        title: `Assigner ${selectedIds.length} personnes`,
-        html: `
-            <p class="text-sm text-slate-500 mb-4">Choisissez le responsable hiérarchique direct (N+1).</p>
-            <select id="bulk-manager-select" class="swal2-input text-sm">${options}</select>
-        `,
-        showCancelButton: true,
-        confirmButtonText: 'Valider',
-        confirmButtonColor: '#0f172a',
-        preConfirm: () => document.getElementById('bulk-manager-select').value
-    });
+        let options = `<option value="">-- Aucun / Détacher --</option>`;
+        potentialManagers.forEach(m => {
+            // On évite de s'auto-sélectionner
+            if (!selectedIds.includes(m.id)) {
+                options += `<option value="${m.id}">${m.nom} (${m.poste})</option>`;
+            }
+        });
 
-    if (typeof managerId !== 'undefined') {
-        Swal.fire({ title: 'Mise à jour...', didOpen: () => Swal.showLoading() });
-        try {
+        const { value: managerId } = await Swal.fire({
+            title: `Assigner ${selectedIds.length} personnes`,
+            html: `
+                <p class="text-sm text-slate-500 mb-4">Choisissez le responsable hiérarchique direct (N+1).</p>
+                <select id="bulk-manager-select" class="swal2-input text-sm">${options}</select>
+            `,
+            showCancelButton: true,
+            confirmButtonText: 'Valider',
+            confirmButtonColor: '#0f172a',
+            preConfirm: () => document.getElementById('bulk-manager-select').value
+        });
+
+        if (typeof managerId !== 'undefined') {
+            Swal.fire({ title: 'Mise à jour...', didOpen: () => Swal.showLoading() });
+            
             const res = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/bulk-assign-manager`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ employee_ids: selectedIds, manager_id: managerId || null })
             });
+
             if (res.ok) {
                 Swal.fire('Succès', 'Hiérarchie mise à jour !', 'success');
-                fetchData(true);
+                fetchData(true); // On rafraîchit la liste
                 document.getElementById('bulk-action-bar').classList.add('hidden');
             }
-        } catch (e) { Swal.fire('Erreur', e.message, 'error'); }
+        }
+    } catch (e) { 
+        console.error(e);
+        Swal.fire('Erreur', "Impossible de charger la liste ou de mettre à jour.", 'error'); 
     }
 }
+
+
+
+
+
+
 
             function toggleSidebar(){const sb=document.getElementById('sidebar'), o=document.getElementById('sidebar-overlay'); if(sb.classList.contains('-translate-x-full')){sb.classList.remove('-translate-x-full');o.classList.remove('hidden');}else{sb.classList.add('-translate-x-full');o.classList.add('hidden');}}
         
@@ -6160,6 +6185,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
