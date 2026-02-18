@@ -188,6 +188,11 @@
             <i class="fa-solid fa-calendar-days w-5"></i> <span class="font-semibold">Plannings & Missions</span>
         </button>
 
+        <button onclick="switchView('catalog')" class="nav-btn w-full flex items-center gap-4 p-4 rounded-xl transition-all hover:text-white group">
+            <i class="fa-solid fa-box-archive w-5 text-emerald-400"></i> 
+            <span class="font-semibold">Catalogue Produits</span>
+        </button>
+
         <!-- Rapports Journaliers -->
 
         <button data-perm="can_view_reports" onclick="switchView('mobile-reports')" class="nav-btn w-full flex items-center gap-4 p-4 rounded-xl transition-all hover:text-white group">
@@ -640,7 +645,19 @@
 </section>
 
 
-
+<section id="view-catalog" class="view-section">
+    <div class="flex justify-between items-center mb-8">
+        <h2 class="text-2xl font-black text-slate-800 uppercase tracking-tighter">Catalogue Produits</h2>
+        <!-- Visible uniquement pour Admin/RH -->
+        <button data-perm="can_manage_config" onclick="openAddProductModal()" class="bg-blue-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg">
+            + Ajouter un Produit
+        </button>
+    </div>
+    <div id="products-grid" class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        <!-- Rempli par JS -->
+    </div>
+</section>
+        
       <!-- VUE 7: RECRUTEMENT / ATS -->
                     <section id="view-recruitment" class="view-section">
                         <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
@@ -1566,6 +1583,7 @@
     </body>
 
     </html>
+
 
 
 
