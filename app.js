@@ -2073,31 +2073,110 @@ function formatGoogleLink(link) {
 
 
 
-
 async function fetchProducts() {
     const grid = document.getElementById('products-grid');
     if (!grid) return;
-    
+    grid.innerHTML = '<div class="col-span-full text-center p-10"><i class="fa-solid fa-spinner fa-spin text-blue-500"></i></div>';
+
     try {
         const r = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/list-products`);
         const products = await r.json();
         
         grid.innerHTML = products.map(p => `
-            <div class="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden group">
-                <div class="h-40 bg-slate-100 relative">
+            <div class="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden group hover:shadow-xl transition-all">
+                <div class="h-48 bg-slate-50 relative">
                     <img src="${p.photo_url || 'https://via.placeholder.com/150'}" class="w-full h-full object-cover">
-                    ${currentUser.role === 'ADMIN' ? `<button onclick="deleteProduct('${p.id}')" class="absolute top-2 right-2 w-8 h-8 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"><i class="fa-solid fa-trash-can text-xs"></i></button>` : ''}
+                    ${currentUser.role === 'ADMIN' ? `<button onclick="deleteProduct('${p.id}')" class="absolute top-3 right-3 w-8 h-8 bg-white/90 backdrop-blur text-red-500 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"><i class="fa-solid fa-trash"></i></button>` : ''}
                 </div>
-                <div class="p-5">
+                <div class="p-6">
                     <h4 class="font-black text-slate-800 uppercase text-sm">${p.name}</h4>
-                    <p class="text-xs text-slate-500 mt-1 line-clamp-2">${p.description || 'Pas de description.'}</p>
+                    <p class="text-[10px] text-slate-400 mt-2 leading-relaxed line-clamp-3">${p.description || 'Aucune description.'}</p>
                 </div>
             </div>
         `).join('');
     } catch (e) { console.error(e); }
 }
 
+async function openAddProductModal() {
+    const { value: file } = await Swal.fire({
+        title: 'Nouveau Produit',
+        html: `
+            <input id="p-name" class="swal2-input" placeholder="Nom du médicament / produit">
+            <textarea id="p-desc" class="swal2-textarea" placeholder="Description courte..."></textarea>
+            <p class="text-[10px] font-black text-slate-400 uppercase mt-4">Photo du produit</p>
+        `,
+        input: 'file',
+        inputAttributes: { 'accept': 'image/*', 'aria-label': 'Photo du produit' },
+        showCancelButton: true,
+        confirmButtonText: 'Enregistrer',
+        preConfirm: (file) => {
+            return {
+                name: document.getElementById('p-name').value,
+                description: document.getElementById('p-desc').value,
+                photo: file
+            }
+        }
+    });
 
+    if (file && file.name) {
+        Swal.fire({ title: 'Enregistrement...', didOpen: () => Swal.showLoading() });
+        const fd = new FormData();
+        fd.append('name', file.name);
+        fd.append('description', file.description);
+        fd.append('photo', file.photo);
+        await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/add-product`, { method: 'POST', body: fd });
+        fetchProducts();
+        Swal.fire('Succès', 'Produit ajouté au catalogue', 'success');
+    }
+}
+
+
+async function fetchMyActivityRecap() {
+    const visitContainer = document.getElementById('my-today-visits');
+    const dailyContainer = document.getElementById('my-month-dailies');
+    if(!visitContainer) return;
+
+    try {
+        // On récupère tout et on filtre en local pour la rapidité
+        const [visRes, daiRes] = await Promise.all([
+            secureFetch(`${SIRH_CONFIG.apiBaseUrl}/read-visit-reports?limit=100`),
+            secureFetch(`${SIRH_CONFIG.apiBaseUrl}/read-daily-reports`)
+        ]);
+
+        const allVisits = await visRes.json();
+        const allDailies = await daiRes.json();
+        
+        const today = new Date().toLocaleDateString();
+
+        // 1. Filtrer mes visites d'aujourd'hui
+        const myTodayVisits = (allVisits.data || allVisits).filter(v => 
+            v.employee_id === currentUser.id && new Date(v.check_in).toLocaleDateString() === today
+        );
+
+        visitContainer.innerHTML = myTodayVisits.length ? myTodayVisits.map(v => `
+            <div class="flex items-center justify-between p-3 bg-blue-50 rounded-xl border border-blue-100">
+                <div>
+                    <p class="text-[10px] font-black text-blue-600 uppercase">${v.lieu_nom}</p>
+                    <p class="text-[9px] text-slate-400">${new Date(v.check_in).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</p>
+                </div>
+                <span class="text-[9px] font-bold bg-white px-2 py-1 rounded shadow-sm">${v.outcome || 'VU'}</span>
+            </div>
+        `).join('') : '<p class="text-[10px] text-slate-400 italic">Aucune visite aujourd\'hui.</p>';
+
+        // 2. Filtrer mes bilans du mois
+        const myMonthDailies = allDailies.filter(d => d.employee_id === currentUser.id);
+        dailyContainer.innerHTML = myMonthDailies.length ? myMonthDailies.map(d => `
+            <div class="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                <div class="flex justify-between items-center mb-1">
+                    <p class="text-[9px] font-black text-slate-500">${new Date(d.report_date).toLocaleDateString('fr-FR', {day:'numeric', month:'short'})}</p>
+                    ${d.needs_restock ? '<i class="fa-solid fa-box-open text-orange-500 text-[10px]"></i>' : ''}
+                </div>
+                <p class="text-[10px] text-slate-600 italic line-clamp-1">${d.summary}</p>
+            </div>
+        `).join('') : '<p class="text-[10px] text-slate-400 italic">Aucun bilan ce mois-ci.</p>';
+
+    } catch (e) { console.error(e); }
+}
 
 async function loadMyProfile() {
     console.log("🔍 --- DÉBUT CHARGEMENT PROFIL PERSONNEL ---");
@@ -6285,6 +6364,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
