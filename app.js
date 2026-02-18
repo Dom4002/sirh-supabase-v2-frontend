@@ -2478,55 +2478,47 @@ async function openBulkManagerModal() {
             
     
 
-    function openEditModal(id) {
+async function openEditModal(id) {
+    // 1. ON TROUVE L'EMPLOYÉ EN PREMIER (Ligne déplacée en haut)
+    const e = employees.find(x => x.id === id);
+    
+    if (e) {
+        // 2. On affiche la modale
+        document.getElementById('edit-modal').classList.remove('hidden');
+        document.getElementById('edit-id-hidden').value = id;
 
-    populateManagerSelects(); // Mettre à jour la liste
+        // 3. Charger la liste des managers
+        await populateManagerSelects(); 
 
-    // Pré-remplir le manager actuel
-    const mgrSelect = document.getElementById('edit-manager');
-    if(mgrSelect) mgrSelect.value = e.manager_id || "";
+        // 4. Maintenant on peut utiliser 'e' sans erreur
+        const mgrSelect = document.getElementById('edit-manager');
+        if(mgrSelect) mgrSelect.value = e.manager_id || "";
+    
+        const scopeInput = document.getElementById('edit-scope');
+        if(scopeInput) scopeInput.value = (e.scope || []).join(', ');
 
-    // Pré-remplir le scope (on transforme le tableau en texte séparé par virgules)
-    const scopeInput = document.getElementById('edit-scope');
-    if(scopeInput) scopeInput.value = (e.scope || []).join(', ');
-                
-        const e = employees.find(x => x.id === id);
-        if (e) {
-            // 1. Afficher la modale
-            document.getElementById('edit-modal').classList.remove('hidden');
-            document.getElementById('edit-id-hidden').value = id;
-            document.getElementById('edit-type').value = e.employee_type || 'OFFICE';
-            document.getElementById('edit-statut').value = e.statut || 'Actif';
-            
-            const roleSelect = document.getElementById('edit-role');
-            if(roleSelect) roleSelect.value = e.role || 'EMPLOYEE';
-            
-            const deptSelect = document.getElementById('edit-dept');
-            if(deptSelect) deptSelect.value = e.dept || 'IT & Tech';
+        // Remplissage des autres champs
+        document.getElementById('edit-type').value = e.employee_type || 'OFFICE';
+        document.getElementById('edit-statut').value = e.statut || 'Actif';
+        
+        const roleSelect = document.getElementById('edit-role');
+        if(roleSelect) roleSelect.value = e.role || 'EMPLOYEE';
+        
+        const deptSelect = document.getElementById('edit-dept');
+        if(deptSelect) deptSelect.value = e.dept || 'IT & Tech';
 
-            const typeSelect = document.getElementById('edit-type-contrat');
-            if(typeSelect) typeSelect.value = e.limit || '365';
-            
-            // 3. Pré-remplir la DATE DE DÉBUT DE CONTRAT (Nouveau)
-            const dateInput = document.getElementById('edit-start-date');
-            if (dateInput) {
-                // Si l'employé a une date, on la met au format YYYY-MM-DD
-                // Sinon, on met la date d'aujourd'hui par défaut
-                if (e.date) {
-                    dateInput.value = convertToInputDate(e.date);
-                } else {
-                    dateInput.value = new Date().toISOString().split('T')[0];
-                }
-            }
-
-            // 4. Réinitialiser la case à cocher "Forcer l'initialisation"
-            const initCheck = document.getElementById('edit-init-check');
-            if(initCheck) initCheck.checked = false;
+        const typeSelect = document.getElementById('edit-type-contrat');
+        if(typeSelect) typeSelect.value = e.limit || '365';
+        
+        const dateInput = document.getElementById('edit-start-date');
+        if (dateInput) {
+            dateInput.value = e.date ? convertToInputDate(e.date) : new Date().toISOString().split('T')[0];
         }
+
+        const initCheck = document.getElementById('edit-init-check');
+        if(initCheck) initCheck.checked = false;
     }
-
-
-
+}
 
 
 
@@ -6185,6 +6177,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
