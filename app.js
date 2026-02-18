@@ -5780,6 +5780,7 @@ function changeReportTab(tab) {
 
  
 
+
 async function fetchMobileReports(page = 1) {
     const container = document.getElementById('reports-list-container');
     const counterEl = document.getElementById('stat-visites-total');
@@ -5828,22 +5829,22 @@ async function fetchMobileReports(page = 1) {
             for (const [name, visits] of Object.entries(grouped)) {
                 const accordionId = `acc-vis-${name.replace(/\s+/g, '-')}`;
                 html += `
-                    <div class="bg-white rounded-[2rem] shadow-sm border border-slate-200 overflow-hidden animate-fadeIn">
+                    <div class="bg-white rounded-[2rem] shadow-sm border border-slate-200 overflow-visible animate-fadeIn">
                         <div onclick="toggleAccordion('${accordionId}')" class="bg-slate-900 px-6 py-4 flex justify-between items-center cursor-pointer hover:bg-slate-800 transition-all">
                             <div class="flex items-center gap-3">
                                 <div class="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold text-xs">${name.charAt(0)}</div>
                                 <span class="font-black text-white text-sm uppercase tracking-widest">${name}</span>
                             </div>
                             <div class="flex items-center gap-4">
-                                <span class="bg-white/10 text-white px-3 py-1 rounded-full text-[10px] font-bold">${visits.length} VISITES</span>
+                                <span class="bg-white/10 text-white px-3 py-1 rounded-full text-[10px] font-bold">${visits.length} VISITES ICI</span>
                                 <i id="icon-${accordionId}" class="fa-solid fa-chevron-down text-white/50 transition-transform duration-300"></i>
                             </div>
                         </div>
-                        <div id="${accordionId}" class="hidden overflow-x-auto bg-slate-50/50">
-                            <table class="w-full text-left">
+                        <div id="${accordionId}" class="hidden bg-slate-50/50">
+                            <table class="w-full text-left border-collapse">
                                 <thead class="bg-slate-100 border-b">
                                     <tr class="text-[9px] font-black text-slate-400 uppercase">
-                                        <th class="p-4 w-1/4">Lieu</th>
+                                        <th class="p-4 w-1/4">Lieu visité</th>
                                         <th class="p-4 w-1/4">Heure</th>
                                         <th class="p-4 w-1/4 text-center">Preuve</th>
                                         <th class="p-4 w-1/4 text-right">Note (Toucher pour lire)</th>
@@ -5851,47 +5852,29 @@ async function fetchMobileReports(page = 1) {
                                 </thead>
                                 <tbody class="divide-y divide-slate-100">`;
                
-visits.forEach(v => {
-                    // --- LOGIQUE : RÉCUPÉRATION DES PRODUITS PRÉSENTÉS (CORRIGÉE & ROBUSTE) ---
+                visits.forEach(v => {
+                    // Logique produits
                     let productsList = [];
+                    if (Array.isArray(v.presented_products)) productsList = v.presented_products;
+                    else if (typeof v.presented_products === 'string') { try { productsList = JSON.parse(v.presented_products); } catch(e){} }
 
-                    // 1. Si c'est déjà un tableau, on le prend directement
-                    if (Array.isArray(v.presented_products)) {
-                        productsList = v.presented_products;
-                    } 
-                    // 2. Si c'est une chaîne de caractères (JSON), on tente de la convertir
-                    else if (typeof v.presented_products === 'string') {
-                        try {
-                            productsList = JSON.parse(v.presented_products);
-                        } catch (e) {
-                            console.warn("Erreur parsing produits:", e);
-                            productsList = [];
-                        }
-                    }
-
-                    // 3. Génération du HTML des badges
                     let prodsHtml = "";
                     if (productsList && productsList.length > 0) {
-                        prodsHtml = `<div class="flex flex-wrap gap-1 mt-1">` + 
-                            productsList.map(p => 
-                                // On gère le cas où p est un objet {name: "..."} ou juste une string
-                                `<span class="bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded text-[8px] border border-blue-100 font-black uppercase tracking-tighter">${p.name || p}</span>`
-                            ).join('') + 
-                        `</div>`;
+                        prodsHtml = `<div class="flex flex-wrap gap-1 mt-1">` + productsList.map(p => `<span class="bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded text-[8px] border border-blue-100 font-black uppercase tracking-tighter">${p.name || p}</span>`).join('') + `</div>`;
                     }
 
-                    // --- RENDU HTML (INCHANGÉ) ---
                     html += `
-                        <tr id="row-vis-${v.id}" class="hover:bg-white transition-colors group">
-                            <td class="px-4 py-3">
+                        <tr id="row-vis-${v.id}" class="hover:bg-white transition-colors group relative">
+                            <td class="px-4 py-3 align-top">
                                 <div class="text-xs font-bold text-blue-600 uppercase break-words">${v.lieu_nom || 'Inconnu'}</div>
-                                ${prodsHtml} <!-- AFFICHAGE DES PRODUITS ICI -->
+                                ${prodsHtml}
                             </td>
-                            <td class="px-4 py-3 text-[10px] font-mono text-slate-500">${v.check_in ? new Date(v.check_in).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '--:--'}</td>
-                            <td class="px-4 py-3 text-center">
+                            <td class="px-4 py-3 align-top text-[10px] font-mono text-slate-500">${v.check_in ? new Date(v.check_in).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '--:--'}</td>
+                            <td class="px-4 py-3 align-top text-center">
                                 ${v.proof_url ? `<button onclick="viewDocument('${v.proof_url}', 'Cachet')" class="text-emerald-500 hover:scale-110 transition-transform"><i class="fa-solid fa-camera-retro text-lg"></i></button>` : '<i class="fa-solid fa-ban text-slate-200"></i>'}
                             </td>
-                            <td class="px-4 py-3 text-right">
+                            <td class="px-4 py-3 align-top text-right relative">
+                                <!-- ZONE DE TEXTE INTELLIGENTE -->
                                 <div class="text-[10px] text-slate-400 italic line-clamp-1 cursor-pointer transition-all duration-300"
                                      onmouseenter="peakText(this)" 
                                      onmouseleave="unpeakText(this)" 
@@ -5899,14 +5882,12 @@ visits.forEach(v => {
                                      data-fixed="false">
                                     ${v.notes || 'R.A.S'}
                                 </div>
-                                <div class="flex justify-end gap-2 mt-1">
+                                <div class="flex justify-end gap-2 mt-2">
                                     <button onclick="event.stopPropagation(); deleteVisitReport('${v.id}')" class="text-slate-200 hover:text-red-500 transition-colors"><i class="fa-solid fa-trash-can text-xs"></i></button>
                                 </div>
                             </td>
                         </tr>`;
                 });
-
-                        
                 html += `</tbody></table></div></div>`;
             }
             html += `</div>`;
@@ -5926,7 +5907,7 @@ visits.forEach(v => {
                 const hasStockAlert = reports.some(rp => rp.needs_restock);
 
                 html += `
-                    <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden animate-fadeIn">
+                    <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-visible animate-fadeIn">
                         <div onclick="toggleAccordion('${accordionId}')" class="flex items-center justify-between px-6 py-4 cursor-pointer hover:bg-slate-50 transition-colors">
                             <div class="flex items-center gap-4">
                                 <div class="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-black text-sm">${name.charAt(0)}</div>
@@ -5942,27 +5923,27 @@ visits.forEach(v => {
                                 <tbody class="divide-y divide-slate-100">`;
                 reports.forEach(rep => {
                     html += `
-                        <tr id="row-daily-${rep.id}" class="hover:bg-white transition-colors group">
-                            <td class="px-6 py-4 w-1/4">
+                        <tr id="row-daily-${rep.id}" class="hover:bg-white transition-colors group relative">
+                            <td class="px-6 py-4 w-1/4 align-top">
                                 <div class="text-[10px] font-black text-indigo-500 uppercase">${new Date(rep.report_date).toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long'})}</div>
-                                <div class="text-center mt-2">${rep.needs_restock ? '<span class="text-orange-500 text-[10px] font-bold"><i class="fa-solid fa-box-open"></i> REAPPRO</span>' : '<span class="text-emerald-400 text-[10px]">OK</span>'}</div>
+                                <div class="text-center mt-2 text-left">${rep.needs_restock ? '<span class="text-orange-500 text-[10px] font-bold"><i class="fa-solid fa-box-open"></i> REAPPRO</span>' : '<span class="text-emerald-400 text-[10px]">OK</span>'}</div>
                             </td>
                             
-                            <!-- ICI : TEXTE DÉROULANT POUR LE RÉSUMÉ -->
-                                    <td class="px-6 py-4 w-2/4">
-                                        <div class="text-xs text-slate-600 italic line-clamp-1 cursor-pointer transition-all duration-300"
-                                             onmouseenter="peakText(this)" 
-                                             onmouseleave="unpeakText(this)" 
-                                             onclick="toggleTextFixed(this)"
-                                             data-fixed="false">
-                                            ${rep.summary || "Aucun texte."}
-                                        </div>
-                                    </td>
+                            <!-- ZONE DE TEXTE INTELLIGENTE POUR BILAN -->
+                            <td class="px-6 py-4 w-2/4 align-top relative">
+                                <div class="text-xs text-slate-600 italic line-clamp-1 cursor-pointer transition-all duration-300"
+                                     onmouseenter="peakText(this)" 
+                                     onmouseleave="unpeakText(this)" 
+                                     onclick="toggleTextFixed(this)"
+                                     data-fixed="false">
+                                    ${rep.summary || "Aucun texte."}
+                                </div>
+                            </td>
 
-                            <td class="px-6 py-4 w-1/4 text-right">
+                            <td class="px-6 py-4 w-1/4 align-top text-right">
                                 <div class="flex items-center justify-end gap-3">
                                     ${rep.photo_url ? `<button onclick="viewDocument('${rep.photo_url}', 'Cahier')" class="text-blue-500 hover:scale-125 transition-transform"><i class="fa-solid fa-file-image text-lg"></i></button>` : '<i class="fa-solid fa-ban text-slate-200"></i>'}
-                                    <button onclick="deleteDailyReport('${rep.id}')" class="text-slate-300 hover:text-red-500 transition-all"><i class="fa-solid fa-check"></i></button>
+                                    <button onclick="deleteDailyReport('${rep.id}')" class="text-slate-300 hover:text-red-500 transition-all opacity-0 group-hover:opacity-100"><i class="fa-solid fa-check"></i></button>
                                 </div>
                             </td>
                         </tr>`;
@@ -5986,9 +5967,6 @@ visits.forEach(v => {
         container.innerHTML = '<div class="col-span-full text-center text-red-500 py-10 font-bold uppercase text-[10px]">Erreur de connexion</div>';
     }
 }
-
-
-
 
 // --- SYSTÈME DE LECTURE INTELLIGENTE DES NOTES ---
 
@@ -6407,6 +6385,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
