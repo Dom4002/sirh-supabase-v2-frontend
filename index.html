@@ -995,21 +995,18 @@
     <!-- FIN BLOC SUIVI DEMANDES CONGÉS -->
 
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+<!-- RECAPITULATIF POUR DELEGUES UNIQUEMENT (Ajout de l'ID ici) -->
+<div id="mobile-recap-section" class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 hidden">
     <!-- RECAP VISITES DU JOUR -->
     <div class="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
         <h4 class="text-[10px] font-black text-slate-400 uppercase mb-4 tracking-widest"><i class="fa-solid fa-location-dot mr-2"></i> Mes Visites du Jour</h4>
-        <div id="my-today-visits" class="space-y-2 max-h-48 overflow-y-auto custom-scroll">
-            <!-- Rempli par JS -->
-        </div>
+        <div id="my-today-visits" class="space-y-2 max-h-48 overflow-y-auto custom-scroll"></div>
     </div>
 
     <!-- RECAP BILANS DU MOIS -->
     <div class="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
         <h4 class="text-[10px] font-black text-slate-400 uppercase mb-4 tracking-widest"><i class="fa-solid fa-clipboard-check mr-2"></i> Mes Bilans Mensuels</h4>
-        <div id="my-month-dailies" class="space-y-2 max-h-48 overflow-y-auto custom-scroll">
-            <!-- Rempli par JS -->
-        </div>
+        <div id="my-month-dailies" class="space-y-2 max-h-48 overflow-y-auto custom-scroll"></div>
     </div>
 </div>
 
@@ -1603,6 +1600,7 @@
     </body>
 
     </html>
+
 
 
 
