@@ -5852,29 +5852,45 @@ async function fetchMobileReports(page = 1) {
                                 </thead>
                                 <tbody class="divide-y divide-slate-100">`;
                
-                visits.forEach(v => {
-                    // Logique produits
+visits.forEach(v => {
+                    // --- LOGIQUE ROBUSTE : NETTOYAGE DES PRODUITS ---
                     let productsList = [];
-                    if (Array.isArray(v.presented_products)) productsList = v.presented_products;
-                    else if (typeof v.presented_products === 'string') { try { productsList = JSON.parse(v.presented_products); } catch(e){} }
+                    let raw = v.presented_products;
 
-                    let prodsHtml = "";
-                    if (productsList && productsList.length > 0) {
-                        prodsHtml = `<div class="flex flex-wrap gap-1 mt-1">` + productsList.map(p => `<span class="bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded text-[8px] border border-blue-100 font-black uppercase tracking-tighter">${p.name || p}</span>`).join('') + `</div>`;
+                    // 1. Parsing sécurisé (Texte vers Objet)
+                    if (typeof raw === 'string') {
+                        try { productsList = JSON.parse(raw); } catch(e) { productsList = []; }
+                    } else if (Array.isArray(raw)) {
+                        productsList = raw;
                     }
 
+                    // 2. Génération des badges (Correction MAJUSCULES/minuscules)
+                    let prodsHtml = "";
+                    if (productsList && productsList.length > 0) {
+                        prodsHtml = `<div class="flex flex-wrap gap-1 mt-1">` + 
+                            productsList.map(p => {
+                                // ICI : On cherche le nom partout (name, NAME, Name)
+                                const cleanName = p.name || p.NAME || p.Name || p;
+                                // Si c'est toujours un objet (bug rare), on force l'affichage
+                                const finalName = (typeof cleanName === 'object') ? 'Produit' : cleanName;
+                                
+                                return `<span class="bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded text-[8px] border border-blue-100 font-black uppercase tracking-tighter">${finalName}</span>`;
+                            }).join('') + 
+                        `</div>`;
+                    }
+
+                    // --- RENDU DE LA LIGNE ---
                     html += `
-                        <tr id="row-vis-${v.id}" class="hover:bg-white transition-colors group relative">
+                        <tr id="row-vis-${v.id}" class="hover:bg-white transition-colors group">
                             <td class="px-4 py-3 align-top">
                                 <div class="text-xs font-bold text-blue-600 uppercase break-words">${v.lieu_nom || 'Inconnu'}</div>
-                                ${prodsHtml}
+                                ${prodsHtml} <!-- AFFICHAGE PROPRE ICI -->
                             </td>
                             <td class="px-4 py-3 align-top text-[10px] font-mono text-slate-500">${v.check_in ? new Date(v.check_in).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '--:--'}</td>
                             <td class="px-4 py-3 align-top text-center">
                                 ${v.proof_url ? `<button onclick="viewDocument('${v.proof_url}', 'Cachet')" class="text-emerald-500 hover:scale-110 transition-transform"><i class="fa-solid fa-camera-retro text-lg"></i></button>` : '<i class="fa-solid fa-ban text-slate-200"></i>'}
                             </td>
                             <td class="px-4 py-3 align-top text-right relative">
-                                <!-- ZONE DE TEXTE INTELLIGENTE -->
                                 <div class="text-[10px] text-slate-400 italic line-clamp-1 cursor-pointer transition-all duration-300"
                                      onmouseenter="peakText(this)" 
                                      onmouseleave="unpeakText(this)" 
@@ -6385,6 +6401,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
