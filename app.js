@@ -2072,30 +2072,41 @@ function formatGoogleLink(link) {
 
 
 
-
 async function fetchProducts() {
     const grid = document.getElementById('products-grid');
     if (!grid) return;
-    grid.innerHTML = '<div class="col-span-full text-center p-10"><i class="fa-solid fa-spinner fa-spin text-blue-500"></i></div>';
+    grid.innerHTML = '<div class="col-span-full text-center p-10"><i class="fa-solid fa-circle-notch fa-spin text-blue-500 text-3xl"></i></div>';
 
     try {
         const r = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/list-products`);
         const products = await r.json();
         
-        grid.innerHTML = products.map(p => `
-            <div class="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden group hover:shadow-xl transition-all">
-                <div class="h-48 bg-slate-50 relative">
-                    <img src="${p.photo_url || 'https://via.placeholder.com/150'}" class="w-full h-full object-cover">
-                    ${currentUser.role === 'ADMIN' ? `<button onclick="deleteProduct('${p.id}')" class="absolute top-3 right-3 w-8 h-8 bg-white/90 backdrop-blur text-red-500 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"><i class="fa-solid fa-trash"></i></button>` : ''}
-                </div>
-                <div class="p-6">
-                    <h4 class="font-black text-slate-800 uppercase text-sm">${p.name}</h4>
-                    <p class="text-[10px] text-slate-400 mt-2 leading-relaxed line-clamp-3">${p.description || 'Aucune description.'}</p>
-                </div>
-            </div>
-        `).join('');
+        grid.innerHTML = '';
+        if (products.length === 0) {
+            grid.innerHTML = '<div class="col-span-full text-center text-slate-400 py-10 italic border-2 border-dashed rounded-[2rem]">Catalogue vide.</div>';
+            return;
+        }
+
+        products.forEach(p => {
+            // Utilise p.photo_url car c'est le nom dans ta base Supabase
+            const img = p.photo_url ? p.photo_url : 'https://via.placeholder.com/150';
+            
+            grid.innerHTML += `
+                <div class="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden group hover:shadow-xl transition-all">
+                    <div class="h-48 bg-slate-50 relative">
+                        <img src="${img}" class="w-full h-full object-cover">
+                        ${(currentUser.role === 'ADMIN') ? `<button onclick="deleteProduct('${p.id}')" class="absolute top-3 right-3 w-8 h-8 bg-white/90 text-red-500 rounded-full shadow-lg"><i class="fa-solid fa-trash"></i></button>` : ''}
+                    </div>
+                    <div class="p-6">
+                        <h4 class="font-black text-slate-800 uppercase text-sm">${p.name}</h4>
+                        <p class="text-[10px] text-slate-400 mt-2 line-clamp-3">${p.description || ''}</p>
+                    </div>
+                </div>`;
+        });
     } catch (e) { console.error(e); }
 }
+
+
 
 async function openAddProductModal() {
     const { value: file } = await Swal.fire({
@@ -2146,48 +2157,41 @@ async function fetchMyActivityRecap() {
         const allVisits = await visRes.json();
         const allDailies = await daiRes.json();
         
-        // Utilisation du format ISO pour une comparaison fiable
-        const todayISO = new Date().toISOString().split('T')[0]; 
+        // Correction Date : on compare uniquement la partie YYYY-MM-DD
+        const todayStr = new Date().toLocaleDateString('en-CA'); // "2026-02-18"
 
-        // 1. Filtrer mes visites d'aujourd'hui
-        const myTodayVisits = (allVisits.data || allVisits).filter(v => {
-            const vDate = (v.check_in || v.check_out || "").split('T')[0];
-            return v.employee_id === currentUser.id && vDate === todayISO;
+        // 1. Mes visites d'aujourd'hui
+        const myVisits = (allVisits.data || allVisits).filter(v => {
+            if(!v.check_in) return false;
+            const vDate = new Date(v.check_in).toLocaleDateString('en-CA');
+            return v.employee_id === currentUser.id && vDate === todayStr;
         });
 
-        visitContainer.innerHTML = myTodayVisits.length ? myTodayVisits.map(v => `
+        visitContainer.innerHTML = myVisits.length ? myVisits.map(v => `
             <div class="flex items-center justify-between p-3 bg-blue-50 rounded-xl border border-blue-100 mb-2">
                 <div>
-                    <p class="text-[10px] font-black text-blue-600 uppercase">${v.lieu_nom}</p>
-                    <p class="text-[9px] text-slate-400">${v.check_in ? new Date(v.check_in).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '--'}</p>
+                    <p class="text-[10px] font-black text-blue-700 uppercase">${v.lieu_nom}</p>
+                    <p class="text-[9px] text-slate-400">${new Date(v.check_in).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</p>
                 </div>
-                <span class="text-[9px] font-bold bg-white px-2 py-1 rounded shadow-sm">${v.outcome || 'VU'}</span>
+                <span class="text-[9px] font-bold bg-white px-2 py-1 rounded shadow-sm text-emerald-600">${v.outcome || 'VU'}</span>
             </div>
         `).join('') : '<p class="text-[10px] text-slate-400 italic text-center py-4">Aucune visite aujourd\'hui.</p>';
 
-        // 2. Filtrer mes bilans du mois
-        const currentMonth = todayISO.substring(0, 7); // "2026-02"
-        const myMonthDailies = allDailies.filter(d => {
+        // 2. Mes bilans du mois
+        const currentMonth = todayStr.substring(0, 7); // "2026-02"
+        const myDailies = allDailies.filter(d => {
             return d.employee_id === currentUser.id && d.report_date.startsWith(currentMonth);
         });
 
-        dailyContainer.innerHTML = myMonthDailies.length ? myMonthDailies.map(d => `
+        dailyContainer.innerHTML = myDailies.length ? myDailies.map(d => `
             <div class="p-3 bg-slate-50 rounded-xl border border-slate-100 mb-2">
-                <div class="flex justify-between items-center mb-1">
-                    <p class="text-[9px] font-black text-slate-500">${new Date(d.report_date).toLocaleDateString('fr-FR', {day:'numeric', month:'short'})}</p>
-                    ${d.needs_restock ? '<i class="fa-solid fa-box-open text-orange-500 text-[10px]"></i>' : ''}
-                </div>
+                <p class="text-[9px] font-black text-slate-500 mb-1">${new Date(d.report_date).toLocaleDateString('fr-FR', {day:'numeric', month:'short'})}</p>
                 <p class="text-[10px] text-slate-600 italic line-clamp-1">${d.summary}</p>
             </div>
         `).join('') : '<p class="text-[10px] text-slate-400 italic text-center py-4">Aucun bilan ce mois-ci.</p>';
 
-    } catch (e) { console.error("Erreur récap profil:", e); }
+    } catch (e) { console.error(e); }
 }
-
-
-
-
-
 
 async function loadMyProfile() {
     console.log("🔍 --- DÉBUT CHARGEMENT PROFIL PERSONNEL ---");
@@ -5827,41 +5831,47 @@ async function fetchMobileReports(page = 1) {
                                 </thead>
                                 <tbody class="divide-y divide-slate-100">`;
                
-                        visits.forEach(v => {
-                    // --- LOGIQUE : RÉCUPÉRATION DES PRODUITS PRÉSENTÉS ---
-                    let prodsHtml = "";
-                    if (v.presented_products && v.presented_products.length > 0) {
-                        prodsHtml = `<div class="flex flex-wrap gap-1 mt-1">` + 
-                            v.presented_products.map(p => 
-                                `<span class="bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded text-[8px] border border-blue-100 font-black uppercase tracking-tighter">${p.name}</span>`
-                            ).join('') + 
-                        `</div>`;
-                    }
+                    visits.forEach(v => {
+    // --- LOGIQUE : RÉCUPÉRATION DES PRODUITS PRÉSENTÉS (CORRIGÉE) ---
+    let prodsHtml = "";
+    // On s'assure que presented_products est un tableau, même s'il arrive en String JSON
+    let productsList = v.presented_products;
+    if (typeof productsList === 'string') {
+        try { productsList = JSON.parse(productsList); } catch(e) { productsList = []; }
+    }
 
-                    html += `
-                        <tr id="row-vis-${v.id}" class="hover:bg-white transition-colors group">
-                            <td class="px-4 py-3">
-                                <div class="text-xs font-bold text-blue-600 uppercase break-words">${v.lieu_nom || 'Inconnu'}</div>
-                                ${prodsHtml} <!-- AFFICHAGE DES PRODUITS ICI -->
-                            </td>
-                            <td class="px-4 py-3 text-[10px] font-mono text-slate-500">${v.check_in ? new Date(v.check_in).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '--:--'}</td>
-                            <td class="px-4 py-3 text-center">
-                                ${v.proof_url ? `<button onclick="viewDocument('${v.proof_url}', 'Cachet')" class="text-emerald-500 hover:scale-110 transition-transform"><i class="fa-solid fa-camera-retro text-lg"></i></button>` : '<i class="fa-solid fa-ban text-slate-200"></i>'}
-                            </td>
-                            <td class="px-4 py-3 text-right">
-                                <div class="text-[10px] text-slate-400 italic line-clamp-1 cursor-pointer transition-all duration-300"
-                                     onmouseenter="peakText(this)" 
-                                     onmouseleave="unpeakText(this)" 
-                                     onclick="toggleTextFixed(this)"
-                                     data-fixed="false">
-                                    ${v.notes || 'R.A.S'}
-                                </div>
-                                <div class="flex justify-end gap-2 mt-1">
-                                    <button onclick="event.stopPropagation(); deleteVisitReport('${v.id}')" class="text-slate-200 hover:text-red-500 transition-colors"><i class="fa-solid fa-trash-can text-xs"></i></button>
-                                </div>
-                            </td>
-                        </tr>`;
-                });
+    if (Array.isArray(productsList) && productsList.length > 0) {
+        prodsHtml = `<div class="flex flex-wrap gap-1 mt-1">` + 
+            productsList.map(p => 
+                `<span class="bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded text-[8px] border border-blue-100 font-black uppercase tracking-tighter">${p.name}</span>`
+            ).join('') + 
+        `</div>`;
+    }
+
+    html += `
+        <tr id="row-vis-${v.id}" class="hover:bg-white transition-colors group">
+            <td class="px-4 py-3">
+                <div class="text-xs font-bold text-blue-600 uppercase break-words">${v.lieu_nom || 'Inconnu'}</div>
+                ${prodsHtml} <!-- AFFICHAGE DES PRODUITS ICI -->
+            </td>
+            <td class="px-4 py-3 text-[10px] font-mono text-slate-500">${v.check_in ? new Date(v.check_in).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '--:--'}</td>
+            <td class="px-4 py-3 text-center">
+                ${v.proof_url ? `<button onclick="viewDocument('${v.proof_url}', 'Cachet')" class="text-emerald-500 hover:scale-110 transition-transform"><i class="fa-solid fa-camera-retro text-lg"></i></button>` : '<i class="fa-solid fa-ban text-slate-200"></i>'}
+            </td>
+            <td class="px-4 py-3 text-right">
+                <div class="text-[10px] text-slate-400 italic line-clamp-1 cursor-pointer transition-all duration-300"
+                     onmouseenter="peakText(this)" 
+                     onmouseleave="unpeakText(this)" 
+                     onclick="toggleTextFixed(this)"
+                     data-fixed="false">
+                    ${v.notes || 'R.A.S'}
+                </div>
+                <div class="flex justify-end gap-2 mt-1">
+                    <button onclick="event.stopPropagation(); deleteVisitReport('${v.id}')" class="text-slate-200 hover:text-red-500 transition-colors"><i class="fa-solid fa-trash-can text-xs"></i></button>
+                </div>
+            </td>
+        </tr>`;
+});
                 html += `</tbody></table></div></div>`;
             }
             html += `</div>`;
@@ -6362,6 +6372,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
