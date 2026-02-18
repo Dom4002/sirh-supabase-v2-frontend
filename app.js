@@ -1767,9 +1767,6 @@ async function syncClockInterface() {
 }
 
 
-
-
-
 async function handleClockInOut() {
     const userId = currentUser.id;
     const today = new Date().toLocaleDateString('fr-CA');
@@ -1802,9 +1799,29 @@ async function handleClockInOut() {
     let proofStream = null;
     let proofBlob = null; 
     let isLastExit = false;
+    let presentedProducts = []; // --- AJOUT PRODUITS : Variable pour stocker la sélection ---
 
     // --- BLOC CAMÉRA LIVE POUR LA SORTIE MOBILE ---
     if (action === 'CLOCK_OUT' && isMobile) {
+        
+        // --- AJOUT PRODUITS : Récupération de la liste des produits avant d'ouvrir le pop-up ---
+        let products = [];
+        try {
+            const prodRes = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/list-products`);
+            products = await prodRes.json();
+        } catch (e) { console.error("Erreur chargement produits", e); }
+
+        // --- AJOUT PRODUITS : Génération du HTML des miniatures ---
+        let productsHtml = products.map(p => `
+            <label class="cursor-pointer group">
+                <input type="checkbox" name="presented_prods" value="${p.id}" data-name="${p.name}" class="peer sr-only">
+                <div class="p-2 border border-slate-200 rounded-xl flex flex-col items-center gap-1 peer-checked:border-blue-500 peer-checked:bg-blue-50 transition-all hover:border-blue-200">
+                    <img src="${p.photo_url || 'https://via.placeholder.com/50'}" class="w-10 h-10 object-cover rounded-lg">
+                    <span class="text-[7px] font-black uppercase text-slate-500 text-center leading-tight">${p.name}</span>
+                </div>
+            </label>
+        `).join('');
+
         const { value: formValues } = await Swal.fire({
             title: 'Fin de visite',
             html: `
@@ -1818,7 +1835,12 @@ async function handleClockInOut() {
                     </select>
                 </div>
 
-                <!-- ZONE CAMÉRA LIVE RÉTABLIE -->
+                <!-- --- AJOUT PRODUITS : Zone de sélection --- -->
+                <p class="text-[9px] font-black text-slate-400 uppercase mb-2 mt-4 text-left">Produits présentés (Cochez)</p>
+                <div class="grid grid-cols-4 gap-2 mb-4 max-h-40 overflow-y-auto p-1 custom-scroll">
+                    ${productsHtml || '<p class="text-[10px] text-slate-400 col-span-4 italic text-center">Aucun produit actif dans le catalogue</p>'}
+                </div>
+
                 <div class="bg-slate-900 rounded-xl overflow-hidden relative mb-4 border-2 border-slate-200" style="height: 220px;">
                     <video id="proof-video" autoplay playsinline class="w-full h-full object-cover"></video>
                     <img id="proof-image" class="w-full h-full object-cover hidden absolute top-0 left-0">
@@ -1829,16 +1851,13 @@ async function handleClockInOut() {
                     </div>
                 </div>
 
-            <div class="relative mt-2">
-                <textarea id="swal-report" class="swal2-textarea" style="height: 80px; margin-top:0;" placeholder="Écrivez vos notes ici..."></textarea>
-                
-                <!-- LE PETIT BOUTON DISCRET EN BAS À DROITE -->
-                <button type="button" onclick="toggleDictation('swal-report', this)" 
-                    class="absolute bottom-3 right-3 p-2 rounded-full bg-white border border-slate-200 text-slate-400 shadow-sm hover:text-blue-600 transition-all z-10"
-                    title="Dicter le rapport">
-                    <i class="fa-solid fa-microphone"></i>
-                </button>
-            </div>
+                <div class="relative mt-2">
+                    <textarea id="swal-report" class="swal2-textarea" style="height: 80px; margin-top:0;" placeholder="Écrivez vos notes ici..."></textarea>
+                    <button type="button" onclick="toggleDictation('swal-report', this)" 
+                        class="absolute bottom-3 right-3 p-2 rounded-full bg-white border border-slate-200 text-slate-400 shadow-sm hover:text-blue-600 transition-all z-10">
+                        <i class="fa-solid fa-microphone"></i>
+                    </button>
+                </div>
             
                 <div class="mt-4 p-3 bg-red-50 rounded-xl border border-red-100 flex items-center gap-3">
                     <input type="checkbox" id="last-exit-check" class="w-5 h-5 accent-red-600">
@@ -1883,10 +1902,18 @@ async function handleClockInOut() {
                     Swal.showValidationMessage('📸 Photo du cachet obligatoire !');
                     return false;
                 }
+
+                // --- AJOUT PRODUITS : Collecte des cases cochées ---
+                const selected = Array.from(document.querySelectorAll('input[name="presented_prods"]:checked')).map(i => ({
+                    id: i.value,
+                    name: i.dataset.name
+                }));
+
                 return { 
                     outcome: outcomeVal, 
                     report: document.getElementById('swal-report').value,
-                    isLastExit: document.getElementById('last-exit-check').checked
+                    isLastExit: document.getElementById('last-exit-check').checked,
+                    presentedProducts: selected // <-- On retourne la sélection
                 };
             }
         });
@@ -1895,12 +1922,12 @@ async function handleClockInOut() {
         outcome = formValues.outcome;
         report = formValues.report;
         isLastExit = formValues.isLastExit;
-
+        presentedProducts = formValues.presentedProducts; // --- AJOUT PRODUITS : On stocke ---
 
         if (proofBlob) {
-        Swal.update({ text: 'Compression de la photo en cours...' });
-        proofBlob = await compressImage(proofBlob);
-    }
+            Swal.update({ text: 'Compression de la photo en cours...' });
+            proofBlob = await compressImage(proofBlob);
+        }
     }
     
     // --- POINTAGE GPS & ENVOI ---
@@ -1921,6 +1948,11 @@ async function handleClockInOut() {
         if (report) fd.append('report', report);
         if (proofBlob) fd.append('proof_photo', proofBlob, 'capture.jpg');
         if (isLastExit) fd.append('is_last_exit', 'true');
+        
+        // --- AJOUT PRODUITS : Envoi au serveur ---
+        if (presentedProducts && presentedProducts.length > 0) {
+            fd.append('presented_products', JSON.stringify(presentedProducts));
+        }
 
         const response = await secureFetch(URL_CLOCK_ACTION, { method: 'POST', body: fd });
         const resData = await response.json();
@@ -1932,8 +1964,6 @@ async function handleClockInOut() {
         } else { throw new Error(resData.error); }
     } catch (e) { Swal.fire('Erreur', e.message, 'error'); }
 }
-
-
 
 
 
@@ -2044,14 +2074,38 @@ function formatGoogleLink(link) {
 
 
 
-
+async function fetchProducts() {
+    const grid = document.getElementById('products-grid');
+    if (!grid) return;
+    
+    try {
+        const r = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/list-products`);
+        const products = await r.json();
+        
+        grid.innerHTML = products.map(p => `
+            <div class="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden group">
+                <div class="h-40 bg-slate-100 relative">
+                    <img src="${p.photo_url || 'https://via.placeholder.com/150'}" class="w-full h-full object-cover">
+                    ${currentUser.role === 'ADMIN' ? `<button onclick="deleteProduct('${p.id}')" class="absolute top-2 right-2 w-8 h-8 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"><i class="fa-solid fa-trash-can text-xs"></i></button>` : ''}
+                </div>
+                <div class="p-5">
+                    <h4 class="font-black text-slate-800 uppercase text-sm">${p.name}</h4>
+                    <p class="text-xs text-slate-500 mt-1 line-clamp-2">${p.description || 'Pas de description.'}</p>
+                </div>
+            </div>
+        `).join('');
+    } catch (e) { console.error(e); }
+}
 
 
 
 async function loadMyProfile() {
     console.log("🔍 --- DÉBUT CHARGEMENT PROFIL PERSONNEL ---");
     console.log("👤 Utilisateur connecté :", currentUser);
-
+            
+            fetchMyDailyVisits();   // Filtre : mon ID + check_in = aujourd'hui
+            fetchMyMonthlyReports();
+            
     // 1. Sécurité : Vérifier que l'utilisateur est bien connecté
     if (!currentUser || !currentUser.id) {
         console.error("❌ Pas d'utilisateur connecté ou ID manquant pour charger le profil.");
@@ -6231,6 +6285,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
