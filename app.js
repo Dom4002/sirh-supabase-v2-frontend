@@ -5922,10 +5922,48 @@ visits.forEach(v => {
         else {
             // --- BILANS JOURNALIERS (Onglet 2) ---
             const groupedDaily = {};
+// ... (Dans le bloc 'else' des bilans) ...
+
             data.forEach(rep => {
-                const name = rep.employees?.nom || "Agent Inconnu";
-                if (!groupedDaily[name]) groupedDaily[name] = [];
-                groupedDaily[name].push(rep);
+                // --- GÉNÉRATION DES BADGES DE STATS ---
+                let statsHtml = "";
+                if (rep.products_stats && Object.keys(rep.products_stats).length > 0) {
+                    statsHtml = `<div class="flex flex-wrap gap-1 mt-2">`;
+                    for (const [prodName, count] of Object.entries(rep.products_stats)) {
+                        statsHtml += `<span class="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded text-[8px] font-black border border-indigo-100 uppercase">${prodName} <span class="text-indigo-400">x${count}</span></span>`;
+                    }
+                    statsHtml += `</div>`;
+                } else {
+                    statsHtml = `<div class="mt-1 text-[8px] text-slate-300 italic">Aucun produit détecté</div>`;
+                }
+
+                html += `
+                    <tr id="row-daily-${rep.id}" class="hover:bg-indigo-50/30 transition-colors group">
+                        <td class="px-6 py-4 w-1/4">
+                            <div class="text-[10px] font-black text-indigo-500 uppercase">${new Date(rep.report_date).toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long'})}</div>
+                            <!-- LES STATS S'AFFICHENT SOUS LA DATE -->
+                            ${statsHtml}
+                        </td>
+                        
+                        <td class="px-6 py-4 w-2/4 cursor-pointer" onclick="toggleText(this.querySelector('div'))">
+                            <div class="text-xs text-slate-600 italic line-clamp-1 hover:text-blue-600 transition-colors">
+                                ${rep.summary || "Aucun texte."}
+                            </div>
+                        </td>
+
+                        <td class="px-6 py-4 text-center">
+                            ${rep.needs_restock ? '<span class="text-orange-500 font-bold text-[9px]"><i class="fa-solid fa-box-open"></i> BESOIN</span>' : '<span class="text-emerald-400 text-[9px]">OK</span>'}
+                        </td>
+
+                        <td class="px-6 py-4 text-right">
+                            <div class="flex items-center justify-end gap-3">
+                                ${rep.photo_url ? `<button onclick="viewDocument('${rep.photo_url}', 'Cahier')" class="text-blue-500 hover:scale-125 transition-transform"><i class="fa-solid fa-file-image text-lg"></i></button>` : '<i class="fa-solid fa-ban text-slate-200"></i>'}
+                                <button onclick="deleteDailyReport('${rep.id}')" class="text-slate-300 hover:text-red-500 transition-all opacity-0 group-hover:opacity-100">
+                                    <i class="fa-solid fa-check"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>`;
             });
 
             html = `<div class="col-span-full space-y-3">`;
@@ -6412,6 +6450,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
