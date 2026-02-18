@@ -551,6 +551,30 @@
                         <option value="SECRETAIRE">SECRETAIRE</option>
                     </select>
                 </div>
+
+                                <!-- NOUVEAU BLOC : HIÉRARCHIE (A & B) -->
+                <div class="col-span-2 bg-indigo-50 p-4 rounded-xl border border-indigo-100">
+                    <p class="text-[10px] font-black text-indigo-500 uppercase mb-3 tracking-widest">Configuration Hiérarchique</p>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- OPTION A : Responsable N+1 -->
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Responsable Direct (N+1)</label>
+                            <select id="f-manager" class="w-full p-3 bg-white border border-slate-200 rounded-lg text-sm outline-none">
+                                <option value="">-- Aucun / Autonome --</option>
+                                <!-- Sera rempli par le JS -->
+                            </select>
+                        </div>
+                
+                        <!-- OPTION B : Périmètre (Scope) -->
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Zone/Dép. Géré (Optionnel)</label>
+                            <input type="text" id="f-scope" class="w-full p-3 bg-white border border-slate-200 rounded-lg text-sm outline-none" placeholder="Ex: Commercial, Cotonou...">
+                            <p class="text-[9px] text-slate-400 mt-1">Séparez par des virgules pour donner plusieurs droits.</p>
+                        </div>
+                    </div>
+                </div>
+                
             </div>
 
             <div class="flex flex-col items-center justify-start p-4 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
@@ -1395,6 +1419,23 @@
                     </div>
                 </div>
 
+                <!-- NOUVEAU BLOC : MODIFICATION HIÉRARCHIE -->
+                <div class="mt-4 p-4 bg-indigo-50 rounded-xl border border-indigo-100">
+                    <div class="grid grid-cols-1 gap-4">
+                        <div>
+                            <label class="block text-[10px] font-black text-indigo-500 uppercase mb-1">Responsable Direct (N+1)</label>
+                            <select id="edit-manager" class="w-full p-3 bg-white border border-slate-200 rounded-lg text-sm outline-none">
+                                <option value="">-- Aucun / Autonome --</option>
+                                <!-- Rempli par JS -->
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-black text-indigo-500 uppercase mb-1">Périmètre de Gestion (Scope)</label>
+                            <input type="text" id="edit-scope" class="w-full p-3 bg-white border border-slate-200 rounded-lg text-sm outline-none">
+                        </div>
+                    </div>
+                </div>
+
                 <button type="submit" class="w-full bg-slate-900 text-white py-4 rounded-xl font-bold shadow-lg uppercase tracking-widest hover:bg-slate-800 transition-all">
                     SAUVEGARDER LES MODIFICATIONS
                 </button>
@@ -1525,6 +1566,7 @@
     </body>
 
     </html>
+
 
 
 
