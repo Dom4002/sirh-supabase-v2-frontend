@@ -259,65 +259,7 @@ const PremiumUI = {
 
 
 
-// --- LOGIQUE ACTIONS DE MASSE (MANQUANTE) ---
-function toggleBulkActions() {
-    const checkboxes = document.querySelectorAll('.emp-select-checkbox:checked');
-    const bar = document.getElementById('bulk-action-bar');
-    const countSpan = document.getElementById('selected-count');
 
-    if (bar && countSpan) {
-        if (checkboxes.length > 0) {
-            bar.classList.remove('hidden');
-            countSpan.innerText = checkboxes.length;
-        } else {
-            bar.classList.add('hidden');
-        }
-    }
-}
-
-async function openBulkManagerModal() {
-    const selectedIds = Array.from(document.querySelectorAll('.emp-select-checkbox:checked')).map(cb => cb.value);
-    
-    // On charge une liste large pour le select
-    const r = await secureFetch(`${URL_READ}?limit=1000&status=Actif`); 
-    const result = await r.json();
-    const potentialManagers = result.data || [];
-
-    let options = `<option value="">-- Aucun / Détacher --</option>`;
-    potentialManagers.forEach(m => {
-        if (!selectedIds.includes(m.id)) {
-            options += `<option value="${m.id}">${m.nom} (${m.poste})</option>`;
-        }
-    });
-
-    const { value: managerId } = await Swal.fire({
-        title: `Assigner ${selectedIds.length} personnes`,
-        html: `
-            <p class="text-sm text-slate-500 mb-4">Choisissez le responsable hiérarchique direct (N+1).</p>
-            <select id="bulk-manager-select" class="swal2-input text-sm">${options}</select>
-        `,
-        showCancelButton: true,
-        confirmButtonText: 'Valider',
-        confirmButtonColor: '#0f172a',
-        preConfirm: () => document.getElementById('bulk-manager-select').value
-    });
-
-    if (typeof managerId !== 'undefined') {
-        Swal.fire({ title: 'Mise à jour...', didOpen: () => Swal.showLoading() });
-        try {
-            const res = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/bulk-assign-manager`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ employee_ids: selectedIds, manager_id: managerId || null })
-            });
-            if (res.ok) {
-                Swal.fire('Succès', 'Hiérarchie mise à jour !', 'success');
-                fetchData(true);
-                document.getElementById('bulk-action-bar').classList.add('hidden');
-            }
-        } catch (e) { Swal.fire('Erreur', e.message, 'error'); }
-    }
-}
 
 
             // Fonction mathématique pour calculer la distance entre deux points GPS
@@ -1241,8 +1183,6 @@ async function fetchData(forceUpdate = false, page = 1) {
                 adresse: x.adresse, 
                 date_naissance: x.date_naissance, 
                 role: x.role || 'EMPLOYEE',
-                manager_id: x.manager_id || '', 
-                scope: x.management_scope || [], 
                 matricule: x.matricule || 'N/A',
                 doc: x.contrat_pdf_url || '',
                 cv_link: x.cv_url || '',
@@ -1309,22 +1249,6 @@ async function fetchData(forceUpdate = false, page = 1) {
 
 
 
-async function populateManagerSelects() {
-    // On remplit les listes déroulantes avec tous les employés actifs
-    // (Dans le futur, on pourra filtrer pour ne montrer que les cadres)
-    const optionsHtml = employees
-        .filter(e => e.statut === 'Actif')
-        .map(e => `<option value="${e.id}">${e.nom} (${e.poste})</option>`)
-        .join('');
-
-    const defaultOpt = `<option value="">-- Aucun / Autonome --</option>`;
-
-    const createSelect = document.getElementById('f-manager');
-    const editSelect = document.getElementById('edit-manager');
-
-    if (createSelect) createSelect.innerHTML = defaultOpt + optionsHtml;
-    if (editSelect) editSelect.innerHTML = defaultOpt + optionsHtml;
-}
 
 
     function renderData() { 
@@ -1888,24 +1812,10 @@ async function handleClockInOut() {
                 </div>
 
             <div class="relative mt-2">
-            
-                        <div class="text-left mb-4">
-                            <label class="text-[10px] font-black text-slate-400 uppercase">Produits présentés au praticien</label>
-                            <div id="product-selection-grid" class="grid grid-cols-2 gap-2 mt-2">
-                                ${(window.globalProducts || []).map(p => `
-                                    <label class="cursor-pointer group">
-                                        <input type="checkbox" name="presented_prod" value="${p.name}" class="peer sr-only">
-                                        <div class="p-2 border rounded-xl text-[9px] font-bold text-slate-500 bg-white peer-checked:bg-blue-600 peer-checked:text-white peer-checked:border-blue-600 transition-all flex items-center gap-2">
-                                            <i class="fa-solid fa-pills opacity-50"></i> ${p.name}
-                                        </div>
-                                    </label>
-                                `).join('')}
-                            </div>
-                            ${(!window.globalProducts || window.globalProducts.length === 0) ? '<p class="text-[9px] text-slate-400 italic">Aucun produit dans le catalogue.</p>' : ''}
-                        </div>
-
                 <textarea id="swal-report" class="swal2-textarea" style="height: 80px; margin-top:0;" placeholder="Écrivez vos notes ici..."></textarea>
-               <button type="button" onclick="toggleDictation('swal-report', this)" 
+                
+                <!-- LE PETIT BOUTON DISCRET EN BAS À DROITE -->
+                <button type="button" onclick="toggleDictation('swal-report', this)" 
                     class="absolute bottom-3 right-3 p-2 rounded-full bg-white border border-slate-200 text-slate-400 shadow-sm hover:text-blue-600 transition-all z-10"
                     title="Dicter le rapport">
                     <i class="fa-solid fa-microphone"></i>
@@ -1951,8 +1861,6 @@ async function handleClockInOut() {
             willClose: () => { if(proofStream) proofStream.getTracks().forEach(t => t.stop()); },
             preConfirm: () => {
                 const outcomeVal = document.getElementById('swal-outcome').value;
-                const selectedProducts = Array.from(document.querySelectorAll('input[name="presented_prod"]:checked')).map(cb => cb.value);
-                        
                 if (outcomeVal === 'VU' && !proofBlob) {
                     Swal.showValidationMessage('📸 Photo du cachet obligatoire !');
                     return false;
@@ -1960,9 +1868,7 @@ async function handleClockInOut() {
                 return { 
                     outcome: outcomeVal, 
                     report: document.getElementById('swal-report').value,
-                    isLastExit: document.getElementById('last-exit-check').checked,
-                    products: selectedProducts // <--- ON RÉCUPÈRE LE TABLEAU
-
+                    isLastExit: document.getElementById('last-exit-check').checked
                 };
             }
         });
@@ -1996,7 +1902,6 @@ async function handleClockInOut() {
         if (outcome) fd.append('outcome', outcome);
         if (report) fd.append('report', report);
         if (proofBlob) fd.append('proof_photo', proofBlob, 'capture.jpg');
-        if (formValues.products) fd.append('presented_products', JSON.stringify(formValues.products));
         if (isLastExit) fd.append('is_last_exit', 'true');
 
         const response = await secureFetch(URL_CLOCK_ACTION, { method: 'POST', body: fd });
@@ -2385,10 +2290,7 @@ function switchView(v) {
     }
     
     // --- CHARGEMENTS AUTOMATIQUES CORRIGÉS ---
-
-            // Dans ta fonction switchView(v)...
-    if (v === 'products') fetchProducts();
-            
+    
     // 1. Dashboard (Statistiques et Live Tracker)
     if (v === 'dash') {
         renderCharts();
@@ -2411,7 +2313,6 @@ function switchView(v) {
         const form = document.getElementById('form-onboarding');
         if(form) form.reset(); 
         resetCamera(); 
-        populateManagerSelects();
     }
 
     if (v === 'chat') {
@@ -2461,61 +2362,6 @@ function switchView(v) {
 
 
 
-async function openAddProductModal() {
-    const { value: formValues } = await Swal.fire({
-        title: 'Nouveau Médicament',
-        html: `
-            <input id="prod-name" class="swal2-input" placeholder="Nom du produit (ex: Thermodol)">
-            <input id="prod-dosage" class="swal2-input" placeholder="Dosage (ex: 500mg)">
-            <textarea id="prod-desc" class="swal2-textarea" placeholder="Description / Indications..."></textarea>
-            <div class="mt-4 text-left">
-                <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Photo du produit</label>
-                <input type="file" id="prod-image" class="block w-full text-xs text-slate-500 mt-2
-                  file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0
-                  file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700">
-            </div>
-        `,
-        showCancelButton: true,
-        confirmButtonText: 'Enregistrer',
-        confirmButtonColor: '#2563eb',
-        preConfirm: () => {
-            return {
-                name: document.getElementById('prod-name').value,
-                dosage: document.getElementById('prod-dosage').value,
-                description: document.getElementById('prod-desc').value,
-                image: document.getElementById('prod-image').files[0]
-            }
-        }
-    });
-
-    if (formValues) {
-        if (!formValues.name) return Swal.fire('Erreur', 'Le nom est obligatoire', 'error');
-
-        Swal.fire({ title: 'Enregistrement...', didOpen: () => Swal.showLoading() });
-
-        const fd = new FormData();
-        fd.append('name', formValues.name);
-        fd.append('dosage', formValues.dosage);
-        fd.append('description', formValues.description);
-        if (formValues.image) fd.append('image', formValues.image);
-
-        try {
-            const response = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/write-product`, {
-                method: 'POST',
-                body: fd
-            });
-
-            if (response.ok) {
-                Swal.fire('Succès !', 'Produit ajouté au catalogue.', 'success');
-                fetchProducts(); // Recharge la grille immédiatement
-            }
-        } catch (e) {
-            Swal.fire('Erreur', e.message, 'error');
-        }
-    }
-}
-
-
 
             function toggleSidebar(){const sb=document.getElementById('sidebar'), o=document.getElementById('sidebar-overlay'); if(sb.classList.contains('-translate-x-full')){sb.classList.remove('-translate-x-full');o.classList.remove('hidden');}else{sb.classList.add('-translate-x-full');o.classList.add('hidden');}}
         
@@ -2531,21 +2377,7 @@ async function openAddProductModal() {
     
 
     function openEditModal(id) {
-                
         const e = employees.find(x => x.id === id);
-
-            // Dans openEditModal(id)...
-                populateManagerSelects(); // Mettre à jour la liste
-            
-                // Pré-remplir le manager actuel
-                const mgrSelect = document.getElementById('edit-manager');
-                if(mgrSelect) mgrSelect.value = e.manager_id || "";
-            
-                // Pré-remplir le scope (on transforme le tableau en texte séparé par virgules)
-                const scopeInput = document.getElementById('edit-scope');
-                if(scopeInput) scopeInput.value = (e.scope || []).join(', ');
-
-                
         if (e) {
             // 1. Afficher la modale
             document.getElementById('edit-modal').classList.remove('hidden');
@@ -2626,9 +2458,7 @@ async function submitUpdate(e) {
         const typeContrat = document.getElementById('edit-type-contrat').value;
         const typeActivité = document.getElementById('edit-type').value;
 
-        const managerId = document.getElementById('edit-manager').value;
-        const scopeVal = document.getElementById('edit-scope').value;
-        const scopeArray = scopeVal ? scopeVal.split(',').map(s=>s.trim()) : [];
+        
         // NOUVEAU : Récupération Date & Checkbox
         const newStartDate = document.getElementById('edit-start-date').value;
         const forceInit = document.getElementById('edit-init-check').checked;
@@ -2639,8 +2469,6 @@ async function submitUpdate(e) {
         const params = new URLSearchParams({
             id: id,
             agent: currentUser.nom,
-            manager_id: managerId,
-            scope: JSON.stringify(scopeArray), // On encode le tableau
             statut: statut,
             role: role,
             dept: dept,
@@ -2862,12 +2690,6 @@ async function triggerRobotCheck() {
                 Swal.update({ text: 'Compression de la photo de profil...' });
                 const compressedProfilePhoto = await compressImage(capturedBlob);
                 fd.append('photo', compressedProfilePhoto, 'photo_profil.jpg');
-
-
-                        fd.append('manager_id', document.getElementById('f-manager').value);
-                        // On envoie le scope comme une chaine JSON pour que le serveur le parse
-                        const scopeVal = document.getElementById('f-scope').value;
-                        fd.append('scope', scopeVal ? JSON.stringify(scopeVal.split(',').map(s=>s.trim())) : '[]');
 
 
                     // 4. Ajout des documents KYC (Optionnels)
@@ -5100,38 +4922,6 @@ function toggleWidget(widgetId) {
 
 
 
-// --- SYSTÈME DE LECTURE INTELLIGENTE DES NOTES ---
-
-// 1. Pour le survol (Ordinateur)
-function peakText(el) {
-    el.classList.remove('line-clamp-1');
-    el.classList.add('whitespace-normal', 'bg-blue-50', 'p-3', 'rounded-xl', 'text-slate-800', 'border', 'border-blue-200', 'shadow-xl', 'z-50', 'relative');
-}
-
-// 2. Pour quitter le survol (Ordinateur)
-function unpeakText(el) {
-    if (el.dataset.fixed !== 'true') { // On ne ferme pas si l'utilisateur a cliqué pour le bloquer
-        el.classList.add('line-clamp-1');
-        el.classList.remove('whitespace-normal', 'bg-blue-50', 'p-3', 'rounded-xl', 'text-slate-800', 'border', 'border-blue-200', 'shadow-xl', 'z-50', 'relative');
-    }
-}
-
-// 3. Pour le clic (Mobile ou blocage sur Ordinateur)
-function toggleTextFixed(el) {
-    const isFixed = el.dataset.fixed === 'true';
-    el.dataset.fixed = isFixed ? 'false' : 'true';
-    
-    if (!isFixed) {
-        peakText(el);
-        el.classList.replace('bg-blue-50', 'bg-amber-50'); // Couleur différente pour dire "bloqué ouvert"
-        el.classList.replace('border-blue-200', 'border-amber-200');
-    } else {
-        el.dataset.fixed = 'false';
-        unpeakText(el);
-    }
-}
-
-
 function applyWidgetPreferences() {
     // On ajoute les IDs du menu (commençant par m-) à la liste
     const widgets = [
@@ -5689,92 +5479,11 @@ async function handleZonesCSVFile(event) {
 
 
 
-async function fetchProducts() {
-    const grid = document.getElementById('products-grid');
-    if (!grid) return;
-
-    grid.innerHTML = '<div class="col-span-full text-center p-10"><i class="fa-solid fa-circle-notch fa-spin text-blue-500 text-3xl"></i></div>';
-
-    try {
-        const r = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/read-products`);
-        const products = await r.json();
-        window.globalProducts = products; // On stocke pour la fiche détail
-
-        grid.innerHTML = '';
-        if (products.length === 0) {
-            grid.innerHTML = '<p class="col-span-full text-center text-slate-400 py-10 italic">Aucun produit disponible.</p>';
-            return;
-        }
-
-        products.forEach(p => {
-            // Sécurité pour l'image
-            const img = p.image_url && p.image_url.length > 10 ? p.image_url : 'https://cdn-icons-png.flaticon.com/512/883/883360.png';
-
-            grid.innerHTML += `
-                <div class="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden group hover:shadow-2xl hover:-translate-y-1 transition-all duration-300">
-                    <div class="h-48 bg-slate-50 overflow-hidden flex items-center justify-center p-4">
-                        <img src="${img}" class="max-w-full max-h-full object-contain group-hover:scale-110 transition-transform duration-500" 
-                             onerror="this.src='https://cdn-icons-png.flaticon.com/512/883/883360.png'">
-                    </div>
-                    <div class="p-6">
-                        <div class="flex justify-between items-start mb-2">
-                            <h4 class="font-black text-slate-800 uppercase text-sm leading-tight">${p.name}</h4>
-                            <span class="bg-blue-50 text-blue-600 px-2 py-0.5 rounded text-[8px] font-black">${p.dosage || 'N/A'}</span>
-                        </div>
-                        <p class="text-[11px] text-slate-400 line-clamp-2 mb-4 italic">${p.description || 'Aucune description fournie.'}</p>
-                        <button onclick="viewProductDetail('${p.id}')" class="w-full py-3 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-600 shadow-lg transition-all">
-                            Voir la fiche
-                        </button>
-                    </div>
-                </div>
-            `;
-        });
-    } catch (e) { console.error(e); }
-}
 
 
 
-function viewProductDetail(id) {
-    // On cherche le produit dans notre liste globale
-    const p = window.globalProducts.find(prod => prod.id === id);
-    if (!p) return;
 
-    const img = p.image_url && p.image_url.length > 10 ? p.image_url : 'https://cdn-icons-png.flaticon.com/512/883/883360.png';
 
-    Swal.fire({
-        width: '600px',
-        padding: '0',
-        showConfirmButton: true,
-        confirmButtonText: 'Fermer la présentation',
-        confirmButtonColor: '#0f172a',
-        customClass: { popup: 'rounded-[2.5rem] overflow-hidden' },
-        html: `
-            <div class="text-left">
-                <!-- Image de présentation -->
-                <div class="h-64 bg-slate-100 flex items-center justify-center p-8">
-                    <img src="${img}" class="max-h-full object-contain shadow-2xl rounded-xl">
-                </div>
-                
-                <div class="p-8">
-                    <div class="flex justify-between items-center mb-4">
-                        <h3 class="text-2xl font-black text-slate-800 uppercase tracking-tighter">${p.name}</h3>
-                        <span class="bg-blue-600 text-white px-4 py-1 rounded-full text-xs font-black uppercase">${p.dosage || 'Standard'}</span>
-                    </div>
-                    
-                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Indications et Description</p>
-                    <div class="bg-slate-50 p-5 rounded-2xl border border-slate-100 text-slate-600 text-sm leading-relaxed italic">
-                        "${p.description || 'Détails non renseignés par la direction médicale.'}"
-                    </div>
-
-                    <div class="mt-6 flex items-center gap-3 p-4 bg-blue-50 rounded-2xl border border-blue-100">
-                        <i class="fa-solid fa-circle-info text-blue-500"></i>
-                        <p class="text-[10px] text-blue-700 font-bold leading-tight">Ce support visuel est destiné à l'usage exclusif du délégué pendant l'entretien médical.</p>
-                    </div>
-                </div>
-            </div>
-        `
-    });
-}
 
 
 // ============================================================
@@ -5809,11 +5518,10 @@ function changeReportTab(tab) {
     }
 }
 
-
 async function fetchMobileReports(page = 1) {
     const container = document.getElementById('reports-list-container');
     const counterEl = document.getElementById('stat-visites-total');
-    const labelEl = document.getElementById('stat-report-label');
+    const labelEl = document.getElementById('stat-report-label'); 
     const nameFilter = document.getElementById('filter-report-name')?.value.toLowerCase() || "";
     const periodFilter = document.getElementById('filter-report-date')?.value || "month";
 
@@ -5846,7 +5554,7 @@ async function fetchMobileReports(page = 1) {
         let html = '';
 
         if (currentReportTab === 'visits') {
-            // --- VISITES (Onglet 1) ---
+            // --- LOGIQUE VISITES REGROUPÉES AVEC ACCORDÉONS ---
             const grouped = {};
             data.forEach(v => {
                 const name = v.nom_agent || "Inconnu";
@@ -5857,6 +5565,7 @@ async function fetchMobileReports(page = 1) {
             html = `<div class="col-span-full space-y-4">`;
             for (const [name, visits] of Object.entries(grouped)) {
                 const accordionId = `acc-vis-${name.replace(/\s+/g, '-')}`;
+                
                 html += `
                     <div class="bg-white rounded-[2rem] shadow-sm border border-slate-200 overflow-hidden animate-fadeIn">
                         <div onclick="toggleAccordion('${accordionId}')" class="bg-slate-900 px-6 py-4 flex justify-between items-center cursor-pointer hover:bg-slate-800 transition-all">
@@ -5873,34 +5582,24 @@ async function fetchMobileReports(page = 1) {
                             <table class="w-full text-left">
                                 <thead class="bg-slate-100 border-b">
                                     <tr class="text-[9px] font-black text-slate-400 uppercase">
-                                        <th class="p-4 w-1/4">Lieu</th>
-                                        <th class="p-4 w-1/4">Heure</th>
-                                        <th class="p-4 w-1/4 text-center">Preuve</th>
-                                        <th class="p-4 w-1/4 text-right">Note (Toucher pour lire)</th>
+                                        <th class="p-4">Lieu visité</th><th class="p-4">Heure</th><th class="p-4 text-center">Preuve</th><th class="p-4 text-right">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-slate-100">`;
                 visits.forEach(v => {
                     html += `
                         <tr id="row-vis-${v.id}" class="hover:bg-white transition-colors group">
-                            <td class="px-4 py-3 text-xs font-bold text-blue-600 uppercase break-words">${v.lieu_nom || 'Inconnu'}</td>
+                            <td class="px-4 py-3">
+                                <div class="text-xs font-bold text-blue-600 uppercase">${v.lieu_nom || 'Inconnu'}</div>
+                                <div class="text-[10px] text-slate-400 italic truncate max-w-[200px]">${v.notes || '-'}</div>
+                            </td>
                             <td class="px-4 py-3 text-[10px] font-mono text-slate-500">${v.check_in ? new Date(v.check_in).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '--:--'}</td>
                             <td class="px-4 py-3 text-center">
                                 ${v.proof_url ? `<button onclick="viewDocument('${v.proof_url}', 'Cachet')" class="text-emerald-500 hover:scale-110 transition-transform"><i class="fa-solid fa-camera-retro text-lg"></i></button>` : '<i class="fa-solid fa-ban text-slate-200"></i>'}
                             </td>
-                            <!-- ICI : MODIFICATION POUR LE TEXTE DÉROULANT -->
-                                    <td class="px-4 py-3 text-right">
-                                        <div class="text-[10px] text-slate-400 italic line-clamp-1 cursor-pointer transition-all duration-300"
-                                             onmouseenter="peakText(this)" 
-                                             onmouseleave="unpeakText(this)" 
-                                             onclick="toggleTextFixed(this)"
-                                             data-fixed="false">
-                                            ${v.notes || 'R.A.S'}
-                                        </div>
-                                        <div class="flex justify-end gap-2 mt-1">
-                                            <button onclick="event.stopPropagation(); deleteVisitReport('${v.id}')" class="text-slate-200 hover:text-red-500 transition-colors"><i class="fa-solid fa-trash-can text-xs"></i></button>
-                                        </div>
-                                    </td>
+                            <td class="px-4 py-3 text-right">
+                                <button onclick="deleteVisitReport('${v.id}')" class="p-2 text-slate-300 hover:text-red-500 transition-all opacity-0 group-hover:opacity-100"><i class="fa-solid fa-trash-can"></i></button>
+                            </td>
                         </tr>`;
                 });
                 html += `</tbody></table></div></div>`;
@@ -5908,7 +5607,7 @@ async function fetchMobileReports(page = 1) {
             html += `</div>`;
         } 
         else {
-            // --- BILANS JOURNALIERS (Onglet 2) ---
+            // --- LOGIQUE BILANS JOURNALIERS (DAILY) AVEC ACCORDÉONS ---
             const groupedDaily = {};
             data.forEach(rep => {
                 const name = rep.employees?.nom || "Agent Inconnu";
@@ -5934,31 +5633,19 @@ async function fetchMobileReports(page = 1) {
                             </div>
                         </div>
                         <div id="${accordionId}" class="hidden border-t border-slate-100 bg-slate-50/50">
-                            <table class="w-full text-left">
-                                <tbody class="divide-y divide-slate-100">`;
+                            <table class="w-full text-left"><tbody class="divide-y divide-slate-100">`;
                 reports.forEach(rep => {
                     html += `
                         <tr id="row-daily-${rep.id}" class="hover:bg-white transition-colors group">
-                            <td class="px-6 py-4 w-1/4">
+                            <td class="px-6 py-4">
                                 <div class="text-[10px] font-black text-indigo-500 uppercase">${new Date(rep.report_date).toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long'})}</div>
-                                <div class="text-center mt-2">${rep.needs_restock ? '<span class="text-orange-500 text-[10px] font-bold"><i class="fa-solid fa-box-open"></i> REAPPRO</span>' : '<span class="text-emerald-400 text-[10px]">OK</span>'}</div>
+                                <div class="text-xs text-slate-600 mt-1 italic line-clamp-2">${rep.summary}</div>
                             </td>
-                            
-                            <!-- ICI : TEXTE DÉROULANT POUR LE RÉSUMÉ -->
-                                    <td class="px-6 py-4 w-2/4">
-                                        <div class="text-xs text-slate-600 italic line-clamp-1 cursor-pointer transition-all duration-300"
-                                             onmouseenter="peakText(this)" 
-                                             onmouseleave="unpeakText(this)" 
-                                             onclick="toggleTextFixed(this)"
-                                             data-fixed="false">
-                                            ${rep.summary || "Aucun texte."}
-                                        </div>
-                                    </td>
-                            <td class="px-6 py-4 w-1/4 text-right">
-                                <div class="flex items-center justify-end gap-3">
-                                    ${rep.photo_url ? `<button onclick="viewDocument('${rep.photo_url}', 'Cahier')" class="text-blue-500 hover:scale-125 transition-transform"><i class="fa-solid fa-file-image text-lg"></i></button>` : '<i class="fa-solid fa-ban text-slate-200"></i>'}
-                                    <button onclick="deleteDailyReport('${rep.id}')" class="text-slate-300 hover:text-red-500 transition-all"><i class="fa-solid fa-check"></i></button>
-                                </div>
+                            <td class="px-6 py-4 text-center">
+                                ${rep.photo_url ? `<button onclick="viewDocument('${rep.photo_url}', 'Cahier')" class="text-blue-500 hover:scale-125 transition-transform"><i class="fa-solid fa-file-image text-lg"></i></button>` : '<i class="fa-solid fa-ban text-slate-200"></i>'}
+                            </td>
+                            <td class="px-6 py-4 text-right">
+                                <button onclick="deleteDailyReport('${rep.id}')" class="p-2 text-slate-300 hover:text-red-500 transition-all opacity-0 group-hover:opacity-100"><i class="fa-solid fa-check"></i></button>
                             </td>
                         </tr>`;
                 });
@@ -5969,18 +5656,25 @@ async function fetchMobileReports(page = 1) {
 
         const paginationHtml = `
             <div class="col-span-full flex justify-between items-center mt-6 px-4">
-                <button onclick="fetchMobileReports(${reportPage - 1})" ${reportPage <= 1 ? 'disabled' : ''} class="px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-black uppercase text-slate-600 disabled:opacity-30 transition-all shadow-sm"><i class="fa-solid fa-chevron-left mr-2"></i> Précédent</button>
+                <button onclick="fetchMobileReports(${reportPage - 1})" ${reportPage <= 1 ? 'disabled' : ''} class="px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-black uppercase text-slate-600 disabled:opacity-30 hover:bg-slate-50 shadow-sm transition-all">
+                    <i class="fa-solid fa-chevron-left mr-2"></i> Précédent
+                </button>
                 <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Page ${reportPage} / ${reportTotalPages}</span>
-                <button onclick="fetchMobileReports(${reportPage + 1})" ${reportPage >= reportTotalPages ? 'disabled' : ''} class="px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-black uppercase text-slate-600 disabled:opacity-30 transition-all shadow-sm">Suivant <i class="fa-solid fa-chevron-right ml-2"></i></button>
-            </div>`;
+                <button onclick="fetchMobileReports(${reportPage + 1})" ${reportPage >= reportTotalPages ? 'disabled' : ''} class="px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-black uppercase text-slate-600 disabled:opacity-30 hover:bg-slate-50 shadow-sm transition-all">
+                    Suivant <i class="fa-solid fa-chevron-right ml-2"></i>
+                </button>
+            </div>
+        `;
 
         container.innerHTML = html + paginationHtml;
 
     } catch (e) {
-        console.error("Erreur rapports:", e);
-        container.innerHTML = '<div class="col-span-full text-center text-red-500 py-10 font-bold uppercase text-[10px]">Erreur de connexion</div>';
+        console.error("Erreur de chargement des rapports:", e);
+        container.innerHTML = '<div class="col-span-full text-center text-red-500 py-10 font-bold uppercase text-[10px]">Erreur de connexion aux données</div>';
     }
 }
+
+
 
 
 
@@ -6369,13 +6063,6 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
-
-
-
-
-
-
-
 
 
 
