@@ -1896,39 +1896,43 @@ async function handleClockInOut() {
                 };
             },
             willClose: () => { if(proofStream) proofStream.getTracks().forEach(t => t.stop()); },
-            preConfirm: () => {
+preConfirm: () => {
                 const outcomeVal = document.getElementById('swal-outcome').value;
+                
+                // 1. Vérification de la photo (Obligatoire si VU)
                 if (outcomeVal === 'VU' && !proofBlob) {
                     Swal.showValidationMessage('📸 Photo du cachet obligatoire !');
                     return false;
                 }
 
-                // --- AJOUT PRODUITS : Collecte des cases cochées ---
+                // 2. --- AJOUT PRODUITS : Collecte des cases cochées ---
+                // On transforme la NodeList en Array pour utiliser .map
                 const selected = Array.from(document.querySelectorAll('input[name="presented_prods"]:checked')).map(i => ({
                     id: i.value,
-                    name: i.dataset.name
+                    name: i.dataset.name || "Produit" // Sécurité si le nom manque
                 }));
 
+                // 3. Retour de l'objet complet
                 return { 
                     outcome: outcomeVal, 
                     report: document.getElementById('swal-report').value,
                     isLastExit: document.getElementById('last-exit-check').checked,
-                    presentedProducts: selected // <-- On retourne la sélection
+                    presentedProducts: selected // <-- On retourne bien le tableau
                 };
             }
         });
+if (!formValues) return; 
 
-        if (!formValues) return; 
         outcome = formValues.outcome;
         report = formValues.report;
         isLastExit = formValues.isLastExit;
-        presentedProducts = formValues.presentedProducts; // --- AJOUT PRODUITS : On stocke ---
+        presentedProducts = formValues.presentedProducts; 
 
         if (proofBlob) {
             Swal.update({ text: 'Compression de la photo en cours...' });
             proofBlob = await compressImage(proofBlob);
         }
-    }
+    } // <--- Fermeture du bloc if (action === 'CLOCK_OUT')
     
     // --- POINTAGE GPS & ENVOI ---
     Swal.fire({ title: 'Vérification...', text: 'Analyse GPS...', didOpen: () => Swal.showLoading(), allowOutsideClick: false });
@@ -1944,14 +1948,15 @@ async function handleClockInOut() {
         fd.append('gps', currentGps);
         fd.append('ip', ipRes.ip);
         fd.append('agent', currentUser.nom);
+        
         if (outcome) fd.append('outcome', outcome);
         if (report) fd.append('report', report);
         if (proofBlob) fd.append('proof_photo', proofBlob, 'capture.jpg');
         if (isLastExit) fd.append('is_last_exit', 'true');
         
-        // --- AJOUT PRODUITS : Envoi au serveur ---
+        // --- CORRECTION ICI : Le nom doit être 'presentedProducts' pour matcher le serveur ---
         if (presentedProducts && presentedProducts.length > 0) {
-            fd.append('presented_products', JSON.stringify(presentedProducts));
+            fd.append('presentedProducts', JSON.stringify(presentedProducts));
         }
 
         const response = await secureFetch(URL_CLOCK_ACTION, { method: 'POST', body: fd });
@@ -2143,6 +2148,14 @@ async function openAddProductModal() {
 
 
 
+
+
+
+
+
+
+
+
 async function fetchMyActivityRecap() {
     const visitContainer = document.getElementById('my-today-visits');
     const dailyContainer = document.getElementById('my-month-dailies');
@@ -2150,39 +2163,38 @@ async function fetchMyActivityRecap() {
 
     try {
         const [visRes, daiRes] = await Promise.all([
-            secureFetch(`${SIRH_CONFIG.apiBaseUrl}/read-visit-reports`),
+            secureFetch(`${SIRH_CONFIG.apiBaseUrl}/read-visit-reports?limit=50`), // On limite pour aller vite
             secureFetch(`${SIRH_CONFIG.apiBaseUrl}/read-daily-reports`)
         ]);
 
         const allVisits = await visRes.json();
         const allDailies = await daiRes.json();
         
-        // Correction Date : on compare uniquement la partie YYYY-MM-DD
-        const todayStr = new Date().toLocaleDateString('en-CA'); // "2026-02-18"
+        // On prend la date locale du navigateur (Bénin)
+        const todayStr = new Date().toLocaleDateString('fr-CA'); // Format YYYY-MM-DD
 
-        // 1. Mes visites d'aujourd'hui
+        // 1. Filtrer mes visites d'aujourd'hui
         const myVisits = (allVisits.data || allVisits).filter(v => {
-            if(!v.check_in) return false;
-            const vDate = new Date(v.check_in).toLocaleDateString('en-CA');
-            return v.employee_id === currentUser.id && vDate === todayStr;
+            if (!v.check_in || v.employee_id !== currentUser.id) return false;
+            
+            // On convertit la date de la visite en date locale pour comparer
+            const visitDate = new Date(v.check_in).toLocaleDateString('fr-CA');
+            return visitDate === todayStr;
         });
 
         visitContainer.innerHTML = myVisits.length ? myVisits.map(v => `
-            <div class="flex items-center justify-between p-3 bg-blue-50 rounded-xl border border-blue-100 mb-2">
+            <div class="p-3 bg-blue-50 rounded-xl border border-blue-100 mb-2 flex justify-between items-center">
                 <div>
                     <p class="text-[10px] font-black text-blue-700 uppercase">${v.lieu_nom}</p>
                     <p class="text-[9px] text-slate-400">${new Date(v.check_in).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</p>
                 </div>
                 <span class="text-[9px] font-bold bg-white px-2 py-1 rounded shadow-sm text-emerald-600">${v.outcome || 'VU'}</span>
             </div>
-        `).join('') : '<p class="text-[10px] text-slate-400 italic text-center py-4">Aucune visite aujourd\'hui.</p>';
+        `).join('') : '<div class="text-center py-6"><i class="fa-solid fa-person-walking text-slate-200 text-2xl mb-2"></i><p class="text-[10px] text-slate-400 italic">Aucune visite aujourd\'hui.</p></div>';
 
-        // 2. Mes bilans du mois
-        const currentMonth = todayStr.substring(0, 7); // "2026-02"
-        const myDailies = allDailies.filter(d => {
-            return d.employee_id === currentUser.id && d.report_date.startsWith(currentMonth);
-        });
-
+        // ... (Le reste pour les bilans mensuels reste inchangé) ...
+        const currentMonth = todayStr.substring(0, 7); 
+        const myDailies = allDailies.filter(d => d.employee_id === currentUser.id && d.report_date.startsWith(currentMonth));
         dailyContainer.innerHTML = myDailies.length ? myDailies.map(d => `
             <div class="p-3 bg-slate-50 rounded-xl border border-slate-100 mb-2">
                 <p class="text-[9px] font-black text-slate-500 mb-1">${new Date(d.report_date).toLocaleDateString('fr-FR', {day:'numeric', month:'short'})}</p>
@@ -2190,8 +2202,16 @@ async function fetchMyActivityRecap() {
             </div>
         `).join('') : '<p class="text-[10px] text-slate-400 italic text-center py-4">Aucun bilan ce mois-ci.</p>';
 
-    } catch (e) { console.error(e); }
+    } catch (e) { console.error("Erreur récap profil:", e); }
 }
+
+
+
+
+
+
+
+
 
 async function loadMyProfile() {
     console.log("🔍 --- DÉBUT CHARGEMENT PROFIL PERSONNEL ---");
@@ -5831,47 +5851,62 @@ async function fetchMobileReports(page = 1) {
                                 </thead>
                                 <tbody class="divide-y divide-slate-100">`;
                
-                    visits.forEach(v => {
-    // --- LOGIQUE : RÉCUPÉRATION DES PRODUITS PRÉSENTÉS (CORRIGÉE) ---
-    let prodsHtml = "";
-    // On s'assure que presented_products est un tableau, même s'il arrive en String JSON
-    let productsList = v.presented_products;
-    if (typeof productsList === 'string') {
-        try { productsList = JSON.parse(productsList); } catch(e) { productsList = []; }
-    }
+visits.forEach(v => {
+                    // --- LOGIQUE : RÉCUPÉRATION DES PRODUITS PRÉSENTÉS (CORRIGÉE & ROBUSTE) ---
+                    let productsList = [];
 
-    if (Array.isArray(productsList) && productsList.length > 0) {
-        prodsHtml = `<div class="flex flex-wrap gap-1 mt-1">` + 
-            productsList.map(p => 
-                `<span class="bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded text-[8px] border border-blue-100 font-black uppercase tracking-tighter">${p.name}</span>`
-            ).join('') + 
-        `</div>`;
-    }
+                    // 1. Si c'est déjà un tableau, on le prend directement
+                    if (Array.isArray(v.presented_products)) {
+                        productsList = v.presented_products;
+                    } 
+                    // 2. Si c'est une chaîne de caractères (JSON), on tente de la convertir
+                    else if (typeof v.presented_products === 'string') {
+                        try {
+                            productsList = JSON.parse(v.presented_products);
+                        } catch (e) {
+                            console.warn("Erreur parsing produits:", e);
+                            productsList = [];
+                        }
+                    }
 
-    html += `
-        <tr id="row-vis-${v.id}" class="hover:bg-white transition-colors group">
-            <td class="px-4 py-3">
-                <div class="text-xs font-bold text-blue-600 uppercase break-words">${v.lieu_nom || 'Inconnu'}</div>
-                ${prodsHtml} <!-- AFFICHAGE DES PRODUITS ICI -->
-            </td>
-            <td class="px-4 py-3 text-[10px] font-mono text-slate-500">${v.check_in ? new Date(v.check_in).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '--:--'}</td>
-            <td class="px-4 py-3 text-center">
-                ${v.proof_url ? `<button onclick="viewDocument('${v.proof_url}', 'Cachet')" class="text-emerald-500 hover:scale-110 transition-transform"><i class="fa-solid fa-camera-retro text-lg"></i></button>` : '<i class="fa-solid fa-ban text-slate-200"></i>'}
-            </td>
-            <td class="px-4 py-3 text-right">
-                <div class="text-[10px] text-slate-400 italic line-clamp-1 cursor-pointer transition-all duration-300"
-                     onmouseenter="peakText(this)" 
-                     onmouseleave="unpeakText(this)" 
-                     onclick="toggleTextFixed(this)"
-                     data-fixed="false">
-                    ${v.notes || 'R.A.S'}
-                </div>
-                <div class="flex justify-end gap-2 mt-1">
-                    <button onclick="event.stopPropagation(); deleteVisitReport('${v.id}')" class="text-slate-200 hover:text-red-500 transition-colors"><i class="fa-solid fa-trash-can text-xs"></i></button>
-                </div>
-            </td>
-        </tr>`;
-});
+                    // 3. Génération du HTML des badges
+                    let prodsHtml = "";
+                    if (productsList && productsList.length > 0) {
+                        prodsHtml = `<div class="flex flex-wrap gap-1 mt-1">` + 
+                            productsList.map(p => 
+                                // On gère le cas où p est un objet {name: "..."} ou juste une string
+                                `<span class="bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded text-[8px] border border-blue-100 font-black uppercase tracking-tighter">${p.name || p}</span>`
+                            ).join('') + 
+                        `</div>`;
+                    }
+
+                    // --- RENDU HTML (INCHANGÉ) ---
+                    html += `
+                        <tr id="row-vis-${v.id}" class="hover:bg-white transition-colors group">
+                            <td class="px-4 py-3">
+                                <div class="text-xs font-bold text-blue-600 uppercase break-words">${v.lieu_nom || 'Inconnu'}</div>
+                                ${prodsHtml} <!-- AFFICHAGE DES PRODUITS ICI -->
+                            </td>
+                            <td class="px-4 py-3 text-[10px] font-mono text-slate-500">${v.check_in ? new Date(v.check_in).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '--:--'}</td>
+                            <td class="px-4 py-3 text-center">
+                                ${v.proof_url ? `<button onclick="viewDocument('${v.proof_url}', 'Cachet')" class="text-emerald-500 hover:scale-110 transition-transform"><i class="fa-solid fa-camera-retro text-lg"></i></button>` : '<i class="fa-solid fa-ban text-slate-200"></i>'}
+                            </td>
+                            <td class="px-4 py-3 text-right">
+                                <div class="text-[10px] text-slate-400 italic line-clamp-1 cursor-pointer transition-all duration-300"
+                                     onmouseenter="peakText(this)" 
+                                     onmouseleave="unpeakText(this)" 
+                                     onclick="toggleTextFixed(this)"
+                                     data-fixed="false">
+                                    ${v.notes || 'R.A.S'}
+                                </div>
+                                <div class="flex justify-end gap-2 mt-1">
+                                    <button onclick="event.stopPropagation(); deleteVisitReport('${v.id}')" class="text-slate-200 hover:text-red-500 transition-colors"><i class="fa-solid fa-trash-can text-xs"></i></button>
+                                </div>
+                            </td>
+                        </tr>`;
+                });
+
+                        
                 html += `</tbody></table></div></div>`;
             }
             html += `</div>`;
