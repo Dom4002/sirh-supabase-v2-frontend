@@ -2131,54 +2131,58 @@ async function openAddProductModal() {
 }
 
 
+
 async function fetchMyActivityRecap() {
     const visitContainer = document.getElementById('my-today-visits');
     const dailyContainer = document.getElementById('my-month-dailies');
     if(!visitContainer) return;
 
     try {
-        // On récupère tout et on filtre en local pour la rapidité
         const [visRes, daiRes] = await Promise.all([
-            secureFetch(`${SIRH_CONFIG.apiBaseUrl}/read-visit-reports?limit=100`),
+            secureFetch(`${SIRH_CONFIG.apiBaseUrl}/read-visit-reports`),
             secureFetch(`${SIRH_CONFIG.apiBaseUrl}/read-daily-reports`)
         ]);
 
         const allVisits = await visRes.json();
         const allDailies = await daiRes.json();
         
-        const today = new Date().toLocaleDateString();
+        // Utilisation du format ISO pour une comparaison fiable
+        const todayISO = new Date().toISOString().split('T')[0]; 
 
         // 1. Filtrer mes visites d'aujourd'hui
-        const myTodayVisits = (allVisits.data || allVisits).filter(v => 
-            v.employee_id === currentUser.id && new Date(v.check_in).toLocaleDateString() === today
-        );
+        const myTodayVisits = (allVisits.data || allVisits).filter(v => {
+            const vDate = (v.check_in || v.check_out || "").split('T')[0];
+            return v.employee_id === currentUser.id && vDate === todayISO;
+        });
 
         visitContainer.innerHTML = myTodayVisits.length ? myTodayVisits.map(v => `
-            <div class="flex items-center justify-between p-3 bg-blue-50 rounded-xl border border-blue-100">
+            <div class="flex items-center justify-between p-3 bg-blue-50 rounded-xl border border-blue-100 mb-2">
                 <div>
                     <p class="text-[10px] font-black text-blue-600 uppercase">${v.lieu_nom}</p>
-                    <p class="text-[9px] text-slate-400">${new Date(v.check_in).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</p>
+                    <p class="text-[9px] text-slate-400">${v.check_in ? new Date(v.check_in).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '--'}</p>
                 </div>
                 <span class="text-[9px] font-bold bg-white px-2 py-1 rounded shadow-sm">${v.outcome || 'VU'}</span>
             </div>
-        `).join('') : '<p class="text-[10px] text-slate-400 italic">Aucune visite aujourd\'hui.</p>';
+        `).join('') : '<p class="text-[10px] text-slate-400 italic text-center py-4">Aucune visite aujourd\'hui.</p>';
 
         // 2. Filtrer mes bilans du mois
-        const myMonthDailies = allDailies.filter(d => d.employee_id === currentUser.id);
+        const currentMonth = todayISO.substring(0, 7); // "2026-02"
+        const myMonthDailies = allDailies.filter(d => {
+            return d.employee_id === currentUser.id && d.report_date.startsWith(currentMonth);
+        });
+
         dailyContainer.innerHTML = myMonthDailies.length ? myMonthDailies.map(d => `
-            <div class="p-3 bg-slate-50 rounded-xl border border-slate-100">
+            <div class="p-3 bg-slate-50 rounded-xl border border-slate-100 mb-2">
                 <div class="flex justify-between items-center mb-1">
                     <p class="text-[9px] font-black text-slate-500">${new Date(d.report_date).toLocaleDateString('fr-FR', {day:'numeric', month:'short'})}</p>
                     ${d.needs_restock ? '<i class="fa-solid fa-box-open text-orange-500 text-[10px]"></i>' : ''}
                 </div>
                 <p class="text-[10px] text-slate-600 italic line-clamp-1">${d.summary}</p>
             </div>
-        `).join('') : '<p class="text-[10px] text-slate-400 italic">Aucun bilan ce mois-ci.</p>';
+        `).join('') : '<p class="text-[10px] text-slate-400 italic text-center py-4">Aucun bilan ce mois-ci.</p>';
 
-    } catch (e) { console.error(e); }
+    } catch (e) { console.error("Erreur récap profil:", e); }
 }
-
-
 
 
 
@@ -2428,6 +2432,11 @@ function switchView(v) {
     if (v === 'employees') {
         renderData();
     }
+
+                        // Dans app.js, modifie switchView
+            if (v === 'catalog') {
+                fetchProducts(); // <--- C'est ça qui recharge la liste quand on clique
+            }
 
     if (v === 'maintenance') {
         // Pas de chargement automatique nécessaire pour l'instant
@@ -5817,27 +5826,40 @@ async function fetchMobileReports(page = 1) {
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-slate-100">`;
-                visits.forEach(v => {
+               
+                        visits.forEach(v => {
+                    // --- LOGIQUE : RÉCUPÉRATION DES PRODUITS PRÉSENTÉS ---
+                    let prodsHtml = "";
+                    if (v.presented_products && v.presented_products.length > 0) {
+                        prodsHtml = `<div class="flex flex-wrap gap-1 mt-1">` + 
+                            v.presented_products.map(p => 
+                                `<span class="bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded text-[8px] border border-blue-100 font-black uppercase tracking-tighter">${p.name}</span>`
+                            ).join('') + 
+                        `</div>`;
+                    }
+
                     html += `
                         <tr id="row-vis-${v.id}" class="hover:bg-white transition-colors group">
-                            <td class="px-4 py-3 text-xs font-bold text-blue-600 uppercase break-words">${v.lieu_nom || 'Inconnu'}</td>
+                            <td class="px-4 py-3">
+                                <div class="text-xs font-bold text-blue-600 uppercase break-words">${v.lieu_nom || 'Inconnu'}</div>
+                                ${prodsHtml} <!-- AFFICHAGE DES PRODUITS ICI -->
+                            </td>
                             <td class="px-4 py-3 text-[10px] font-mono text-slate-500">${v.check_in ? new Date(v.check_in).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '--:--'}</td>
                             <td class="px-4 py-3 text-center">
                                 ${v.proof_url ? `<button onclick="viewDocument('${v.proof_url}', 'Cachet')" class="text-emerald-500 hover:scale-110 transition-transform"><i class="fa-solid fa-camera-retro text-lg"></i></button>` : '<i class="fa-solid fa-ban text-slate-200"></i>'}
                             </td>
-                        <td class="px-4 py-3 text-right">
-                            <div class="text-[10px] text-slate-400 italic line-clamp-1 cursor-pointer transition-all duration-300"
-                                 onmouseenter="peakText(this)" 
-                                 onmouseleave="unpeakText(this)" 
-                                 onclick="toggleTextFixed(this)"
-                                 data-fixed="false">
-                                ${v.notes || 'R.A.S'}
-                            </div>
-                            <div class="flex justify-end gap-2 mt-1">
-                                <button onclick="event.stopPropagation(); deleteVisitReport('${v.id}')" class="text-slate-200 hover:text-red-500 transition-colors"><i class="fa-solid fa-trash-can text-xs"></i></button>
-                            </div>
-                        </td>
-
+                            <td class="px-4 py-3 text-right">
+                                <div class="text-[10px] text-slate-400 italic line-clamp-1 cursor-pointer transition-all duration-300"
+                                     onmouseenter="peakText(this)" 
+                                     onmouseleave="unpeakText(this)" 
+                                     onclick="toggleTextFixed(this)"
+                                     data-fixed="false">
+                                    ${v.notes || 'R.A.S'}
+                                </div>
+                                <div class="flex justify-end gap-2 mt-1">
+                                    <button onclick="event.stopPropagation(); deleteVisitReport('${v.id}')" class="text-slate-200 hover:text-red-500 transition-colors"><i class="fa-solid fa-trash-can text-xs"></i></button>
+                                </div>
+                            </td>
                         </tr>`;
                 });
                 html += `</tbody></table></div></div>`;
@@ -6340,6 +6362,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
