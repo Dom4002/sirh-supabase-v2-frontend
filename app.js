@@ -5853,38 +5853,49 @@ async function fetchMobileReports(page = 1) {
                                 <tbody class="divide-y divide-slate-100">`;
                
 visits.forEach(v => {
-                    // --- LOGIQUE ROBUSTE : NETTOYAGE DES PRODUITS ---
+                    // --- LOGIQUE DE NETTOYAGE ULTIME ---
                     let productsList = [];
                     let raw = v.presented_products;
 
-                    // 1. Parsing sécurisé (Texte vers Objet)
+                    // 1. On transforme le gros bloc en tableau
                     if (typeof raw === 'string') {
                         try { productsList = JSON.parse(raw); } catch(e) { productsList = []; }
                     } else if (Array.isArray(raw)) {
                         productsList = raw;
                     }
 
-                    // 2. Génération des badges (Correction MAJUSCULES/minuscules)
+                    // 2. On nettoie CHAQUE élément du tableau un par un
+                    // C'est ici que ça coinçait : parfois les éléments sont eux-mêmes du texte JSON
                     let prodsHtml = "";
                     if (productsList && productsList.length > 0) {
                         prodsHtml = `<div class="flex flex-wrap gap-1 mt-1">` + 
                             productsList.map(p => {
-                                // ICI : On cherche le nom partout (name, NAME, Name)
-                                const cleanName = p.name || p.NAME || p.Name || p;
-                                // Si c'est toujours un objet (bug rare), on force l'affichage
-                                const finalName = (typeof cleanName === 'object') ? 'Produit' : cleanName;
+                                let item = p;
                                 
+                                // Si l'élément est une chaine de caractères qui ressemble à du JSON, on la parse encore
+                                if (typeof item === 'string' && item.trim().startsWith('{')) {
+                                    try { item = JSON.parse(item); } catch(e) {}
+                                }
+
+                                // Maintenant on cherche le nom (Majuscule ou Minuscule)
+                                let finalName = "Produit";
+                                if (typeof item === 'object' && item !== null) {
+                                    finalName = item.NAME || item.name || item.Name || "Inconnu";
+                                } else {
+                                    finalName = item; // C'est juste du texte simple
+                                }
+
                                 return `<span class="bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded text-[8px] border border-blue-100 font-black uppercase tracking-tighter">${finalName}</span>`;
                             }).join('') + 
                         `</div>`;
                     }
 
-                    // --- RENDU DE LA LIGNE ---
+                    // --- RENDU HTML ---
                     html += `
                         <tr id="row-vis-${v.id}" class="hover:bg-white transition-colors group">
                             <td class="px-4 py-3 align-top">
                                 <div class="text-xs font-bold text-blue-600 uppercase break-words">${v.lieu_nom || 'Inconnu'}</div>
-                                ${prodsHtml} <!-- AFFICHAGE PROPRE ICI -->
+                                ${prodsHtml} <!-- PRODUITS PROPRES -->
                             </td>
                             <td class="px-4 py-3 align-top text-[10px] font-mono text-slate-500">${v.check_in ? new Date(v.check_in).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '--:--'}</td>
                             <td class="px-4 py-3 align-top text-center">
@@ -6401,6 +6412,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
