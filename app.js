@@ -1269,7 +1269,11 @@ async function populateManagerSelects() {
 
     function renderData() { 
         const b = document.getElementById('full-body'); 
-        const d = document.getElementById('dashboard-body'); 
+        const d = document.getElementById('dashboard-body');
+        if(!b || !d) return; // Sécurité
+        const canManage = currentUser.permissions?.can_see_employees === true;
+
+
         b.innerHTML = ''; 
         d.innerHTML = ''; 
         
@@ -1360,43 +1364,41 @@ async function populateManagerSelects() {
     
 
 
- const contractActions = `
-<div class="flex items-center justify-end gap-2">
-    <!-- DOSSIER COMPLET -->
-    <button onclick="openFullFolder('${safeId}')" title="Dossier Complet" class="p-2 bg-yellow-50 text-yellow-600 rounded-lg hover:bg-yellow-500 hover:text-white transition-all"><i class="fa-solid fa-folder-open"></i></button>
-    
-    <div class="h-4 w-[1px] bg-slate-200 mx-1"></div>
+// On ne prépare les boutons QUE si l'utilisateur a la permission
+let contractActions = "";
 
-    ${!isSigned ? `
-        <!-- 1. GÉNÉRER LE BROUILLON (Le bouton qui manquait) -->
-        <button onclick="generateDraftContract('${safeId}')" title="Générer le brouillon PDF" class="p-2 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-600 hover:text-white transition-all">
-            <i class="fa-solid fa-file-contract"></i>
-        </button>
+if (canManage) {
+    const sStr = String(e.contract_status || '').toLowerCase().trim(); 
+    const isSigned = (sStr === 'signé' || sStr === 'signe');
+    const safeId = escapeHTML(e.id);
 
-        <!-- 2. OPTION A : SIGNATURE ÉLECTRONIQUE (AUTO) -->
-        <button onclick="openContractModal('${safeId}')" title="Signature sur écran" class="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white transition-all">
-            <i class="fa-solid fa-pen-nib"></i>
-        </button>
+    contractActions = `
+    <div class="flex items-center justify-end gap-2">
+        <!-- DOSSIER COMPLET -->
+        <button onclick="openFullFolder('${safeId}')" title="Dossier Complet" class="p-2 bg-yellow-50 text-yellow-600 rounded-lg hover:bg-yellow-500 hover:text-white transition-all"><i class="fa-solid fa-folder-open"></i></button>
+        
+        <div class="h-4 w-[1px] bg-slate-200 mx-1"></div>
 
-        <!-- 3. OPTION B : SCAN / UPLOAD MANUEL -->
-        <button onclick="triggerManualContractUpload('${safeId}')" title="Uploader un contrat scanné" class="p-2 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-600 hover:text-white transition-all">
-            <i class="fa-solid fa-file-arrow-up"></i>
-        </button>
-    ` : `
-        <span class="text-[10px] font-black text-emerald-500 uppercase bg-emerald-50 px-2 py-1 rounded">Signé</span>
-    `}
+        ${!isSigned ? `
+            <button onclick="generateDraftContract('${safeId}')" title="Brouillon PDF" class="p-2 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-600 hover:text-white transition-all"><i class="fa-solid fa-file-contract"></i></button>
+            <button onclick="openContractModal('${safeId}')" title="Signature" class="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white transition-all"><i class="fa-solid fa-pen-nib"></i></button>
+            <button onclick="triggerManualContractUpload('${safeId}')" title="Upload Scan" class="p-2 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-600 hover:text-white transition-all"><i class="fa-solid fa-file-arrow-up"></i></button>
+        ` : `
+            <span class="text-[10px] font-black text-emerald-500 uppercase bg-emerald-50 px-2 py-1 rounded">Signé</span>
+        `}
 
-    <div class="h-4 w-[1px] bg-slate-200 mx-1"></div>
-    
-    <!-- BADGE ET MODIFICATION -->
-    <button onclick="printBadge('${safeId}')" class="text-slate-400 hover:text-blue-600 transition-all"><i class="fa-solid fa-print"></i></button>
-    <button onclick="openEditModal('${safeId}')" class="text-slate-400 hover:text-slate-800 transition-all"><i class="fa-solid fa-pen"></i></button>
-</div>`;
-
+        <div class="h-4 w-[1px] bg-slate-200 mx-1"></div>
+        <button onclick="printBadge('${safeId}')" class="text-slate-400 hover:text-blue-600 transition-all"><i class="fa-solid fa-print"></i></button>
+        <button onclick="openEditModal('${safeId}')" class="text-slate-400 hover:text-slate-800 transition-all"><i class="fa-solid fa-pen"></i></button>
+    </div>`;
+} else {
+    // Si l'utilisateur n'a pas la permission, on peut afficher un badge "Lecture seule" ou rien du tout
+    contractActions = `<span class="text-[9px] font-bold text-slate-300 uppercase tracking-widest">Consultation</span>`;
+}
 
 
             
-            b.innerHTML+=`<tr class="border-b hover:bg-slate-50 transition-colors"><td class="p-4 flex gap-3 items-center min-w-[200px]">${av}<div><div class="font-bold text-sm text-slate-800 uppercase">${escapeHTML(e.nom)}</div><div class="text-[10px] text-slate-400 font-mono tracking-tighter">${e.matricule}</div></div></td><td class="p-4 text-xs font-medium text-slate-500">${escapeHTML(e.poste)}</td><td class="p-4"><span class="px-3 py-1 border rounded-lg text-[10px] font-black uppercase ${bdgClass}">${escapeHTML(bdgLabel)}</span></td><td class="p-4 rh-only">${contractActions}</td></tr>`; 
+            b.innerHTML+=`<tr class="border-b hover:bg-slate-50 transition-colors"><td class="p-4 flex gap-3 items-center min-w-[200px]">${av}<div><div class="font-bold text-sm text-slate-800 uppercase">${escapeHTML(e.nom)}</div><div class="text-[10px] text-slate-400 font-mono tracking-tighter">${e.matricule}</div></div></td><td class="p-4 text-xs font-medium text-slate-500">${escapeHTML(e.poste)}</td><td class="p-4"><span class="px-3 py-1 border rounded-lg text-[10px] font-black uppercase ${bdgClass}">${escapeHTML(bdgLabel)}</span></td><td class="p-4 text-right">${contractActions}</td></tr>`; 
         });
 
         // Mises à jour UI
@@ -2267,8 +2269,7 @@ async function loadMyProfile() {
     document.getElementById('emp-dob').value = "";
     document.getElementById('folder-docs-grid').innerHTML = '<div class="col-span-full text-center text-slate-400 py-10 italic">Chargement des documents...</div>';
     
-    const dailyReportBtn = document.querySelector('[onclick="openDailyReportModal()"]');
-    if (dailyReportBtn) dailyReportBtn.style.display = 'none';
+
 
     const photoEl = document.getElementById('emp-photo-real');
     const avatarEl = document.getElementById('emp-avatar');
@@ -2397,23 +2398,24 @@ async function loadMyProfile() {
             leaveBalanceEl.className = solde <= 5 ? "text-4xl font-black mt-2 text-orange-600" : "text-4xl font-black mt-2 text-indigo-600";
         }
 
-        // --- LOGIQUE DE VISIBILITÉ HYBRIDE (MOBILE VS BUREAU) ---
+// --- LOGIQUE DE CHARGEMENT DES DONNÉES DE TERRAIN ---
         const mobileSection = document.getElementById('mobile-recap-section');
         
         if (myData.employee_type === 'MOBILE') {
-            // C'est un délégué : on montre les rapports et on les charge
+            // Si c'est un agent de terrain, on affiche les blocs de récapitulatif (Visites/Bilans)
             if (mobileSection) mobileSection.classList.remove('hidden');
-            if (dailyReportBtn) dailyReportBtn.style.display = 'flex';
             
-            // APPEL DU NOUVEAU RAPPORT UNIQUE (CORRECTION ICI)
+            // On lance le chargement de ses statistiques d'activité
             if (typeof fetchMyActivityRecap === 'function') {
                 fetchMyActivityRecap();
             }
         } else {
-            // C'est un employé de bureau : on cache tout le bloc terrain
+            // Pour un employé de bureau, on cache les blocs de statistiques terrain
             if (mobileSection) mobileSection.classList.add('hidden');
-            if (dailyReportBtn) dailyReportBtn.style.display = 'none';
         }
+        
+        // Note : Le bouton "Rapport de Fin de Journée" est maintenant géré 
+        // automatiquement par applyPermissionsUI via l'attribut data-perm="can_submit_daily_report"
                 
     } catch (e) {
         console.error("Erreur de chargement du profil personnel:", e);
@@ -6512,6 +6514,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
