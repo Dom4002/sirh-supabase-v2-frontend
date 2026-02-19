@@ -2155,59 +2155,103 @@ async function openAddProductModal() {
 
 
 
-
 async function fetchMyActivityRecap() {
     const visitContainer = document.getElementById('my-today-visits');
     const dailyContainer = document.getElementById('my-month-dailies');
-    if(!visitContainer) return;
+    
+    // Sécurité : si les conteneurs n'existent pas (ex: profil bureau), on arrête.
+    if(!visitContainer || !dailyContainer) return;
+
+    // Feedback visuel pendant le chargement
+    visitContainer.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-circle-notch fa-spin text-blue-500"></i></div>';
+    dailyContainer.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-circle-notch fa-spin text-blue-500"></i></div>';
 
     try {
+        // 1. On récupère un plus grand volume de données pour être sûr de trouver les nôtres
+        // (Dans une V2 on filtrera côté serveur par ID, mais pour l'instant on filtre en JS)
         const [visRes, daiRes] = await Promise.all([
-            secureFetch(`${SIRH_CONFIG.apiBaseUrl}/read-visit-reports?limit=50`), // On limite pour aller vite
-            secureFetch(`${SIRH_CONFIG.apiBaseUrl}/read-daily-reports`)
+            secureFetch(`${SIRH_CONFIG.apiBaseUrl}/read-visit-reports?limit=500`), 
+            secureFetch(`${SIRH_CONFIG.apiBaseUrl}/read-daily-reports?limit=100`)
         ]);
 
-        const allVisits = await visRes.json();
-        const allDailies = await daiRes.json();
+        const allVisitsRaw = await visRes.json();
+        const allDailiesRaw = await daiRes.json();
         
-        // On prend la date locale du navigateur (Bénin)
-        const todayStr = new Date().toLocaleDateString('fr-CA'); // Format YYYY-MM-DD
+        // Gestion du format de retour (data ou direct)
+        const allVisits = allVisitsRaw.data || allVisitsRaw;
+        const allDailies = allDailiesRaw.data || allDailiesRaw;
 
-        // 1. Filtrer mes visites d'aujourd'hui
-        const myVisits = (allVisits.data || allVisits).filter(v => {
-            if (!v.check_in || v.employee_id !== currentUser.id) return false;
+        // 2. Définition de "Aujourd'hui" et "Ce Mois" (Basé sur l'heure locale du navigateur)
+        const now = new Date();
+        const todayStr = now.toLocaleDateString(); // ex: "19/02/2026" (format local)
+        const currentMonthStr = now.getMonth() + "-" + now.getFullYear(); // ex: "1-2026" (Février est 1 en JS)
+
+        // --- FILTRAGE DES VISITES (JOUR) ---
+        const myVisits = allVisits.filter(v => {
+            // A. Est-ce mon ID ?
+            if (v.employee_id !== currentUser.id) return false;
             
-            // On convertit la date de la visite en date locale pour comparer
-            const visitDate = new Date(v.check_in).toLocaleDateString('fr-CA');
+            // B. Est-ce la bonne date ? (On convertit la date UTC du serveur en date locale lisible)
+            if (!v.check_in) return false;
+            const visitDate = new Date(v.check_in).toLocaleDateString();
+            
             return visitDate === todayStr;
         });
 
-        visitContainer.innerHTML = myVisits.length ? myVisits.map(v => `
-            <div class="p-3 bg-blue-50 rounded-xl border border-blue-100 mb-2 flex justify-between items-center">
-                <div>
-                    <p class="text-[10px] font-black text-blue-700 uppercase">${v.lieu_nom}</p>
-                    <p class="text-[9px] text-slate-400">${new Date(v.check_in).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</p>
+        // Affichage Visites
+        if (myVisits.length > 0) {
+            visitContainer.innerHTML = myVisits.map(v => `
+                <div class="flex items-center justify-between p-3 bg-blue-50 rounded-xl border border-blue-100 mb-2">
+                    <div class="overflow-hidden mr-2">
+                        <p class="text-[10px] font-black text-blue-700 uppercase truncate">${v.lieu_nom || 'Lieu inconnu'}</p>
+                        <p class="text-[9px] text-slate-400 font-mono flex items-center gap-1">
+                            <i class="fa-regular fa-clock"></i>
+                            ${new Date(v.check_in).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
+                        </p>
+                    </div>
+                    <span class="text-[8px] font-black bg-white px-2 py-1 rounded shadow-sm text-emerald-600 border border-emerald-100 uppercase whitespace-nowrap">
+                        ${v.outcome || 'VU'}
+                    </span>
                 </div>
-                <span class="text-[9px] font-bold bg-white px-2 py-1 rounded shadow-sm text-emerald-600">${v.outcome || 'VU'}</span>
-            </div>
-        `).join('') : '<div class="text-center py-6"><i class="fa-solid fa-person-walking text-slate-200 text-2xl mb-2"></i><p class="text-[10px] text-slate-400 italic">Aucune visite aujourd\'hui.</p></div>';
+            `).join('');
+        } else {
+            visitContainer.innerHTML = '<div class="text-center py-6 border-2 border-dashed border-slate-100 rounded-xl"><i class="fa-solid fa-person-walking text-slate-200 text-2xl mb-2"></i><p class="text-[10px] text-slate-400 italic">Aucune visite pour aujourd\'hui.</p></div>';
+        }
 
-        // ... (Le reste pour les bilans mensuels reste inchangé) ...
-        const currentMonth = todayStr.substring(0, 7); 
-        const myDailies = allDailies.filter(d => d.employee_id === currentUser.id && d.report_date.startsWith(currentMonth));
-        dailyContainer.innerHTML = myDailies.length ? myDailies.map(d => `
-            <div class="p-3 bg-slate-50 rounded-xl border border-slate-100 mb-2">
-                <p class="text-[9px] font-black text-slate-500 mb-1">${new Date(d.report_date).toLocaleDateString('fr-FR', {day:'numeric', month:'short'})}</p>
-                <p class="text-[10px] text-slate-600 italic line-clamp-1">${d.summary}</p>
-            </div>
-        `).join('') : '<p class="text-[10px] text-slate-400 italic text-center py-4">Aucun bilan ce mois-ci.</p>';
+        // --- FILTRAGE DES BILANS (MOIS) ---
+        const myDailies = allDailies.filter(d => {
+            // A. Est-ce mon ID ?
+            if (d.employee_id !== currentUser.id) return false;
+            
+            // B. Est-ce le bon mois ?
+            const reportDate = new Date(d.report_date);
+            const reportMonthStr = reportDate.getMonth() + "-" + reportDate.getFullYear();
+            
+            return reportMonthStr === currentMonthStr;
+        });
 
-    } catch (e) { console.error("Erreur récap profil:", e); }
+        // Affichage Bilans
+        if (myDailies.length > 0) {
+            dailyContainer.innerHTML = myDailies.map(d => `
+                <div class="p-3 bg-slate-50 rounded-xl border border-slate-100 mb-2 hover:bg-white transition-colors cursor-default">
+                    <div class="flex justify-between items-center mb-1">
+                        <p class="text-[9px] font-black text-slate-500 uppercase">
+                            ${new Date(d.report_date).toLocaleDateString('fr-FR', {weekday:'short', day:'numeric'})}
+                        </p>
+                        ${d.needs_restock ? '<i class="fa-solid fa-box-open text-orange-500 text-[10px] animate-pulse" title="Besoin stock"></i>' : '<i class="fa-solid fa-check text-emerald-400 text-[10px]"></i>'}
+                    </div>
+                    <p class="text-[10px] text-slate-600 italic line-clamp-2 leading-tight">"${d.summary}"</p>
+                </div>
+            `).join('');
+        } else {
+            dailyContainer.innerHTML = '<div class="text-center py-6 border-2 border-dashed border-slate-100 rounded-xl"><i class="fa-regular fa-clipboard text-slate-200 text-2xl mb-2"></i><p class="text-[10px] text-slate-400 italic">Aucun bilan ce mois-ci.</p></div>';
+        }
+
+    } catch (e) {
+        console.error("Erreur récap profil:", e);
+        visitContainer.innerHTML = '<p class="text-[10px] text-red-400 text-center">Erreur chargement</p>';
+    }
 }
-
-
-
-
 
 
 
@@ -6435,6 +6479,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
