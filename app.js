@@ -5919,60 +5919,27 @@ visits.forEach(v => {
             }
             html += `</div>`;
         } 
-        else {
+else {
             // --- BILANS JOURNALIERS (Onglet 2) ---
             const groupedDaily = {};
-// ... (Dans le bloc 'else' des bilans) ...
-
+            
+            // 1. D'abord, on regroupe les données par nom d'agent
             data.forEach(rep => {
-                // --- GÉNÉRATION DES BADGES DE STATS ---
-                let statsHtml = "";
-                if (rep.products_stats && Object.keys(rep.products_stats).length > 0) {
-                    statsHtml = `<div class="flex flex-wrap gap-1 mt-2">`;
-                    for (const [prodName, count] of Object.entries(rep.products_stats)) {
-                        statsHtml += `<span class="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded text-[8px] font-black border border-indigo-100 uppercase">${prodName} <span class="text-indigo-400">x${count}</span></span>`;
-                    }
-                    statsHtml += `</div>`;
-                } else {
-                    statsHtml = `<div class="mt-1 text-[8px] text-slate-300 italic">Aucun produit détecté</div>`;
-                }
-
-                html += `
-                    <tr id="row-daily-${rep.id}" class="hover:bg-indigo-50/30 transition-colors group">
-                        <td class="px-6 py-4 w-1/4">
-                            <div class="text-[10px] font-black text-indigo-500 uppercase">${new Date(rep.report_date).toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long'})}</div>
-                            <!-- LES STATS S'AFFICHENT SOUS LA DATE -->
-                            ${statsHtml}
-                        </td>
-                        
-                        <td class="px-6 py-4 w-2/4 cursor-pointer" onclick="toggleText(this.querySelector('div'))">
-                            <div class="text-xs text-slate-600 italic line-clamp-1 hover:text-blue-600 transition-colors">
-                                ${rep.summary || "Aucun texte."}
-                            </div>
-                        </td>
-
-                        <td class="px-6 py-4 text-center">
-                            ${rep.needs_restock ? '<span class="text-orange-500 font-bold text-[9px]"><i class="fa-solid fa-box-open"></i> BESOIN</span>' : '<span class="text-emerald-400 text-[9px]">OK</span>'}
-                        </td>
-
-                        <td class="px-6 py-4 text-right">
-                            <div class="flex items-center justify-end gap-3">
-                                ${rep.photo_url ? `<button onclick="viewDocument('${rep.photo_url}', 'Cahier')" class="text-blue-500 hover:scale-125 transition-transform"><i class="fa-solid fa-file-image text-lg"></i></button>` : '<i class="fa-solid fa-ban text-slate-200"></i>'}
-                                <button onclick="deleteDailyReport('${rep.id}')" class="text-slate-300 hover:text-red-500 transition-all opacity-0 group-hover:opacity-100">
-                                    <i class="fa-solid fa-check"></i>
-                                </button>
-                            </div>
-                        </td>
-                    </tr>`;
+                const name = rep.employees?.nom || "Agent Inconnu";
+                if (!groupedDaily[name]) groupedDaily[name] = [];
+                groupedDaily[name].push(rep);
             });
 
             html = `<div class="col-span-full space-y-3">`;
+
+            // 2. Ensuite, on génère l'affichage pour chaque groupe
             for (const [name, reports] of Object.entries(groupedDaily)) {
                 const accordionId = `acc-day-${name.replace(/\s+/g, '-')}`;
                 const hasStockAlert = reports.some(rp => rp.needs_restock);
 
                 html += `
                     <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-visible animate-fadeIn">
+                        <!-- En-tête Accordéon -->
                         <div onclick="toggleAccordion('${accordionId}')" class="flex items-center justify-between px-6 py-4 cursor-pointer hover:bg-slate-50 transition-colors">
                             <div class="flex items-center gap-4">
                                 <div class="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-black text-sm">${name.charAt(0)}</div>
@@ -5983,18 +5950,36 @@ visits.forEach(v => {
                                 <i id="icon-${accordionId}" class="fa-solid fa-chevron-down text-slate-300 transition-transform duration-300"></i>
                             </div>
                         </div>
+
+                        <!-- Contenu Accordéon -->
                         <div id="${accordionId}" class="hidden border-t border-slate-100 bg-slate-50/50">
                             <table class="w-full text-left">
                                 <tbody class="divide-y divide-slate-100">`;
+                
+                // 3. Boucle sur les rapports de cet agent spécifique
                 reports.forEach(rep => {
+                    // --- CALCUL DES STATS PRODUITS (Intégré ici) ---
+                    let statsHtml = "";
+                    if (rep.products_stats && Object.keys(rep.products_stats).length > 0) {
+                        statsHtml = `<div class="flex flex-wrap gap-1 mt-2">`;
+                        for (const [prodName, count] of Object.entries(rep.products_stats)) {
+                            statsHtml += `<span class="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded text-[8px] font-black border border-indigo-100 uppercase">${prodName} <span class="text-indigo-400">x${count}</span></span>`;
+                        }
+                        statsHtml += `</div>`;
+                    } else {
+                        statsHtml = `<div class="mt-1 text-[8px] text-slate-300 italic">Aucun produit détecté</div>`;
+                    }
+
+                    // --- GÉNÉRATION DE LA LIGNE ---
                     html += `
                         <tr id="row-daily-${rep.id}" class="hover:bg-white transition-colors group relative">
                             <td class="px-6 py-4 w-1/4 align-top">
                                 <div class="text-[10px] font-black text-indigo-500 uppercase">${new Date(rep.report_date).toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long'})}</div>
+                                ${statsHtml} <!-- Insertion des stats ici -->
                                 <div class="text-center mt-2 text-left">${rep.needs_restock ? '<span class="text-orange-500 text-[10px] font-bold"><i class="fa-solid fa-box-open"></i> REAPPRO</span>' : '<span class="text-emerald-400 text-[10px]">OK</span>'}</div>
                             </td>
                             
-                            <!-- ZONE DE TEXTE INTELLIGENTE POUR BILAN -->
+                            <!-- ZONE DE TEXTE INTELLIGENTE -->
                             <td class="px-6 py-4 w-2/4 align-top relative">
                                 <div class="text-xs text-slate-600 italic line-clamp-1 cursor-pointer transition-all duration-300"
                                      onmouseenter="peakText(this)" 
@@ -6450,6 +6435,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
