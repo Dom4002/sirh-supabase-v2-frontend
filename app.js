@@ -2249,7 +2249,6 @@ async function fetchMyActivityRecap() {
 
 
 
-
 async function loadMyProfile() {
     console.log("🔍 --- DÉBUT CHARGEMENT PROFIL PERSONNEL ---");
     console.log("👤 Utilisateur connecté :", currentUser);
@@ -2408,9 +2407,10 @@ async function loadMyProfile() {
             if (mobileSection) mobileSection.classList.remove('hidden');
             if (dailyReportBtn) dailyReportBtn.style.display = 'flex';
             
-            // APPEL DES RAPPORTS PERSONNELS (Uniquement pour MOBILE)
-            if (typeof fetchMyDailyVisits === 'function') fetchMyDailyVisits();
-            if (typeof fetchMyMonthlyReports === 'function') fetchMyMonthlyReports();
+            // APPEL DU NOUVEAU RAPPORT UNIQUE (CORRECTION ICI)
+            if (typeof fetchMyActivityRecap === 'function') {
+                fetchMyActivityRecap();
+            }
         } else {
             // C'est un employé de bureau : on cache tout le bloc terrain
             if (mobileSection) mobileSection.classList.add('hidden');
@@ -2422,8 +2422,6 @@ async function loadMyProfile() {
         Swal.fire('Erreur', 'Impossible de charger votre profil.', 'error');
     }
 }
-
-
 
 
 
@@ -6472,6 +6470,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
