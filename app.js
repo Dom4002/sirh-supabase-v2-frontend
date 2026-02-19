@@ -4462,45 +4462,63 @@ async function handleCandidateAction(id, action) {
         // --- NOUVEAU : Sélection du type d'activité pour l'embauche ---
         let employeeType = 'OFFICE'; // Valeur par défaut
         
-        if (action === 'ACCEPTER_EMBAUCHE') {
-            const { value: typeChosen } = await Swal.fire({
-                title: 'Type d\'activité',
-                text: 'Comment ce collaborateur travaillera-t-il ?',
-                input: 'select',
-                inputOptions: {
-                    'OFFICE': '🏢 Bureau (Fixe)',
-                    'FIXED': '🏠 Agent de Site (Fixe)',
-                    'MOBILE': '🚗 Délégué (Nomade)'
-                },
-                inputPlaceholder: 'Sélectionnez un type',
-                showCancelButton: true,
-                confirmButtonColor: '#10b981'
-            });
+  // ... dans handleCandidateAction ...
+if (action === 'ACCEPTER_EMBAUCHE') {
+    // 1. On récupère la liste des départements depuis notre nouvelle table
+    const depRes = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/list-departments`);
+    const depts = await depRes.json();
+    
+    // On crée les options pour le menu déroulant
+    let deptOptions = depts.map(d => `<option value="${d.code}">${d.label}</option>`).join('');
 
-            if (!typeChosen) return; // Annule tout si on ferme la fenêtre
-            employeeType = typeChosen;
+    const { value: selection } = await Swal.fire({
+        title: 'Paramètres d\'embauche',
+        html: `
+            <div class="text-left">
+                <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Type d'activité</label>
+                <select id="swal-emp-type" class="swal2-input !mt-0">
+                    <option value="OFFICE">🏢 Bureau (Fixe)</option>
+                    <option value="FIXED">🏠 Agent Site (Fixe)</option>
+                    <option value="MOBILE">🚗 Délégué (Nomade)</option>
+                </select>
+
+                <label class="block text-[10px] font-black text-slate-400 uppercase mt-4 mb-1">Affectation Département</label>
+                <select id="swal-dept" class="swal2-input !mt-0">
+                    <option value="">-- Sélectionner --</option>
+                    ${deptOptions}
+                </select>
+            </div>
+        `,
+        focusConfirm: false,
+        showCancelButton: true,
+        confirmButtonColor: '#10b981',
+        preConfirm: () => {
+            const type = document.getElementById('swal-emp-type').value;
+            const dept = document.getElementById('swal-dept').value;
+            if (!dept) {
+                Swal.showValidationMessage('Veuillez choisir un département');
+                return false;
+            }
+            return { employeeType: type, department: dept };
         }
-
-        // Affichage du loader persistant
-        Swal.fire({ 
-            title: 'Action en cours...', 
-            text: 'Mise à jour du dossier et envoi des notifications...',
-            allowOutsideClick: false,
-            didOpen: () => Swal.showLoading() 
-        });
-
-      try {
-    const response = await secureFetch(URL_CANDIDATE_ACTION, {
-        method: 'POST', 
-        headers: {'Content-Type': 'application/json'},
-        // On ajoute employee_type dans l'envoi au serveur
-        body: JSON.stringify({ 
-            id: id, 
-            action: action, 
-            agent: currentUser.nom,
-            employee_type: employeeType 
-        })
     });
+
+    if (!selection) return;
+
+    // Mise à jour des variables pour l'envoi
+    employeeType = selection.employeeType;
+    const chosenDept = selection.department; // Nouveau !
+
+    // ... la suite de ton appel fetch vers le serveur ...
+    // N'oublie pas d'ajouter chosenDept dans le body du JSON en bas du fetch :
+    body: JSON.stringify({ 
+        id: id, 
+        action: action, 
+        agent: currentUser.nom,
+        employee_type: employeeType,
+        departement: chosenDept // <--- ON ENVOIE LE CODE (ex: 'IT')
+    })
+});
 
     const result = await response.json();
 
@@ -6488,6 +6506,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
