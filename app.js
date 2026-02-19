@@ -5503,64 +5503,63 @@ function initChatRealtime() {
 
 
 
-function applyPermissionsUI(perms) {
-    const safePerms = perms || {}; // Sécurité si perms est vide ou null
-    console.log("🛠️ Application des permissions UI (Granulaire)...", safePerms);
 
-    // ÉTAPE 1 : Gérer la visibilité de CHAQUE BOUTON individuellement
-    document.querySelectorAll('button[data-perm]').forEach(button => {
-        const key = button.getAttribute('data-perm');
+
+function applyPermissionsUI(perms) {
+    const safePerms = perms || {}; 
+    console.log("🛠️ Application des permissions UI (Correction Indépendance)...", safePerms);
+
+    // ÉTAPE 1 : Gérer la visibilité de CHAQUE ÉLÉMENT individuellement
+    // On ne se limite plus aux "buttons", on prend tout ce qui a [data-perm]
+    document.querySelectorAll('[data-perm]').forEach(el => {
+        const key = el.getAttribute('data-perm');
         
-        // Si la permission est à TRUE, on affiche le bouton (reprend le style par défaut)
         if (safePerms[key] === true) {
-            button.style.display = ''; 
+            // On réinitialise le display pour laisser le CSS (Flex/Block) reprendre le dessus
+            el.style.display = ''; 
+            el.classList.remove('hidden'); 
         } else {
-            // Sinon, on cache le bouton
-            button.style.display = 'none';
+            // On force la disparition sans affecter les voisins
+            el.style.display = 'none';
         }
     });
 
-    // ÉTAPE 2 : Gérer la visibilité des GROUPES DE MENUS (les conteneurs)
-    // On parcourt tous les groupes de menu (qui ne sont pas "Personnel")
+    // ÉTAPE 2 : Gérer la visibilité des GROUPES DE MENUS ( menu-group )
+    // On vérifie s'il reste au moins un élément visible (public ou autorisé)
     document.querySelectorAll('.menu-group').forEach(group => {
-        // On ne gère que les groupes qui contiennent des boutons avec permissions
-        const permButtonsInGroup = group.querySelectorAll('button[data-perm]');
+        // On cible la zone qui contient les boutons (ex: m-perso-content)
+        const contentArea = group.querySelector('[id$="-content"]');
         
-        // Si un groupe n'a pas de boutons avec data-perm (comme le groupe "Personnel"), on ne le cache jamais
-        if (permButtonsInGroup.length === 0) {
-            group.style.display = ''; // Assure que les groupes comme "Personnel" restent visibles
-            return;
-        }
+        if (contentArea) {
+            // On regarde TOUS les enfants directs de la zone de contenu
+            const children = Array.from(contentArea.children);
+            
+            // Le groupe reste visible si au moins un de ses enfants n'est pas en "display: none"
+            const hasVisibleContent = children.some(child => {
+                return window.getComputedStyle(child).display !== 'none';
+            });
 
-        // On vérifie si au moins UN bouton DANS ce groupe est visible
-        let hasVisibleButton = false;
-        permButtonsInGroup.forEach(button => {
-            // Si le style display n'est PAS 'none', alors il est visible
-            if (button.style.display !== 'none') {
-                hasVisibleButton = true;
+            if (hasVisibleContent) {
+                group.style.display = ''; // On laisse le groupe (titre + boutons) visible
+            } else {
+                group.style.display = 'none'; // On cache tout si le groupe est devenu vide
             }
-        });
-
-        // Si aucun bouton dans le groupe n'est visible, on cache tout le groupe
-        if (hasVisibleButton) {
-            group.style.display = ''; // Affiche le titre du groupe
-        } else {
-            group.style.display = 'none'; // Cache le titre du groupe
         }
     });
 }
 
-
-         // Simple détection de "Pull" sur mobile
+// Garde bien ta détection de Pull-to-refresh juste en dessous
 let touchStart = 0;
 document.addEventListener('touchstart', e => touchStart = e.touches[0].pageY);
 document.addEventListener('touchend', e => {
     const touchEnd = e.changedTouches[0].pageY;
     if (window.scrollY === 0 && touchEnd > touchStart + 150) {
-        PremiumUI.vibrate('click');
+        if (typeof PremiumUI !== 'undefined') PremiumUI.vibrate('click');
         refreshAllData(true);
     }
 });
+
+
 
 
 
@@ -6514,6 +6513,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
