@@ -2154,110 +2154,99 @@ async function openAddProductModal() {
 
 
 
+
+
 async function fetchMyActivityRecap() {
+    console.log("🚀 DÉBUT fetchMyActivityRecap");
+    
     const visitContainer = document.getElementById('my-today-visits');
     const dailyContainer = document.getElementById('my-month-dailies');
-    
-    // Si les conteneurs n'existent pas, on arrête
-    if(!visitContainer || !dailyContainer) return;
+    if(!visitContainer) return;
+
+    visitContainer.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-spinner fa-spin text-blue-500"></i></div>';
 
     try {
-        // 1. Récupération large (500 derniers items pour être sûr)
+        // 1. On force le rafraîchissement avec un timestamp (?t=...) pour contourner le cache
+        const timeHack = Date.now();
         const [visRes, daiRes] = await Promise.all([
-            secureFetch(`${SIRH_CONFIG.apiBaseUrl}/read-visit-reports?limit=500`),
-            secureFetch(`${SIRH_CONFIG.apiBaseUrl}/read-daily-reports?limit=100`)
+            secureFetch(`${SIRH_CONFIG.apiBaseUrl}/read-visit-reports?limit=1000&t=${timeHack}`), 
+            secureFetch(`${SIRH_CONFIG.apiBaseUrl}/read-daily-reports?limit=100&t=${timeHack}`)
         ]);
 
-        const allVisitsRaw = await visRes.json();
-        const allDailiesRaw = await daiRes.json();
+        const allVisits = await visRes.json();
+        const allDailies = await daiRes.json();
         
-        // Gestion des formats de réponse (data ou direct)
-        const allVisits = allVisitsRaw.data || allVisitsRaw;
-        const allDailies = allDailiesRaw.data || allDailiesRaw;
-
-        console.log(`📊 DIAGNOSTIC PROFIL : ${allVisits.length} visites chargées, ${allDailies.length} bilans chargés.`);
-
-        // 2. Définition des dates locales
+        // 2. On calcule la date du jour LOCALE (Bénin)
         const now = new Date();
-        // Astuce : On utilise toLocaleDateString pour avoir la date locale exacte (ex: 19/02/2026)
-        const todayLocale = now.toLocaleDateString(); 
-        const currentMonthLocale = (now.getMonth() + 1) + "/" + now.getFullYear(); // ex: 2/2026
+        const todayLocal = now.toLocaleDateString(); // ex: "19/02/2026"
+        const currentMonthLocal = (now.getMonth() + 1) + "/" + now.getFullYear(); // ex: "2/2026"
 
-        console.log(`📅 Date cherchée : ${todayLocale} pour l'utilisateur ID: ${currentUser.id}`);
+        console.log("📅 DATE AUJOURD'HUI (Local) :", todayLocal);
+        console.log("👤 ID UTILISATEUR CONNECTÉ :", currentUser.id);
 
-        // 3. Filtrage des visites (Comparaison Date Locale vs Date Locale)
-        const myVisits = allVisits.filter(v => {
-            if (!v.check_in || v.employee_id !== currentUser.id) return false;
+        // 3. Filtrage avec logs détaillés
+        const myVisits = (allVisits.data || allVisits).filter(v => {
+            // Est-ce que c'est moi ?
+            if (v.employee_id !== currentUser.id) return false;
+
+            // Conversion de la date de visite
+            const visitDateObj = new Date(v.check_in);
+            const visitDateLocal = visitDateObj.toLocaleDateString();
             
-            // On convertit la date UTC du serveur en date locale du navigateur
-            const visitDateLocale = new Date(v.check_in).toLocaleDateString();
-            
-            // Comparaison simple : "19/02/2026" === "19/02/2026" ?
-            return visitDateLocale === todayLocale;
+            // LOG pour voir pourquoi ça échoue
+            // console.log(`🔍 Test Visite ${v.lieu_nom} : ${visitDateLocal} vs ${todayLocal}`);
+
+            return visitDateLocal === todayLocal;
         });
 
-        // 4. Filtrage des bilans (Mois)
-        const myDailies = allDailies.filter(d => {
-            if (d.employee_id !== currentUser.id) return false;
-            
-            const reportDate = new Date(d.report_date);
-            const reportMonthStr = (reportDate.getMonth() + 1) + "/" + reportDate.getFullYear();
-            
-            return reportMonthStr === currentMonthLocale;
-        });
+        console.log(`✅ VISITES TROUVÉES : ${myVisits.length}`);
 
-        console.log(`✅ Résultat : ${myVisits.length} visites trouvées, ${myDailies.length} bilans trouvés.`);
-
-        // --- AFFICHAGE VISITES ---
+        // 4. Affichage Visites
         if (myVisits.length > 0) {
             visitContainer.innerHTML = myVisits.map(v => `
                 <div class="flex items-center justify-between p-3 bg-blue-50 rounded-xl border border-blue-100 mb-2">
-                    <div class="overflow-hidden mr-2">
-                        <p class="text-[10px] font-black text-blue-700 uppercase truncate">${v.lieu_nom || 'Lieu inconnu'}</p>
-                        <p class="text-[9px] text-slate-400 font-mono">
+                    <div>
+                        <p class="text-[10px] font-black text-blue-700 uppercase">${v.lieu_nom}</p>
+                        <p class="text-[9px] text-slate-400">
                             ${new Date(v.check_in).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
                         </p>
                     </div>
-                    <span class="text-[8px] font-black bg-white px-2 py-1 rounded shadow-sm text-emerald-600 border border-emerald-100 uppercase whitespace-nowrap">
-                        ${v.outcome || 'VU'}
-                    </span>
+                    <span class="text-[9px] font-bold bg-white px-2 py-1 rounded shadow-sm text-emerald-600">${v.outcome || 'VU'}</span>
                 </div>
             `).join('');
         } else {
-            // Message vide plus joli
-            visitContainer.innerHTML = `
-                <div class="flex flex-col items-center justify-center py-6 border-2 border-dashed border-slate-100 rounded-xl text-slate-300">
-                    <i class="fa-solid fa-person-walking text-2xl mb-2"></i>
-                    <p class="text-[10px] font-bold">Aucune visite aujourd'hui</p>
-                </div>`;
+            visitContainer.innerHTML = '<div class="text-center py-6 border border-dashed rounded-xl"><p class="text-[10px] text-slate-400 italic">0 visite trouvée pour ce jour.</p></div>';
         }
 
-        // --- AFFICHAGE BILANS ---
+        // 5. Filtrage Bilans
+        const myDailies = (allDailies.data || allDailies).filter(d => {
+            if (d.employee_id !== currentUser.id) return false;
+            const dDate = new Date(d.report_date);
+            const dMonth = (dDate.getMonth() + 1) + "/" + dDate.getFullYear();
+            return dMonth === currentMonthLocal;
+        });
+
+        console.log(`✅ BILANS TROUVÉS : ${myDailies.length}`);
+
+        // Affichage Bilans
         if (myDailies.length > 0) {
             dailyContainer.innerHTML = myDailies.map(d => `
-                <div class="p-3 bg-indigo-50 rounded-xl border border-indigo-100 mb-2">
-                    <div class="flex justify-between items-center mb-1">
-                        <p class="text-[9px] font-black text-indigo-800 uppercase">
-                            ${new Date(d.report_date).toLocaleDateString('fr-FR', {weekday:'short', day:'numeric'})}
-                        </p>
-                        ${d.needs_restock ? '<i class="fa-solid fa-box-open text-orange-500 text-[10px] animate-pulse" title="Besoin stock"></i>' : '<i class="fa-solid fa-check text-emerald-500 text-[10px]"></i>'}
-                    </div>
-                    <p class="text-[10px] text-slate-600 italic line-clamp-1">"${d.summary || '...'}"</p>
+                <div class="p-3 bg-slate-50 rounded-xl border border-slate-100 mb-2">
+                    <p class="text-[9px] font-black text-slate-500 mb-1">${new Date(d.report_date).toLocaleDateString()}</p>
+                    <p class="text-[10px] text-slate-600 italic line-clamp-1">${d.summary}</p>
                 </div>
             `).join('');
         } else {
-            dailyContainer.innerHTML = `
-                <div class="flex flex-col items-center justify-center py-6 border-2 border-dashed border-slate-100 rounded-xl text-slate-300">
-                    <i class="fa-regular fa-clipboard text-2xl mb-2"></i>
-                    <p class="text-[10px] font-bold">Aucun bilan ce mois-ci</p>
-                </div>`;
+            dailyContainer.innerHTML = '<div class="text-center py-6 border border-dashed rounded-xl"><p class="text-[10px] text-slate-400 italic">0 bilan ce mois-ci.</p></div>';
         }
 
     } catch (e) {
-        console.error("❌ ERREUR CRITIQUE PROFIL:", e);
-        visitContainer.innerHTML = '<p class="text-[10px] text-red-400 text-center">Erreur chargement</p>';
+        console.error("❌ CRASH FETCH PROFIL:", e);
+        visitContainer.innerHTML = '<p class="text-[10px] text-red-500">Erreur technique</p>';
     }
 }
+
+
 
 
 
@@ -6483,6 +6472,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
