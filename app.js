@@ -1250,22 +1250,34 @@ async function fetchData(forceUpdate = false, page = 1) {
 
 
 async function populateManagerSelects() {
-    // On remplit les listes déroulantes avec tous les employés actifs
-    // (Dans le futur, on pourra filtrer pour ne montrer que les cadres)
-    const optionsHtml = employees
-        .filter(e => e.statut === 'Actif')
-        .map(e => `<option value="${e.id}">${e.nom} (${e.poste})</option>`)
-        .join('');
-
-    const defaultOpt = `<option value="">-- Aucun / Autonome --</option>`;
-
     const createSelect = document.getElementById('f-manager');
     const editSelect = document.getElementById('edit-manager');
+    if (!createSelect && !editSelect) return;
 
-    if (createSelect) createSelect.innerHTML = defaultOpt + optionsHtml;
-    if (editSelect) editSelect.innerHTML = defaultOpt + optionsHtml;
+    try {
+        // On appelle l'API avec une limite de 1000 et uniquement les actifs
+        // On ajoute un paramètre agent pour la sécurité
+        const response = await secureFetch(`${URL_READ}?limit=1000&status=Actif&agent=${encodeURIComponent(currentUser.nom)}`);
+        const result = await response.json();
+        const allActive = result.data || [];
+
+        // On génère le HTML des options
+        // On trie par nom pour que ce soit plus facile à trouver
+        const optionsHtml = allActive
+            .sort((a, b) => a.nom.localeCompare(b.nom))
+            .map(e => `<option value="${e.id}">${e.nom} (${e.poste || 'Sans poste'})</option>`)
+            .join('');
+
+        const defaultOpt = `<option value="">-- Aucun / Autonome --</option>`;
+
+        if (createSelect) createSelect.innerHTML = defaultOpt + optionsHtml;
+        if (editSelect) editSelect.innerHTML = defaultOpt + optionsHtml;
+        
+        console.log(`👥 Liste des managers mise à jour (${allActive.length} personnes)`);
+    } catch (e) {
+        console.error("Erreur lors du chargement de la liste des responsables", e);
+    }
 }
-
 
     function renderData() { 
         const b = document.getElementById('full-body'); 
@@ -6513,6 +6525,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
