@@ -791,12 +791,10 @@ async function setSession(n, r, id, perms) {
 
     // 5. CHARGEMENT DES DONNÉES EN ARRIÈRE-PLAN (NON BLOQUANT POUR L'UI)
     try {
-        // Ces appels sont lancés, mais ne bloquent plus l'affichage initial de l'app
-        // 'refreshAllData' est maintenant responsable du chargement des 'employees' paginés.
-        // 'syncClockInterface' est rapide.
-        refreshAllData(false); // <-- Modification : Suppression du 'await'
-        syncClockInterface(); // <-- Modification : Suppression du 'await'
 
+        refreshAllData(false); // 
+        syncClockInterface(); // 
+        fetchAndPopulateDepartments();
         await applyModulesUI(); 
         applyPermissionsUI(perms);
 
@@ -3360,7 +3358,27 @@ function applySmartFilter(filterType) {
                     signaturePad.clear(); // On vide le cadre au cas où
                 }
 
+async function fetchAndPopulateDepartments() {
+    try {
+        const response = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/list-departments`);
+        const depts = await response.json();
 
+        // On prépare le HTML
+        const optionsHtml = depts.map(d => `<option value="${d.code}">${d.label}</option>`).join('');
+        const defaultOpt = `<option value="">-- Choisir un département --</option>`;
+
+        // On remplit les deux selects (Création et Edition)
+        const fDept = document.getElementById('f-dept');
+        const editDept = document.getElementById('edit-dept');
+
+        if (fDept) fDept.innerHTML = defaultOpt + optionsHtml;
+        if (editDept) editDept.innerHTML = defaultOpt + optionsHtml;
+        
+        console.log("✅ Départements synchronisés");
+    } catch (e) {
+        console.error("Erreur chargement départements", e);
+    }
+}
         
             function closeContractModal() { if(contractStream) contractStream.getTracks().forEach(t => t.stop()); document.getElementById('contract-modal').classList.add('hidden'); }
             async function startContractCamera() { try { contractStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }); const v = document.getElementById('contract-video'); v.srcObject = contractStream; v.classList.remove('hidden'); document.getElementById('contract-img-preview').classList.add('hidden'); document.getElementById('contract-icon').classList.add('hidden'); document.getElementById('btn-contract-capture').classList.remove('hidden'); } catch(e) { Swal.fire('Erreur', 'Caméra inaccessible', 'error'); } }
@@ -6470,6 +6488,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
