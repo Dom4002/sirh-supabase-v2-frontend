@@ -3423,62 +3423,37 @@ async function fetchLogs(page = 1) { // Accepte un paramètre de page
 
 
 
-
 async function viewDocument(url, title) {
-        if (!url || url === '#' || url === 'null') {
-            return Swal.fire('Oups', 'Aucun document disponible.', 'info');
-        }
-
-        const isHtmlFile = url.toLowerCase().includes('.html');
-        let htmlContent = "";
-
-        if (isHtmlFile) {
-            try {
-                const response = await fetch(url);
-                htmlContent = await response.text();
-            } catch (e) {
-                console.error("Erreur de lecture:", e);
-            }
-        }
-
-        Swal.fire({
-            title: `<span class="text-sm font-bold uppercase text-slate-500">${title || 'Document'}</span>`,
-            html: `
-                <div class="flex justify-end gap-2 mb-2">
-                    ${isHtmlFile ? `
-                        <button onclick="downloadHtmlAsPdf('${url}', '${title}')" class="bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase shadow-sm flex items-center gap-2">
-                            <i class="fa-solid fa-file-pdf"></i> Télécharger PDF
-                        </button>
-                    ` : ''}
-                </div>
-                <div class="rounded-xl overflow-hidden border border-slate-200 bg-slate-100" style="height: 70vh;">
-                    ${isHtmlFile ? 
-                        `<iframe id="iframe-html-viewer" width="100%" height="100%" style="border:none;"></iframe>` : 
-                        `<iframe src="${url}" width="100%" height="100%" style="border:none;" allow="autoplay"></iframe>`
-                    }
-                </div>
-                <div class="mt-2 text-right">
-                    <a href="javascript:void(0)" onclick="openHtmlInNewWindow('${url}')" class="text-xs font-bold text-blue-600 hover:underline">
-                        <i class="fa-solid fa-external-link-alt"></i> Ouvrir dans une nouvelle fenêtre
-                    </a>
-                </div>
-            `,
-            width: '80%',
-            showConfirmButton: true,
-            confirmButtonText: 'Fermer',
-            confirmButtonColor: '#0f172a',
-            padding: '1rem',
-            didOpen: () => {
-                if (isHtmlFile && htmlContent) {
-                    const iframe = document.getElementById('iframe-html-viewer');
-                    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
-                    iframeDoc.open();
-                    iframeDoc.write(htmlContent);
-                    iframeDoc.close();
-                }
-            }
-        });
+    if (!url || url === '#' || url === 'null') {
+        return Swal.fire('Oups', 'Aucun document disponible.', 'info');
     }
+
+    const isDocx = url.toLowerCase().includes('.docx');
+    
+    // Si c'est un Word, on utilise le viewer de Google pour l'afficher dans l'iframe
+    const finalUrl = isDocx 
+        ? `https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=true`
+        : url;
+
+    Swal.fire({
+        title: `<span class="text-sm font-bold uppercase text-slate-500">${title || 'Document'}</span>`,
+        html: `
+            <div class="rounded-xl overflow-hidden border border-slate-200 bg-slate-100" style="height: 70vh;">
+                <iframe src="${finalUrl}" width="100%" height="100%" style="border:none;"></iframe>
+            </div>
+            <div class="mt-3 flex justify-between items-center">
+                <a href="${url}" target="_blank" class="text-xs font-bold text-blue-600 hover:underline">
+                    <i class="fa-solid fa-download"></i> Télécharger le fichier original
+                </a>
+                <button onclick="Swal.close()" class="px-4 py-2 bg-slate-800 text-white rounded-lg text-xs font-bold uppercase">Fermer</button>
+            </div>
+        `,
+        width: '90%',
+        showConfirmButton: false, // On utilise notre propre bouton dans le HTML
+        padding: '1rem',
+        customClass: { popup: 'rounded-[2rem]' }
+    });
+}
 
 
     async function openHtmlInNewWindow(url) {
@@ -3703,56 +3678,58 @@ async function fetchAndPopulateDepartments() {
 
 
 
+
+
+
 async function submitSignedContract() { 
-        // On vérifie si l'employé a dessiné quelque chose
-        if (!signaturePad || signaturePad.isEmpty()) { 
-            return Swal.fire('Attention', 'Veuillez apposer votre signature avant de valider.', 'warning'); 
-        }
-
-        const id = document.getElementById('contract-id-hidden').value; 
-        
-        // MAGIE : On transforme le dessin en texte Base64
-        const signatureBase64 = signaturePad.toDataURL(); 
-
-        Swal.fire({ 
-            title: 'Signature en cours...', 
-            text: 'Incrustation de votre signature dans le contrat PDF', 
-            didOpen: () => Swal.showLoading(),
-            allowOutsideClick: false
-        }); 
-
-        try { 
-            // On envoie le texte de la signature à ton Webhook au lieu du fichier
-            const r = await secureFetch(URL_UPLOAD_SIGNED_CONTRACT, { 
-                method: 'POST', 
-                headers: { 'Content-Type': 'application/json' }, // INDISPENSABLE pour Supabase/Node
-                body: JSON.stringify({ 
-                    id: id, 
-                    signature: signatureBase64, 
-                    agent: currentUser.nom 
-                }) 
-            }); 
-            
-            if (r.ok) { 
-                // On récupère le HTML du contrat signé renvoyé par le serveur
-                const signedHtml = await r.text();
-
-                Swal.fire('Succès', 'Le contrat a été signé numériquement et archivé avec succès.', 'success'); 
-                closeContractModal(); 
-                refreshAllData(true); 
-
-                // OUVERTURE AUTOMATIQUE DU CONTRAT SIGNÉ (Comme avant)
-                const win = window.open("", "_blank");
-                win.document.write(signedHtml);
-                win.document.close();
-            } 
-        } catch (e) { 
-            console.error(e);
-            Swal.fire('Erreur', "Échec technique lors de la signature : " + e.message, 'error'); 
-        } 
+    if (!signaturePad || signaturePad.isEmpty()) { 
+        return Swal.fire('Attention', 'Veuillez signer avant de valider.', 'warning'); 
     }
 
+    const id = document.getElementById('contract-id-hidden').value; 
+    const signatureBase64 = signaturePad.toDataURL(); 
 
+    Swal.fire({ 
+        title: 'Signature en cours...', 
+        text: 'Incrustation dans le document Word...', 
+        didOpen: () => Swal.showLoading(),
+        allowOutsideClick: false
+    }); 
+
+    try { 
+        const r = await secureFetch(URL_UPLOAD_SIGNED_CONTRACT, { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: id, signature: signatureBase64, agent: currentUser.nom }) 
+        }); 
+        
+        const result = await r.json(); // On récupère le JSON, pas le texte HTML
+
+        if (r.ok && result.status === "success") { 
+            closeContractModal(); 
+            
+            // Succès ! On propose de voir le fichier
+            Swal.fire({
+                icon: 'success',
+                title: 'Contrat Signé !',
+                text: 'Le document Word a été généré avec votre signature.',
+                showCancelButton: true,
+                confirmButtonText: '📥 Télécharger',
+                cancelButtonText: 'Fermer'
+            }).then((choice) => {
+                if (choice.isConfirmed) {
+                    window.open(result.url, '_blank');
+                }
+            });
+            refreshAllData(true); 
+        } else {
+            throw new Error(result.error || "Erreur lors de la signature");
+        }
+    } catch (e) { 
+        console.error(e);
+        Swal.fire('Erreur', e.message, 'error'); 
+    } 
+}
 
 
 function showLeaveDetail(btn) {
@@ -6823,6 +6800,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
