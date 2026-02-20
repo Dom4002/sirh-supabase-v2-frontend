@@ -490,62 +490,98 @@ async function fetchMobileSchedules() {
     } catch (e) { console.error(e); }
 }
 
+
+
+
+
+// --- FONCTION POUR CRÉER UNE MISSION (PLANNING) ---
 async function openAddScheduleModal() {
-    // On charge les listes pour les dropdowns
-    const [empsRes, locsRes] = await Promise.all([
-        secureFetch(`${SIRH_CONFIG.apiBaseUrl}/read`),
-        secureFetch(`${SIRH_CONFIG.apiBaseUrl}/list-mobile-locations`)
-    ]);
-    const emps = await empsRes.json();
-    const locs = await locsRes.json();
+    Swal.fire({ title: 'Chargement...', didOpen: () => Swal.showLoading() });
 
-    // Filtrer pour ne garder que les employés "mobiles" (si tu utilises le type)
-    // const mobileEmps = emps.filter(e => e.employee_type !== 'OFFICE'); 
-    const mobileEmps = emps; // Pour l'instant on affiche tout le monde
+    try {
+        // 1. On récupère les employés (pour le menu déroulant) et les lieux
+        const [empsRes, locsRes] = await Promise.all([
+            secureFetch(`${SIRH_CONFIG.apiBaseUrl}/read?limit=1000&status=Actif`),
+            secureFetch(`${SIRH_CONFIG.apiBaseUrl}/list-mobile-locations`)
+        ]);
 
-    let empOptions = mobileEmps.map(e => `<option value="${e.id}">${e.nom} (${e.matricule})</option>`).join('');
-    let locOptions = locs.map(l => `<option value="${l.id}">${l.name}</option>`).join('');
+        const emps = await empsRes.json();
+        const locs = await locsRes.json();
 
-    const { value: form } = await Swal.fire({
-        title: 'Nouvelle Mission',
-        html: `
-            <label class="block text-left text-xs font-bold text-slate-500 mb-1">Agent</label>
-            <select id="sched-emp" class="swal2-input mb-3">${empOptions}</select>
-            
-            <label class="block text-left text-xs font-bold text-slate-500 mb-1">Lieu</label>
-            <select id="sched-loc" class="swal2-input mb-3">${locOptions}</select>
-            
-            <div class="grid grid-cols-2 gap-2">
-                <div><label class="text-xs">Date</label><input id="sched-date" type="date" class="swal2-input"></div>
-                <div><label class="text-xs">Début</label><input id="sched-start" type="time" class="swal2-input"></div>
-            </div>
-            <label class="block text-left text-xs font-bold text-slate-500 mt-2 mb-1">Notes</label>
-            <input id="sched-notes" class="swal2-input" placeholder="Ex: Livrer échantillon A">
-        `,
-        focusConfirm: false,
-        showCancelButton: true,
-        preConfirm: () => {
-            return {
-                employee_id: document.getElementById('sched-emp').value,
-                location_id: document.getElementById('sched-loc').value,
-                schedule_date: document.getElementById('sched-date').value,
-                start_time: document.getElementById('sched-start').value,
-                end_time: '18:00', // Valeur par défaut ou ajouter un input
-                notes: document.getElementById('sched-notes').value
+        // 2. On prépare les listes HTML
+        let empOptions = emps.data.map(e => `<option value="${e.id}">${e.nom} (${e.poste})</option>`).join('');
+        let locOptions = locs.map(l => `<option value="${l.id}">${l.name}</option>`).join('');
+
+        // 3. On ouvre la modale de saisie
+        const { value: form } = await Swal.fire({
+            title: 'Nouvelle Mission Terrain',
+            html: `
+                <div class="text-left">
+                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Agent affecté</label>
+                    <select id="sched-emp" class="swal2-input !mt-0">${empOptions}</select>
+                    
+                    <label class="block text-[10px] font-black text-slate-400 uppercase mt-4 mb-1">Lieu de la mission</label>
+                    <select id="sched-loc" class="swal2-input !mt-0">${locOptions}</select>
+                    
+                    <div class="grid grid-cols-2 gap-3 mt-4">
+                        <div>
+                            <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Date</label>
+                            <input id="sched-date" type="date" class="swal2-input !mt-0">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Heure de début</label>
+                            <input id="sched-start" type="time" class="swal2-input !mt-0" value="08:00">
+                        </div>
+                    </div>
+
+                    <label class="block text-[10px] font-black text-slate-400 uppercase mt-4 mb-1">Instructions / Notes</label>
+                    <textarea id="sched-notes" class="swal2-textarea !mt-0" placeholder="Ex: Vérifier la vitrine..."></textarea>
+                </div>
+            `,
+            focusConfirm: false,
+            showCancelButton: true,
+            confirmButtonText: 'Enregistrer la mission',
+            confirmButtonColor: '#4f46e5',
+            preConfirm: () => {
+                return {
+                    employee_id: document.getElementById('sched-emp').value,
+                    location_id: document.getElementById('sched-loc').value,
+                    schedule_date: document.getElementById('sched-date').value,
+                    start_time: document.getElementById('sched-start').value,
+                    end_time: '18:00', // Optionnel ou à ajouter en champ
+                    notes: document.getElementById('sched-notes').value
+                }
+            }
+        });
+
+        // 4. Envoi au serveur
+        if (form) {
+            Swal.fire({ title: 'Enregistrement...', didOpen: () => Swal.showLoading() });
+            const response = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/add-schedule`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(form)
+            });
+
+            if (response.ok) {
+                Swal.fire('Succès', 'Mission planifiée avec succès.', 'success');
+                fetchMobileSchedules(); // Recharge le tableau
             }
         }
-    });
-
-    if (form) {
-        await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/add-schedule`, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(form)
-        });
-        fetchMobileSchedules();
-        Swal.fire('Planifié !', '', 'success');
+    } catch (e) {
+        console.error(e);
+        Swal.fire('Erreur', 'Impossible de charger les données (Vérifiez si des lieux sont créés).', 'error');
     }
 }
+
+
+
+
+
+
+
+
+
 
 async function deleteSchedule(id) {
     if(await Swal.fire({title:'Annuler cette mission ?', icon:'warning', showCancelButton:true}).then(r => r.isConfirmed)) {
@@ -2642,6 +2678,8 @@ function switchView(v) {
     if (v === 'mobile-locations') fetchMobileLocations();
     if (v === 'mobile-planning') fetchMobileSchedules();
     if (v === 'contract-templates') fetchTemplates();
+    if (v === 'mobile-planning') fetchMobileSchedules();
+
 
     
     // Correction spécifique pour les rapports opérationnels
@@ -6737,6 +6775,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
