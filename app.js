@@ -6175,6 +6175,24 @@ function setEmployeeFilter(category, value) {
 
 
 async function renderCharts() {
+
+    // --- 1. BLOC D'INTELLIGENCE VISUELLE (DÉBUT) ---
+    const isSuperBoss = currentUser.permissions?.can_see_employees === true;
+
+    // Mise à jour du titre principal du Dashboard
+    const dashboardTitle = document.querySelector('#view-dash h2');
+    if (dashboardTitle) {
+        dashboardTitle.innerText = isSuperBoss ? "Analyse Globale de l'Entreprise" : "Pilotage de mon Équipe";
+    }
+
+    // Mise à jour du libellé de la carte noire "Absents"
+    // On cible le petit texte au-dessus du chiffre 97
+    const absentCardLabel = document.querySelector('#live-absents-list')?.parentElement?.querySelector('p');
+    if (absentCardLabel) {
+        absentCardLabel.innerText = isSuperBoss ? "ABSENTS / NON POINTÉS (TOTAL)" : "MEMBRES DE L'ÉQUIPE NON POINTÉS";
+    }
+    // --- FIN DU BLOC D'INTELLIGENCE VISUELLE ---
+            
     try {
         const response = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/get-dashboard-stats`);
         const stats = await response.json();
@@ -6509,6 +6527,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
