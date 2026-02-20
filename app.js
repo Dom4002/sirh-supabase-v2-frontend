@@ -773,28 +773,39 @@ async function setSession(n, r, id, perms) {
     });
 
     // 4. RÉVÉLATION DE L'INTERFACE DÈS QUE POSSIBLE
-    // On affiche la structure de l'app avant même que toutes les données soient là
-    appLayout.classList.remove('hidden'); // <-- Modification : Affiche l'app layout ici
-    appLayout.classList.add('ready');     // <-- Modification : Ajoute la classe ready ici
+    appLayout.classList.remove('hidden'); 
+    appLayout.classList.add('ready');     
     
-    // On fait disparaître le loader avec un délai pour l'effet visuel
     setTimeout(() => {
         if (loader) {
             loader.style.opacity = '0';
             setTimeout(() => {
                 loader.classList.add('hidden');
-                document.body.style.backgroundColor = "#f1f5f9"; // Couleur de fond de l'app
+                document.body.style.backgroundColor = "#f1f5f9"; 
             }, 800); 
         }
-    }, 100); // Très court délai pour que l'app se sente réactive
+    }, 100); 
 
 
     // 5. CHARGEMENT DES DONNÉES EN ARRIÈRE-PLAN (NON BLOQUANT POUR L'UI)
     try {
-
-        refreshAllData(false); // 
-        syncClockInterface(); // 
+        refreshAllData(false); 
+        syncClockInterface(); 
         fetchAndPopulateDepartments();
+        
+        // --- NOUVEAU : CHARGEMENT DES MODÈLES DE CONTRAT POUR LE SELECTEUR ---
+        // S'assure que les options sont prêtes avant d'ouvrir la vue "add-new"
+        fetchContractTemplatesForSelection(); 
+
+        // --- NOUVEAU : Écouteur pour le type d'employé (si le select existe) ---
+        // Il est important de s'assurer que l'élément est dans le DOM avant d'ajouter l'écouteur
+        const fTypeSelect = document.getElementById('f-type');
+        if (fTypeSelect) {
+            fTypeSelect.removeEventListener('change', toggleContractFieldsVisibility); // Évite les écouteurs dupliqués
+            fTypeSelect.addEventListener('change', toggleContractFieldsVisibility);
+            toggleContractFieldsVisibility(); // Appel initial pour masquer/afficher les champs
+        }
+
         await applyModulesUI(); 
         applyPermissionsUI(perms);
 
@@ -812,7 +823,7 @@ async function setSession(n, r, id, perms) {
             if (perms?.can_see_dashboard) {
                 switchView('dash');
             } else {
-                switchView('my-profile'); // Cet appel déclenchera loadMyProfile()
+                switchView('my-profile'); 
             }
         }
 
@@ -825,7 +836,6 @@ async function setSession(n, r, id, perms) {
         Swal.fire('Erreur', 'Impossible de démarrer l\'application. Réessayez.', 'error');
     }
 }
-
 
 
 
@@ -2934,8 +2944,13 @@ async function triggerRobotCheck() {
     }
 
 
-    
-    async function handleOnboarding(e) {
+
+
+
+
+
+
+async function handleOnboarding(e) {
                 e.preventDefault();
                 console.log("Tentative de création de profil...");
 
@@ -2954,33 +2969,41 @@ async function triggerRobotCheck() {
                         return el ? el.value : "";
                     };
 
-                        fd.append('manager_id', document.getElementById('f-manager').value);
-                        // On envoie le scope comme une chaine JSON pour que le serveur le parse
-                        const scopeVal = document.getElementById('f-scope').value;
-                        fd.append('scope', scopeVal ? JSON.stringify(scopeVal.split(',').map(s=>s.trim())) : '[]');
-                            
+                    // CHAMPS GÉNERAUX ET HIÉRARCHIQUES
+                    fd.append('manager_id', document.getElementById('f-manager').value);
+                    const scopeVal = document.getElementById('f-scope').value;
+                    fd.append('scope', scopeVal ? JSON.stringify(scopeVal.split(',').map(s=>s.trim())) : '[]');
+                        
                     fd.append('nom', getVal('f-nom'));
                     fd.append('email', getVal('f-email'));
                     fd.append('telephone', getVal('f-phone'));
                     fd.append('dob', getVal('f-dob'));
                     fd.append('adresse', getVal('f-address'));
-                    fd.append('date', getVal('f-date'));
+                    fd.append('date', getVal('f-date')); // date_embauche
                     fd.append('poste', getVal('f-poste'));
                     fd.append('dept', getVal('f-dept'));
-                    fd.append('employee_type', getVal('f-type')); // <--- AJOUTE CETTE LIGNE
-                    fd.append('limit', getVal('f-limit'));
+                    fd.append('employee_type', getVal('f-type'));
+                    fd.append('limit', getVal('f-limit')); // type_contrat
                     fd.append('role', getVal('f-role'));
+                    
+                    // NOUVEAUX CHAMPS CONTRACTUELS (INTÉGRATION COMPLÈTE)
+                    fd.append('salaire_brut_fixe', getVal('f-salaire-fixe')); // Nouveau champ
+                    fd.append('indemnite_transport', getVal('f-indemnite-transport')); // Nouveau champ
+                    fd.append('indemnite_logement', getVal('f-indemnite-logement')); // Nouveau champ
+                    fd.append('temps_travail', getVal('f-temps-travail')); // Nouveau champ
+                    fd.append('lieu_naissance', getVal('f-lieu-naissance')); // Nouveau champ
+                    fd.append('nationalite', getVal('f-nationalite')); // Nouveau champ
+                    fd.append('contract_template_id', getVal('f-contract-template-selector')); // Nouveau champ pour le modèle choisi
+
                     fd.append('agent', currentUser ? currentUser.nom : "Système");
 
                  // 3. Ajout de la photo de profil (Obligatoire)
-                // --- NOUVEAU : COMPRESSION DE LA PHOTO D'ONBOARDING ---
                 Swal.update({ text: 'Compression de la photo de profil...' });
                 const compressedProfilePhoto = await compressImage(capturedBlob);
                 fd.append('photo', compressedProfilePhoto, 'photo_profil.jpg');
 
 
                     // 4. Ajout des documents KYC (Optionnels)
-                    // IMPORTANT : On vérifie s'ils existent AVANT de les ajouter
                     if (docBlobs.id_card) fd.append('id_card', docBlobs.id_card, 'piece_identite.jpg');
                     if (docBlobs.cv) fd.append('cv', docBlobs.cv, 'cv.jpg');
                     if (docBlobs.diploma) fd.append('diploma', docBlobs.diploma, 'diplome.jpg');
@@ -3000,56 +3023,41 @@ async function triggerRobotCheck() {
                         body: fd
                     });
 
-                   
-                    
                     if (response.ok) {
-                await Swal.fire({
-                    icon: 'success',
-                    title: 'Profil créé !',
-                    text: 'Le collaborateur a été ajouté et ses accès ont été envoyés par email.',
-                    confirmButtonColor: '#2563eb'
-                });
+                        await Swal.fire({
+                            icon: 'success',
+                            title: 'Profil créé !',
+                            text: 'Le collaborateur a été ajouté et ses accès ont été envoyés par email.',
+                            confirmButtonColor: '#2563eb'
+                        });
 
-                // --- NOUVEAU : NETTOYAGE COMPLET ---
-                
-                // 1. Vide les champs texte du formulaire
-                e.target.reset(); 
+                        // --- NETTOYAGE COMPLET DU FORMULAIRE ---
+                        e.target.reset(); 
+                        resetCamera(); 
+                        docBlobs = {
+                            id_card: null,
+                            cv: null,
+                            diploma: null,
+                            attestation: null,
+                            leave_justif: null
+                        };
+                        const docIds = ['id_card', 'cv', 'diploma', 'attestation'];
+                        docIds.forEach(id => {
+                            const label = document.getElementById('btn-' + id);
+                            const preview = document.getElementById('preview-' + id);
+                            const icon = document.getElementById('icon-' + id);
+                            
+                            if (label) {
+                                label.classList.remove('bg-emerald-50', 'border-emerald-200');
+                                label.innerHTML = label.dataset.originalText || label.innerHTML;
+                            }
+                            if (preview) preview.classList.add('hidden');
+                            if (icon) icon.classList.remove('hidden');
+                        });
 
-                // 2. Réinitialise la caméra et la photo de profil
-                resetCamera(); 
-
-                // 3. Vide les fichiers (blobs) stockés en mémoire
-                docBlobs = {
-                    id_card: null,
-                    cv: null,
-                    diploma: null,
-                    attestation: null,
-                    leave_justif: null
-                };
-
-                // 4. Remet les icônes de documents à l'état initial (enlève le vert)
-                const docIds = ['id_card', 'cv', 'diploma', 'attestation'];
-                docIds.forEach(id => {
-                    const label = document.getElementById('btn-' + id);
-                    const preview = document.getElementById('preview-' + id);
-                    const icon = document.getElementById('icon-' + id);
-                    
-                    if (label) {
-                        label.classList.remove('bg-emerald-50', 'border-emerald-200');
-                        label.innerHTML = label.dataset.originalText || label.innerHTML;
-                    }
-                    if (preview) preview.classList.add('hidden');
-                    if (icon) icon.classList.remove('hidden');
-                });
-
-                // 5. Rafraîchit les données en arrière-plan et change de vue
-                await fetchData(true); // Recharge la liste depuis Supabase
-                switchView('employees'); // Redirige l'admin vers la liste des employés
-            }
-                    
-                    
-                    
-                    else {
+                        await fetchData(true); 
+                        switchView('employees'); 
+                    } else {
                         const errorData = await response.json();
                         throw new Error(errorData.error || "Erreur serveur");
                     }
@@ -3059,6 +3067,54 @@ async function triggerRobotCheck() {
                     Swal.fire('Échec', "Impossible de créer le profil : " + error.message, 'error');
                 }
             }
+
+
+
+
+
+
+
+
+
+
+function toggleContractFieldsVisibility() {
+    const selectedEmployeeType = document.getElementById('f-type').value;
+    
+    // Masquer tous les champs conditionnels par défaut
+    document.querySelectorAll('.field-group-contract[data-employee-type]').forEach(el => {
+        el.style.display = 'none';
+    });
+
+    // Afficher les champs communs à tous (ceux sans data-employee-type)
+    document.querySelectorAll('.field-group-contract:not([data-employee-type])').forEach(el => {
+        el.style.display = 'block';
+    });
+
+    // Afficher les champs spécifiques au type d'employé sélectionné
+    document.querySelectorAll(`.field-group-contract[data-employee-type="${selectedEmployeeType}"]`).forEach(el => {
+        el.style.display = 'block';
+    });
+}
+
+// --- FONCTION POUR CHARGER LES MODÈLES DE CONTRAT DANS LE SELECTEUR ---
+async function fetchContractTemplatesForSelection() {
+    const selectElement = document.getElementById('f-contract-template-selector');
+    if (!selectElement) return;
+
+    try {
+        const response = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/list-templates`);
+        const templates = await response.json();
+
+        let optionsHtml = '<option value="">-- Choisir un modèle --</option>';
+        templates.forEach(tpl => {
+            optionsHtml += `<option value="${tpl.role_target}">${tpl.label} (pour ${tpl.role_target})</option>`;
+        });
+        selectElement.innerHTML = optionsHtml;
+    } catch (e) {
+        console.error("Erreur chargement modèles de contrat pour sélection", e);
+        selectElement.innerHTML = '<option value="">Erreur de chargement</option>';
+    }
+}
 
 
 
@@ -3328,13 +3384,54 @@ function applySmartFilter(filterType) {
     fetchData(true, 1); // On relance le filtre à la page 1
 }
 
-            
-            function generateDraftContract(id) { 
-                const e = employees.find(x => x.id === id); if(!e) return; 
-                const token = localStorage.getItem('sirh_token');
-                window.open(`${URL_CONTRACT_GENERATE}?id=${encodeURIComponent(id)}&nom=${encodeURIComponent(e.nom)}&poste=${encodeURIComponent(e.poste)}&date=${encodeURIComponent(e.date)}&agent=${encodeURIComponent(currentUser.nom)}&token=${token}`, '_blank'); 
+
+async function generateDraftContract(id) {
+    const e = employees.find(x => x.id === id);
+    if (!e) return;
+
+    Swal.fire({
+        title: 'Génération en cours...',
+        text: 'Préparation du document Word...',
+        didOpen: () => Swal.showLoading()
+    });
+
+    try {
+        const token = localStorage.getItem('sirh_token');
+        // On fait un fetch avec le token dans le header pour la sécurité
+        const response = await fetch(`${URL_CONTRACT_GENERATE}?id=${id}&token=${token}`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`
             }
-            
+        });
+
+        if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.error || "Erreur lors de la génération");
+        }
+
+        // On récupère le fichier (Blob)
+        const blob = await response.blob();
+        
+        // On crée un lien invisible pour forcer le téléchargement
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Contrat_${e.nom.replace(/\s+/g, '_')}.docx`; // Nom du fichier
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+
+        Swal.close();
+        const Toast = Swal.mixin({toast: true, position: 'top-end', showConfirmButton: false, timer: 3000});
+        Toast.fire({ icon: 'success', title: 'Document téléchargé' });
+
+    } catch (error) {
+        console.error(error);
+        Swal.fire('Erreur', error.message, 'error');
+    }
+}
 
             
                 function openContractModal(id) {
