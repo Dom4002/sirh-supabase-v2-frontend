@@ -3184,7 +3184,10 @@ async function handleOnboarding(e) {
                     fd.append('lieu_naissance', getVal('f-lieu-naissance')); // Nouveau champ
                     fd.append('nationalite', getVal('f-nationalite')); // Nouveau champ
                     fd.append('contract_template_id', getVal('f-contract-template-selector')); // Nouveau champ pour le modèle choisi
-
+                    fd.append('civilite', getVal('f-civilite'));
+                    fd.append('duree_essai', getVal('f-duree-essai'));
+                    fd.append('lieu_signature', getVal('f-lieu-signature'));
+                    fd.append('contract_template_id', getVal('f-contract-template-selector'));
                     fd.append('agent', currentUser ? currentUser.nom : "Système");
 
                  // 3. Ajout de la photo de profil (Obligatoire)
@@ -6836,6 +6839,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
