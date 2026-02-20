@@ -221,6 +221,11 @@
             <i class="fa-solid fa-gears w-5 text-slate-400"></i> 
             <span class="font-semibold text-slate-400 group-hover:text-white">Paramètres Sièges</span>
         </button>
+
+        <button data-perm="can_manage_config" onclick="switchView('contract-templates')" class="nav-btn w-full flex items-center gap-4 p-4 rounded-xl transition-all hover:text-white group">
+            <i class="fa-solid fa-file-signature w-5 text-purple-400"></i> 
+            <span class="font-semibold text-purple-300 group-hover:text-white">Modèles Contrats</span>
+        </button>
         
         <!-- Serrure : Audit -->
         <button data-perm="can_see_audit" onclick="switchView('logs')" class="nav-btn w-full flex items-center gap-4 p-4 rounded-xl transition-all hover:text-white group">
@@ -525,38 +530,104 @@
                     <input type="text" id="f-poste" class="w-full p-4 bg-slate-50 border rounded-xl outline-none" placeholder="Poste" required>
                 </div>
 
-                <!-- GRILLE DE SÉLECTION ENRICHIE -->
+             <!-- GRILLE DE SÉLECTION ET DONNÉES SPÉCIFIQUES -->
                 <div class="grid grid-cols-2 gap-4">
                     <!-- Département -->
-                    <select id="f-dept" class="w-full p-4 bg-slate-50 border rounded-xl font-medium">
-                        <option value="">Chargement...</option>
-                    </select>
+                    <div>
+                        <label class="block text-[9px] font-bold text-slate-400 uppercase mb-1">Département</label>
+                        <select id="f-dept" class="w-full p-4 bg-slate-50 border rounded-xl font-medium">
+                            <option value="">Chargement...</option>
+                        </select>
+                    </div>
 
                     <!-- Type de Contrat -->
-                    <select id="f-limit" class="w-full p-4 bg-slate-50 border rounded-xl font-medium">
-                        <option value="365">CDI</option>
-                        <option value="180">CDD</option>
-                        <option value="90">Essai</option>
-                        <option value="30">Stage</option>
-                        <option value="0">Freelance</option>
-                    </select>
+                    <div>
+                        <label class="block text-[9px] font-bold text-slate-400 uppercase mb-1">Durée Contrat</label>
+                        <select id="f-limit" class="w-full p-4 bg-slate-50 border rounded-xl font-medium">
+                            <option value="365">CDI (1 an)</option>
+                            <option value="180">CDD (6 mois)</option>
+                            <option value="90">Essai (3 mois)</option>
+                            <option value="30">Stage</option>
+                            <option value="0">Freelance</option>
+                        </select>
+                    </div>
 
-                    <!-- TYPE D'ACTIVITÉ (NOUVEAU) -->
-                    <select id="f-type" class="w-full p-4 bg-indigo-50 border border-indigo-100 rounded-xl font-bold text-indigo-700">
-                        <option value="OFFICE">🏢 Bureau (Fixe)</option>
-                        <option value="FIXED">🏠 Agent Site (Fixe)</option>
-                        <option value="MOBILE">🚗 Délégué (Nomade)</option>
-                    </select>
+                    <!-- TYPE D'ACTIVITÉ (DÉTERMINE L'AFFICHAGE DU FORMULAIRE) -->
+                    <div>
+                        <label class="block text-[9px] font-bold text-slate-400 uppercase mb-1">Type d'Activité</label>
+                        <select id="f-type" class="w-full p-4 bg-indigo-50 border border-indigo-100 rounded-xl font-bold text-indigo-700">
+                            <option value="OFFICE">🏢 Bureau (Fixe)</option>
+                            <option value="FIXED">🏠 Agent Site (Fixe)</option>
+                            <option value="MOBILE">🚗 Délégué (Nomade)</option>
+                        </select>
+                    </div>
 
-                    <!-- Rôle Système -->
-                    <select id="f-role" class="w-full p-4 bg-blue-50 border border-blue-200 rounded-xl font-bold text-blue-700">
-                        <option value="EMPLOYEE">EMPLOYE</option>
-                        <option value="MANAGER">MANAGER</option>
-                        <option value="RH">RH</option>
-                        <option value="ADMIN">ADMIN</option>
-                        <option value="COMPTABLE">COMPTABLE</option>
-                        <option value="SECRETAIRE">SECRETAIRE</option>
-                    </select>
+                    <!-- Rôle Système (DÉTERMINE LE MODÈLE DE CONTRAT) -->
+                    <div>
+                        <label class="block text-[9px] font-bold text-slate-400 uppercase mb-1">Rôle Système</label>
+                        <select id="f-role" class="w-full p-4 bg-blue-50 border border-blue-200 rounded-xl font-bold text-blue-700">
+                            <option value="EMPLOYEE">EMPLOYE</option>
+                            <option value="MANAGER">MANAGER</option>
+                            <option value="RH">RH</option>
+                            <option value="ADMIN">ADMIN</option>
+                            <option value="COMPTABLE">COMPTABLE</option>
+                            <option value="SECRETAIRE">SECRETAIRE</option>
+                            <option value="SECURITY">AGENT DE SÉCURITÉ</option> <!-- NOUVEAU RÔLE SUGGÉRÉ -->
+                            <option value="DELEGATE">DÉLÉGUÉ MÉDICAL</option> <!-- NOUVEAU RÔLE SUGGÉRÉ -->
+                        </select>
+                    </div>
+                </div>
+
+                <!-- BLOC : DONNÉES CONTRACTUELLES DYNAMIQUES -->
+                <!-- Ce bloc sera affiché/masqué dynamiquement par JavaScript -->
+                <div class="md:col-span-3 grid grid-cols-1 gap-4 p-6 bg-green-50 rounded-2xl border-2 border-dashed border-green-200 mt-4">
+                    <p class="md:col-span-1 text-[10px] font-black text-green-600 uppercase tracking-widest mb-2"><i class="fa-solid fa-file-contract mr-1"></i> Données Contractuelles</p>
+                    
+                    <!-- Sélection du Modèle de Contrat -->
+                    <div class="md:col-span-3">
+                        <label class="block text-[9px] font-bold text-slate-500 uppercase mb-1">Modèle de Contrat Applicable</label>
+                        <select id="f-contract-template-selector" class="w-full p-3 bg-white border rounded-lg text-sm font-bold text-slate-700 outline-none focus:ring-green-500 focus:ring-2">
+                            <option value="">-- Choisir un modèle --</option>
+                            <!-- Sera rempli par JS via fetchContractTemplatesForSelection -->
+                        </select>
+                        <p class="text-[8px] text-green-600 mt-1">Le modèle de base pour la génération du contrat.</p>
+                    </div>
+
+                    <div class="md:col-span-3 grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <!-- CHAMPS COMMUNS À TOUS LES TYPES D'EMPLOYÉS -->
+                        <div class="field-group-contract">
+                            <label class="block text-[9px] font-bold text-slate-500 uppercase mb-1">Salaire de Base (CFA)</label>
+                            <input type="number" id="f-salaire-fixe" class="w-full p-3 bg-white border rounded-lg text-sm font-bold outline-none focus:ring-green-500 focus:ring-2" value="0">
+                        </div>
+                        <div class="field-group-contract">
+                            <label class="block text-[9px] font-bold text-slate-500 uppercase mb-1">Temps Travail Hebdo (Ex: 40h)</label>
+                            <input type="text" id="f-temps-travail" class="w-full p-3 bg-white border rounded-lg text-sm font-bold outline-none focus:ring-green-500 focus:ring-2" value="40 Heures">
+                        </div>
+                        
+                        <!-- CHAMPS SPÉCIFIQUES AU TYPE "MOBILE" -->
+                        <div data-employee-type="MOBILE" class="field-group-contract hidden">
+                            <label class="block text-[9px] font-bold text-slate-500 uppercase mb-1">Indemnité Transport</label>
+                            <input type="number" id="f-indemnite-transport" class="w-full p-3 bg-white border rounded-lg text-sm font-bold outline-none focus:ring-green-500 focus:ring-2" value="0">
+                        </div>
+                        <div data-employee-type="MOBILE" class="field-group-contract hidden">
+                             <label class="block text-[9px] font-bold text-slate-500 uppercase mb-1">Prime de Mission</label>
+                             <input type="number" id="f-prime-mission" class="w-full p-3 bg-white border rounded-lg text-sm font-bold outline-none focus:ring-green-500 focus:ring-2" value="0">
+                        </div>
+                        
+                        <!-- CHAMPS LÉGAUX COMMUNS À TOUS -->
+                        <div class="field-group-contract">
+                            <label class="block text-[9px] font-bold text-slate-500 uppercase mb-1">Lieu de Naissance</label>
+                            <input type="text" id="f-lieu-naissance" class="w-full p-3 bg-white border rounded-lg text-sm font-bold outline-none">
+                        </div>
+                        <div class="field-group-contract">
+                            <label class="block text-[9px] font-bold text-slate-500 uppercase mb-1">Nationalité</label>
+                            <input type="text" id="f-nationalite" class="w-full p-3 bg-white border rounded-lg text-sm font-bold outline-none" value="Béninoise">
+                        </div>
+                        <div data-employee-type="FIXED" class="field-group-contract hidden">
+                             <label class="block text-[9px] font-bold text-slate-500 uppercase mb-1">Indemnité de Logement (si site)</label>
+                             <input type="number" id="f-indemnite-logement" class="w-full p-3 bg-white border rounded-lg text-sm font-bold outline-none focus:ring-green-500 focus:ring-2" value="0">
+                        </div>
+                    </div>
                 </div>
 
                                 <!-- NOUVEAU BLOC : HIÉRARCHIE (A & B) -->
@@ -641,6 +712,8 @@
                 </div>
             </div>
 
+
+            
             <button type="submit" class="md:col-span-3 w-full bg-slate-900 text-white py-4 rounded-xl font-bold uppercase hover:bg-slate-800 tracking-widest transition-all shadow-xl">CRÉER ET ENVOYER LES ACCÈS</button>
         </form>
     </div>
@@ -1197,6 +1270,37 @@
 </section>
 
 
+        <!-- AJOUTER CETTE SECTION DANS ton index.html (entre deux sections existantes) -->
+<section id="view-contract-templates" class="view-section">
+    <div class="flex justify-between items-center mb-8">
+        <div>
+            <h2 class="text-2xl font-black text-slate-800 tracking-tight">Modèles de Contrats</h2>
+            <p class="text-sm text-slate-500 font-bold uppercase tracking-widest">Gestion des formats juridiques par rôle</p>
+        </div>
+        <button data-perm="can_manage_config" onclick="openAddTemplateModal()" class="bg-blue-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg active:scale-95 transition-all flex items-center gap-2">
+            <i class="fa-solid fa-upload"></i> Uploader un Modèle
+        </button>
+    </div>
+
+    <div class="bg-white rounded-[2rem] shadow-xl border border-slate-200 overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left whitespace-nowrap">
+                <thead class="bg-slate-900 text-white text-[10px] uppercase font-bold">
+                    <tr>
+                        <th class="px-6 py-5">Rôle Cible</th>
+                        <th class="px-6 py-5">Libellé du Modèle</th>
+                        <th class="px-6 py-5">Fichier Stocké</th>
+                        <th class="px-6 py-5 text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="templates-body" class="divide-y divide-slate-100">
+                    <!-- Rempli par JS -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+
         <section id="view-mobile-locations" class="view-section">
     <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
@@ -1595,6 +1699,7 @@
     </body>
 
     </html>
+
 
 
 
