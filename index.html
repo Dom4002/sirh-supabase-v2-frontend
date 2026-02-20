@@ -517,158 +517,172 @@
             <i class="fa-solid fa-user-plus opacity-20 text-3xl"></i>
         </div>
         <form id="form-onboarding" onsubmit="handleOnboarding(event)" class="p-10 grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div class="md:col-span-2 space-y-4">
-                <input type="text" id="f-nom" class="w-full p-4 bg-slate-50 border rounded-xl outline-none" placeholder="Nom Complet" required>
-                <input type="email" id="f-email" class="w-full p-4 bg-slate-50 border rounded-xl outline-none" placeholder="Email Pro" required>
-                <div class="grid grid-cols-2 gap-4">
-                    <input type="tel" id="f-phone" class="w-full p-4 bg-slate-50 border rounded-xl outline-none" placeholder="Téléphone">
-                    <input type="date" id="f-dob" class="w-full p-4 bg-slate-50 border rounded-xl outline-none">
-                </div>
-                <input type="text" id="f-address" class="w-full p-4 bg-slate-50 border rounded-xl outline-none" placeholder="Adresse complète">
-                <div class="grid grid-cols-2 gap-4">
-                    <input type="date" id="f-date" class="w-full p-4 bg-slate-50 border rounded-xl outline-none" required>
-                    <input type="text" id="f-poste" class="w-full p-4 bg-slate-50 border rounded-xl outline-none" placeholder="Poste" required>
-                </div>
+<!-- 1. SECTION IDENTITÉ GÉNÉRALE -->
+<div class="md:col-span-2 space-y-4">
+    <!-- Ligne Civilité + Nom -->
+    <div class="grid grid-cols-3 gap-4">
+        <div>
+            <label class="block text-[9px] font-bold text-slate-400 uppercase mb-1">Civilité</label>
+            <select id="f-civilite" class="w-full p-4 bg-slate-50 border rounded-xl font-medium outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="Monsieur">Monsieur</option>
+                <option value="Madame">Madame</option>
+            </select>
+        </div>
+        <div class="col-span-2">
+            <label class="block text-[9px] font-bold text-slate-400 uppercase mb-1">Nom Complet</label>
+            <input type="text" id="f-nom" class="w-full p-4 bg-slate-50 border rounded-xl outline-none" placeholder="Ex: Damien HABIB" required>
+        </div>
+    </div>
 
-             <!-- GRILLE DE SÉLECTION ET DONNÉES SPÉCIFIQUES -->
-                <div class="grid grid-cols-2 gap-4">
-                    <!-- Département -->
-                    <div>
-                        <label class="block text-[9px] font-bold text-slate-400 uppercase mb-1">Département</label>
-                        <select id="f-dept" class="w-full p-4 bg-slate-50 border rounded-xl font-medium">
-                            <option value="">Chargement...</option>
-                        </select>
-                    </div>
+    <input type="email" id="f-email" class="w-full p-4 bg-slate-50 border rounded-xl outline-none" placeholder="Email Pro" required>
+    
+    <div class="grid grid-cols-2 gap-4">
+        <input type="tel" id="f-phone" class="w-full p-4 bg-slate-50 border rounded-xl outline-none" placeholder="Téléphone">
+        <input type="date" id="f-dob" class="w-full p-4 bg-slate-50 border rounded-xl outline-none" title="Date de naissance">
+    </div>
+    
+    <input type="text" id="f-address" class="w-full p-4 bg-slate-50 border rounded-xl outline-none" placeholder="Adresse de résidence">
 
-                    <!-- Type de Contrat -->
-                    <div>
-                        <label class="block text-[9px] font-bold text-slate-400 uppercase mb-1">Durée Contrat</label>
-                        <select id="f-limit" class="w-full p-4 bg-slate-50 border rounded-xl font-medium">
-                            <option value="365">CDI (1 an)</option>
-                            <option value="180">CDD (6 mois)</option>
-                            <option value="90">Essai (3 mois)</option>
-                            <option value="30">Stage</option>
-                            <option value="0">Freelance</option>
-                        </select>
-                    </div>
+    <!-- 2. SECTION AFFECTATION (Département / Type / Rôle) -->
+    <div class="grid grid-cols-2 gap-4 pt-2">
+        <div>
+            <label class="block text-[9px] font-bold text-slate-400 uppercase mb-1">Département</label>
+            <select id="f-dept" class="w-full p-4 bg-slate-50 border rounded-xl font-medium">
+                <option value="">Chargement...</option>
+            </select>
+        </div>
+        <div>
+            <label class="block text-[9px] font-bold text-slate-400 uppercase mb-1">Poste occupé</label>
+            <input type="text" id="f-poste" class="w-full p-4 bg-slate-50 border rounded-xl outline-none" placeholder="Ex: Délégué Médical" required>
+        </div>
+        <div>
+            <label class="block text-[9px] font-bold text-slate-400 uppercase mb-1">Type d'Activité</label>
+            <select id="f-type" class="w-full p-4 bg-indigo-50 border border-indigo-100 rounded-xl font-bold text-indigo-700">
+                <option value="OFFICE">🏢 Bureau (Fixe)</option>
+                <option value="FIXED">🏠 Agent Site (Fixe)</option>
+                <option value="MOBILE">🚗 Délégué (Nomade)</option>
+            </select>
+        </div>
+        <div>
+            <label class="block text-[9px] font-bold text-slate-400 uppercase mb-1">Rôle Système</label>
+            <select id="f-role" class="w-full p-4 bg-blue-50 border border-blue-200 rounded-xl font-bold text-blue-700">
+                <!-- Rempli par syncAllRoleSelects() dans app.js -->
+            </select>
+        </div>
+    </div>
 
-                    <!-- TYPE D'ACTIVITÉ (DÉTERMINE L'AFFICHAGE DU FORMULAIRE) -->
-                    <div>
-                        <label class="block text-[9px] font-bold text-slate-400 uppercase mb-1">Type d'Activité</label>
-                        <select id="f-type" class="w-full p-4 bg-indigo-50 border border-indigo-100 rounded-xl font-bold text-indigo-700">
-                            <option value="OFFICE">🏢 Bureau (Fixe)</option>
-                            <option value="FIXED">🏠 Agent Site (Fixe)</option>
-                            <option value="MOBILE">🚗 Délégué (Nomade)</option>
-                        </select>
-                    </div>
+    <!-- 3. SECTION CONTRAT & FINANCES (Le nouveau bloc intelligent) -->
+    <div class="md:col-span-2 bg-green-50 p-6 rounded-[2rem] border-2 border-dashed border-green-200 space-y-6">
+        <p class="text-[10px] font-black text-green-600 uppercase tracking-widest flex items-center gap-2">
+            <i class="fa-solid fa-file-signature text-lg"></i> Conditions Contractuelles & Modèle
+        </p>
 
-                    <!-- Rôle Système (DÉTERMINE LE MODÈLE DE CONTRAT) -->
-                    <div>
-                        <label class="block text-[9px] font-bold text-slate-400 uppercase mb-1">Rôle Système</label>
-                        <select id="f-role" class="w-full p-4 bg-blue-50 border border-blue-200 rounded-xl font-bold text-blue-700">
-                            <option value="">Chargement des rôles...</option>
-                        </select>
-                    </div>
-                </div>
+        <!-- Sélecteur de Modèle Google Docs -->
+        <div>
+            <label class="block text-[9px] font-black text-slate-500 uppercase mb-1">Quel modèle Google Doc utiliser pour ce contrat ?</label>
+            <select id="f-contract-template-selector" class="w-full p-3 bg-white border border-green-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-green-500">
+                <option value="">-- Choisir un modèle Docx --</option>
+                <!-- Rempli par fetchContractTemplatesForSelection() -->
+            </select>
+        </div>
 
-                <!-- BLOC : DONNÉES CONTRACTUELLES DYNAMIQUES -->
-                <!-- Ce bloc sera affiché/masqué dynamiquement par JavaScript -->
-                <div class="md:col-span-3 grid grid-cols-1 gap-4 p-6 bg-green-50 rounded-2xl border-2 border-dashed border-green-200 mt-4">
-                    <p class="md:col-span-1 text-[10px] font-black text-green-600 uppercase tracking-widest mb-2"><i class="fa-solid fa-file-contract mr-1"></i> Données Contractuelles</p>
-                    
-                    <!-- Sélection du Modèle de Contrat -->
-                    <div class="md:col-span-3">
-                        <label class="block text-[9px] font-bold text-slate-500 uppercase mb-1">Modèle de Contrat Applicable</label>
-                        <select id="f-contract-template-selector" class="w-full p-3 bg-white border rounded-lg text-sm font-bold text-slate-700 outline-none focus:ring-green-500 focus:ring-2">
-                            <option value="">-- Choisir un modèle --</option>
-                            <!-- Sera rempli par JS via fetchContractTemplatesForSelection -->
-                        </select>
-                        <p class="text-[8px] text-green-600 mt-1">Le modèle de base pour la génération du contrat.</p>
-                    </div>
-
-                    <div class="md:col-span-3 grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <!-- CHAMPS COMMUNS À TOUS LES TYPES D'EMPLOYÉS -->
-                        <div class="field-group-contract">
-                            <label class="block text-[9px] font-bold text-slate-500 uppercase mb-1">Salaire de Base (CFA)</label>
-                            <input type="number" id="f-salaire-fixe" class="w-full p-3 bg-white border rounded-lg text-sm font-bold outline-none focus:ring-green-500 focus:ring-2" value="0">
-                        </div>
-                        <div class="field-group-contract">
-                            <label class="block text-[9px] font-bold text-slate-500 uppercase mb-1">Temps Travail Hebdo (Ex: 40h)</label>
-                            <input type="text" id="f-temps-travail" class="w-full p-3 bg-white border rounded-lg text-sm font-bold outline-none focus:ring-green-500 focus:ring-2" value="40 Heures">
-                        </div>
-                        
-                        <!-- CHAMPS SPÉCIFIQUES AU TYPE "MOBILE" -->
-                        <div data-employee-type="MOBILE" class="field-group-contract hidden">
-                            <label class="block text-[9px] font-bold text-slate-500 uppercase mb-1">Indemnité Transport</label>
-                            <input type="number" id="f-indemnite-transport" class="w-full p-3 bg-white border rounded-lg text-sm font-bold outline-none focus:ring-green-500 focus:ring-2" value="0">
-                        </div>
-                        <div data-employee-type="MOBILE" class="field-group-contract hidden">
-                             <label class="block text-[9px] font-bold text-slate-500 uppercase mb-1">Prime de Mission</label>
-                             <input type="number" id="f-prime-mission" class="w-full p-3 bg-white border rounded-lg text-sm font-bold outline-none focus:ring-green-500 focus:ring-2" value="0">
-                        </div>
-                        
-                        <!-- CHAMPS LÉGAUX COMMUNS À TOUS -->
-                        <div class="field-group-contract">
-                            <label class="block text-[9px] font-bold text-slate-500 uppercase mb-1">Lieu de Naissance</label>
-                            <input type="text" id="f-lieu-naissance" class="w-full p-3 bg-white border rounded-lg text-sm font-bold outline-none">
-                        </div>
-                        <div class="field-group-contract">
-                            <label class="block text-[9px] font-bold text-slate-500 uppercase mb-1">Nationalité</label>
-                            <input type="text" id="f-nationalite" class="w-full p-3 bg-white border rounded-lg text-sm font-bold outline-none" value="Béninoise">
-                        </div>
-                        <div data-employee-type="FIXED" class="field-group-contract hidden">
-                             <label class="block text-[9px] font-bold text-slate-500 uppercase mb-1">Indemnité de Logement (si site)</label>
-                             <input type="number" id="f-indemnite-logement" class="w-full p-3 bg-white border rounded-lg text-sm font-bold outline-none focus:ring-green-500 focus:ring-2" value="0">
-                        </div>
-                    </div>
-                </div>
-
-                                <!-- NOUVEAU BLOC : HIÉRARCHIE (A & B) -->
-                <div class="col-span-2 bg-indigo-50 p-4 rounded-xl border border-indigo-100">
-                    <p class="text-[10px] font-black text-indigo-500 uppercase mb-3 tracking-widest">Configuration Hiérarchique</p>
-                    
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <!-- OPTION A : Responsable N+1 -->
-                        <div>
-                            <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Responsable Direct (N+1)</label>
-                            <select id="f-manager" class="w-full p-3 bg-white border border-slate-200 rounded-lg text-sm outline-none">
-                                <option value="">-- Aucun / Autonome --</option>
-                                <!-- Sera rempli par le JS -->
-                            </select>
-                        </div>
-                
-                        <!-- OPTION B : Périmètre (Scope) -->
-                        <div>
-                            <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Zone/Dép. Géré (Optionnel)</label>
-                            <input type="text" id="f-scope" class="w-full p-3 bg-white border border-slate-200 rounded-lg text-sm outline-none" placeholder="Ex: Commercial, Cotonou...">
-                            <p class="text-[9px] text-slate-400 mt-1">Séparez par des virgules pour donner plusieurs droits.</p>
-                        </div>
-                    </div>
-                </div>
-                
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <div>
+                <label class="block text-[9px] font-bold text-slate-500 uppercase mb-1">Date d'embauche</label>
+                <input type="date" id="f-date" class="w-full p-3 bg-white border border-green-100 rounded-xl text-sm outline-none" required>
             </div>
-
-            <div class="flex flex-col items-center justify-start p-4 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
-                <div class="w-full h-44 bg-slate-200 rounded-xl mb-4 overflow-hidden flex items-center justify-center">
-                    <video id="video-stream" class="w-full h-full object-cover hidden" autoplay playsinline></video>
-                    <img id="captured-image" class="w-full h-full object-cover hidden">
-                    <i class="fa-solid fa-image text-slate-400 text-3xl" id="photo-placeholder"></i>
-                </div>
-                <div id="initial-controls" class="flex flex-col w-full gap-2 mt-auto">
-                    <button type="button" onclick="startCameraFeed()" class="w-full text-[10px] font-bold text-slate-500 uppercase bg-white border py-2.5 rounded-lg shadow-sm">Caméra</button>
-                    <button type="button" onclick="document.getElementById('file-upload').click()" class="w-full text-[10px] font-bold text-blue-600 uppercase bg-blue-50 border border-blue-200 py-2.5 rounded-lg">Téléverser</button>
-                </div>
-                <canvas id="camera-canvas" class="hidden"></canvas>
-                <input type="file" id="file-upload" accept="image/*" class="hidden" onchange="handleFileUpload(event)">
-                <button type="button" id="btn-capture" onclick="takeSnapshot()" class="hidden bg-blue-600 text-white py-2.5 rounded-lg w-full mt-2 font-bold text-xs">Prendre</button>
-                <button type="button" id="btn-retake" onclick="resetCamera()" class="hidden bg-slate-400 text-white py-2.5 rounded-lg w-full mt-2 font-bold text-xs">Refaire</button>
+            <div>
+                <label class="block text-[9px] font-bold text-slate-500 uppercase mb-1">Durée (Type)</label>
+                <select id="f-limit" class="w-full p-3 bg-white border border-green-100 rounded-xl text-sm outline-none">
+                    <option value="365">CDI (1 an+)</option>
+                    <option value="180">CDD (6 mois)</option>
+                    <option value="90">Essai (3 mois)</option>
+                </select>
             </div>
+            <div>
+                <label class="block text-[9px] font-bold text-slate-500 uppercase mb-1">Période d'essai</label>
+                <input type="text" id="f-duree-essai" class="w-full p-3 bg-white border border-green-100 rounded-xl text-sm outline-none" placeholder="Ex: 3 mois" value="3 mois">
+            </div>
+            <div>
+                <label class="block text-[9px] font-bold text-slate-500 uppercase mb-1">Salaire de Base (CFA)</label>
+                <input type="number" id="f-salaire-fixe" class="w-full p-3 bg-white border border-green-100 rounded-xl text-sm font-black text-blue-600 outline-none" value="0">
+            </div>
+            <div>
+                <label class="block text-[9px] font-bold text-slate-500 uppercase mb-1">Temps de travail</label>
+                <input type="text" id="f-temps-travail" class="w-full p-3 bg-white border border-green-100 rounded-xl text-sm outline-none" value="40 Heures">
+            </div>
+            <div>
+                <label class="block text-[9px] font-bold text-slate-500 uppercase mb-1">Lieu de signature</label>
+                <input type="text" id="f-lieu-signature" class="w-full p-3 bg-white border border-green-100 rounded-xl text-sm outline-none" value="Cotonou">
+            </div>
+        </div>
 
-            <!-- SECTION DOCUMENTS KYC -->
-            <div class="md:col-span-3 grid grid-cols-1 md:grid-cols-4 gap-4 p-6 bg-slate-100 rounded-2xl border-2 border-dashed border-slate-200 mt-4">
-                <p class="md:col-span-4 text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Documents obligatoires (Photo ou PDF)</p>
-                
-                <div class="space-y-2">
+        <!-- Champs spécifiques (Visible uniquement si Type d'activité = MOBILE) -->
+        <div data-employee-type="MOBILE" class="field-group-contract grid grid-cols-2 gap-4 pt-2 border-t border-green-100 hidden">
+            <div>
+                <label class="block text-[9px] font-bold text-green-700 uppercase mb-1">Indemnité Transport (Mobile)</label>
+                <input type="number" id="f-indemnite-transport" class="w-full p-3 bg-white border border-green-200 rounded-xl text-sm outline-none" value="0">
+            </div>
+            <div>
+                <label class="block text-[9px] font-bold text-green-700 uppercase mb-1">Indemnité Logement (Mobile)</label>
+                <input type="number" id="f-indemnite-logement" class="w-full p-3 bg-white border border-green-200 rounded-xl text-sm outline-none" value="0">
+            </div>
+        </div>
+
+        <!-- Infos naissance -->
+        <div class="grid grid-cols-2 gap-4 pt-2 border-t border-green-100">
+            <div>
+                <label class="block text-[9px] font-bold text-slate-500 uppercase mb-1">Lieu de Naissance</label>
+                <input type="text" id="f-lieu-naissance" class="w-full p-3 bg-white border border-green-100 rounded-xl text-sm outline-none" placeholder="Ville, Pays">
+            </div>
+            <div>
+                <label class="block text-[9px] font-bold text-slate-500 uppercase mb-1">Nationalité</label>
+                <input type="text" id="f-nationalite" class="w-full p-3 bg-white border border-green-100 rounded-xl text-sm outline-none" value="Béninoise">
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. HIÉRARCHIE -->
+    <div class="col-span-2 bg-slate-50 p-4 rounded-xl border border-slate-200">
+        <p class="text-[10px] font-black text-slate-500 uppercase mb-3 tracking-widest">Hiérarchie & Équipe</p>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <label class="block text-[9px] font-bold text-slate-500 uppercase mb-1">Responsable Direct (N+1)</label>
+                <select id="f-manager" class="w-full p-3 bg-white border border-slate-200 rounded-lg text-sm outline-none">
+                    <option value="">-- Aucun / Autonome --</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-[9px] font-bold text-slate-500 uppercase mb-1">Zone/Dép. Géré (Scope)</label>
+                <input type="text" id="f-scope" class="w-full p-3 bg-white border border-slate-200 rounded-lg text-sm outline-none" placeholder="Ex: Commercial, Cotonou...">
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 5. PHOTO DE PROFIL (COLONNE DROITE) -->
+<div class="flex flex-col items-center justify-start p-4 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
+    <div class="w-full h-44 bg-slate-200 rounded-xl mb-4 overflow-hidden flex items-center justify-center">
+        <video id="video-stream" class="w-full h-full object-cover hidden" autoplay playsinline></video>
+        <img id="captured-image" class="w-full h-full object-cover hidden">
+        <i class="fa-solid fa-image text-slate-400 text-3xl" id="photo-placeholder"></i>
+    </div>
+    <div id="initial-controls" class="flex flex-col w-full gap-2 mt-auto">
+        <button type="button" onclick="startCameraFeed()" class="w-full text-[10px] font-bold text-slate-500 uppercase bg-white border py-2.5 rounded-lg shadow-sm">Caméra</button>
+        <button type="button" onclick="document.getElementById('file-upload').click()" class="w-full text-[10px] font-bold text-blue-600 uppercase bg-blue-50 border border-blue-200 py-2.5 rounded-lg">Téléverser</button>
+    </div>
+    <canvas id="camera-canvas" class="hidden"></canvas>
+    <input type="file" id="file-upload" accept="image/*" class="hidden" onchange="handleFileUpload(event)">
+    <button type="button" id="btn-capture" onclick="takeSnapshot()" class="hidden bg-blue-600 text-white py-2.5 rounded-lg w-full mt-2 font-bold text-xs">Prendre</button>
+    <button type="button" id="btn-retake" onclick="resetCamera()" class="hidden bg-slate-400 text-white py-2.5 rounded-lg w-full mt-2 font-bold text-xs">Refaire</button>
+</div>
+
+<!-- 6. DOCUMENTS KYC -->
+<div class="md:col-span-3 grid grid-cols-1 md:grid-cols-4 gap-4 p-6 bg-slate-100 rounded-2xl border-2 border-dashed border-slate-200 mt-4">
+    <p class="md:col-span-4 text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Dossier Numérique Obligatoire</p>
+
+
+<div class="space-y-2">
                     <label class="block text-[9px] font-bold text-slate-400 uppercase">Pièce d'Identité</label>
                     <div id="btn-id_card" class="h-20 bg-white rounded-lg border flex items-center justify-center overflow-hidden cursor-pointer hover:bg-slate-50 transition-all" onclick="openDocCamera('id_card')">
                         <img id="preview-id_card" class="hidden h-full w-full object-cover">
@@ -703,11 +717,11 @@
                     </div>
                     <input type="file" id="f-attestation" class="hidden" onchange="previewDocFile(event, 'attestation'); updateFileFeedback('f-attestation', 'btn-attestation')">
                 </div>
-            </div>
 
+</div>
 
+<button type="submit" class="md:col-span-3 w-full bg-slate-900 text-white py-4 rounded-xl font-bold uppercase hover:bg-slate-800 tracking-widest transition-all shadow-xl">CRÉER ET GÉNÉRER LE CONTRAT</button>
             
-            <button type="submit" class="md:col-span-3 w-full bg-slate-900 text-white py-4 rounded-xl font-bold uppercase hover:bg-slate-800 tracking-widest transition-all shadow-xl">CRÉER ET ENVOYER LES ACCÈS</button>
         </form>
     </div>
 </section>
@@ -1687,6 +1701,7 @@
     </body>
 
     </html>
+
 
 
 
