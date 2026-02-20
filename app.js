@@ -820,76 +820,86 @@ async function fetchTemplates() {
     }
 }
 
-// --- 2. OUVRIR LA MODALE D'UPLOAD (C'est la fonction manquante !) ---
+
+
+
 async function openAddTemplateModal() {
-    const { value: formValues } = await Swal.fire({
-        title: 'Uploader un Modèle Word',
-        html: `
-            <div class="text-left">
-                <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Rôle visé (Le nom doit être identique au rôle Supabase)</label>
-                <select id="swal-tpl-role" class="swal2-input !mt-0">
-                    <option value="EMPLOYEE">EMPLOYEE (Standard)</option>
-                    <option value="MANAGER">MANAGER</option>
-                    <option value="SECURITY">SECURITY (Sécurité)</option>
-                    <option value="DELEGATE">DELEGATE (Délégué)</option>
-                    <option value="OFFICE">OFFICE (Bureau)</option>
-                </select>
+    // 1. On affiche un petit chargement pendant qu'on récupère les rôles
+    Swal.fire({ title: 'Chargement des rôles...', didOpen: () => Swal.showLoading() });
 
-                <label class="block text-[10px] font-black text-slate-400 uppercase mt-4 mb-1">Libellé du modèle (ex: CDI Délégué 2026)</label>
-                <input id="swal-tpl-label" class="swal2-input !mt-0" placeholder="Nom du document...">
+    try {
+        // 2. Récupération des rôles réels de Supabase
+        const response = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/list-roles`);
+        const roles = await response.json();
 
-                <label class="block text-[10px] font-black text-slate-400 uppercase mt-4 mb-1">Fichier Word (.docx)</label>
-                <input type="file" id="swal-tpl-file" class="swal2-file !mt-0" accept=".docx">
-                <p class="text-[8px] text-slate-400 mt-1 italic">Utilisez les balises {{nom_complet}}, {{salaire_base}}, etc.</p>
-            </div>
-        `,
-        focusConfirm: false,
-        showCancelButton: true,
-        confirmButtonText: 'Uploader le modèle',
-        confirmButtonColor: '#2563eb',
-        preConfirm: () => {
-            const role = document.getElementById('swal-tpl-role').value;
-            const label = document.getElementById('swal-tpl-label').value;
-            const file = document.getElementById('swal-tpl-file').files[0];
+        // 3. On génère les options du menu déroulant dynamiquement
+        const roleOptions = roles.map(r => 
+            `<option value="${r.role_name}">${r.role_name}</option>`
+        ).join('');
 
-            if (!label || !file) {
-                Swal.showValidationMessage('Veuillez remplir tous les champs et choisir un fichier.');
-                return false;
+        // 4. On ouvre la vraie modale avec la liste à jour
+        const { value: formValues } = await Swal.fire({
+            title: 'Uploader un Modèle Word',
+            html: `
+                <div class="text-left">
+                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Rôle Cible (Base de données)</label>
+                    <select id="swal-tpl-role" class="swal2-input !mt-0">
+                        <option value="">-- Sélectionner un rôle --</option>
+                        ${roleOptions}
+                    </select>
+
+                    <label class="block text-[10px] font-black text-slate-400 uppercase mt-4 mb-1">Libellé du modèle (ex: Contrat de garde)</label>
+                    <input id="swal-tpl-label" class="swal2-input !mt-0" placeholder="Nom du document...">
+
+                    <label class="block text-[10px] font-black text-slate-400 uppercase mt-4 mb-1">Fichier Word (.docx)</label>
+                    <input type="file" id="swal-tpl-file" class="swal2-file !mt-0" accept=".docx">
+                </div>
+            `,
+            showCancelButton: true,
+            confirmButtonText: 'Enregistrer le modèle',
+            preConfirm: () => {
+                const role = document.getElementById('swal-tpl-role').value;
+                const label = document.getElementById('swal-tpl-label').value;
+                const file = document.getElementById('swal-tpl-file').files[0];
+
+                if (!role || !label || !file) {
+                    Swal.showValidationMessage('Tous les champs sont obligatoires.');
+                    return false;
+                }
+                return { role, label, file };
             }
-            if (!file.name.endsWith('.docx')) {
-                Swal.showValidationMessage('Seuls les fichiers .docx sont acceptés.');
-                return false;
-            }
-            return { role, label, file };
-        }
-    });
+        });
 
-    if (formValues) {
-        Swal.fire({ title: 'Envoi en cours...', didOpen: () => Swal.showLoading(), allowOutsideClick: false });
+        // 5. Envoi au serveur (reste inchangé)
+        if (formValues) {
+            const fd = new FormData();
+            fd.append('role_target', formValues.role);
+            fd.append('label', formValues.label);
+            fd.append('template_file', formValues.file);
+            fd.append('agent', currentUser.nom);
 
-        const fd = new FormData();
-        fd.append('role_target', formValues.role);
-        fd.append('label', formValues.label);
-        fd.append('template_file', formValues.file); // Le nom du champ doit être template_file
-        fd.append('agent', currentUser.nom);
-
-        try {
-            const response = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/upload-template`, {
+            const upRes = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/upload-template`, {
                 method: 'POST',
                 body: fd
             });
 
-            if (response.ok) {
-                Swal.fire('Succès !', 'Le modèle de contrat a été enregistré.', 'success');
-                fetchTemplates(); // Recharge le tableau
-            } else {
-                throw new Error("Erreur serveur lors de l'upload.");
+            if (upRes.ok) {
+                Swal.fire('Succès !', 'Modèle enregistré.', 'success');
+                fetchTemplates();
             }
-        } catch (e) {
-            Swal.fire('Erreur', e.message, 'error');
         }
+
+    } catch (e) {
+        console.error(e);
+        Swal.fire('Erreur', 'Impossible de charger les rôles de la base.', 'error');
     }
 }
+
+
+
+
+
+
 
 async function setSession(n, r, id, perms) {
     currentUser = { nom: n, role: r, id: id, permissions: perms };
@@ -6775,6 +6785,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
