@@ -685,8 +685,7 @@ async function handleLogin(e) {
                 btn.classList.add('opacity-50', 'cursor-not-allowed');
                 
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 15000); 
-
+                const timeoutId = setTimeout(() => controller.abort(), 60000);
                 try {
                     const response = await fetch(`${URL_LOGIN}?u=${encodeURIComponent(u.toLowerCase())}&p=${encodeURIComponent(p)}`, { signal: controller.signal });
                     clearTimeout(timeoutId); 
@@ -727,7 +726,7 @@ if(d.status === "success") {
                     // Ce bloc reste inchangé
                     console.error(error);
                     if (error.name === 'AbortError') { 
-                        Swal.fire('Délai dépassé', 'Le serveur met du temps à répondre. Vérifiez votre connexion.', 'warning'); 
+                        Swal.fire('Délai dépassé', 'Le serveur démarre . Cela peut prendre 30 à 60 secondes. Veuillez réessayer dans un instant.', 'warning'); 
                     } else if (!navigator.onLine) {
                         Swal.fire('Hors Ligne', 'Vous semblez déconnecté d\'internet.', 'error');
                     } else { 
@@ -742,7 +741,119 @@ if(d.status === "success") {
 
 
 
+// --- 1. CHARGER LA LISTE DES MODÈLES DANS LE TABLEAU ---
+async function fetchTemplates() {
+    const tbody = document.getElementById('templates-body');
+    if (!tbody) return;
 
+    tbody.innerHTML = '<tr><td colspan="4" class="p-6 text-center italic text-slate-400"><i class="fa-solid fa-circle-notch fa-spin mr-2"></i> Chargement des modèles...</td></tr>';
+
+    try {
+        const r = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/list-templates`);
+        const templates = await r.json();
+
+        tbody.innerHTML = '';
+        if (templates.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" class="p-10 text-center text-slate-400 italic">Aucun modèle de contrat configuré. Cliquez sur "Uploader" pour commencer.</td></tr>';
+            return;
+        }
+
+        templates.forEach(t => {
+            tbody.innerHTML += `
+                <tr class="border-b hover:bg-slate-50 transition-all group">
+                    <td class="px-6 py-4 font-black uppercase text-blue-600 text-xs">${t.role_target}</td>
+                    <td class="px-6 py-4">
+                        <div class="font-bold text-slate-700 text-sm">${t.label}</div>
+                        <div class="text-[9px] text-slate-400 uppercase font-medium">Modèle de document</div>
+                    </td>
+                    <td class="px-6 py-4">
+                        <span class="bg-blue-50 text-blue-600 px-2 py-1 rounded text-[10px] font-bold border border-blue-100">
+                            <i class="fa-solid fa-file-word mr-1"></i> DOCX
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 text-right">
+                        <button onclick="window.open('${t.template_file_url}', '_blank')" class="p-2 text-slate-400 hover:text-blue-600" title="Voir le fichier"><i class="fa-solid fa-eye"></i></button>
+                        <button onclick="deleteTemplate('${t.id}')" class="p-2 text-slate-200 hover:text-red-500" title="Supprimer"><i class="fa-solid fa-trash-can"></i></button>
+                    </td>
+                </tr>
+            `;
+        });
+    } catch (e) {
+        console.error("Erreur templates:", e);
+        tbody.innerHTML = '<tr><td colspan="4" class="p-6 text-red-500 font-bold text-center text-xs">Erreur de chargement des modèles.</td></tr>';
+    }
+}
+
+// --- 2. OUVRIR LA MODALE D'UPLOAD (C'est la fonction manquante !) ---
+async function openAddTemplateModal() {
+    const { value: formValues } = await Swal.fire({
+        title: 'Uploader un Modèle Word',
+        html: `
+            <div class="text-left">
+                <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Rôle visé (Le nom doit être identique au rôle Supabase)</label>
+                <select id="swal-tpl-role" class="swal2-input !mt-0">
+                    <option value="EMPLOYEE">EMPLOYEE (Standard)</option>
+                    <option value="MANAGER">MANAGER</option>
+                    <option value="SECURITY">SECURITY (Sécurité)</option>
+                    <option value="DELEGATE">DELEGATE (Délégué)</option>
+                    <option value="OFFICE">OFFICE (Bureau)</option>
+                </select>
+
+                <label class="block text-[10px] font-black text-slate-400 uppercase mt-4 mb-1">Libellé du modèle (ex: CDI Délégué 2026)</label>
+                <input id="swal-tpl-label" class="swal2-input !mt-0" placeholder="Nom du document...">
+
+                <label class="block text-[10px] font-black text-slate-400 uppercase mt-4 mb-1">Fichier Word (.docx)</label>
+                <input type="file" id="swal-tpl-file" class="swal2-file !mt-0" accept=".docx">
+                <p class="text-[8px] text-slate-400 mt-1 italic">Utilisez les balises {{nom_complet}}, {{salaire_base}}, etc.</p>
+            </div>
+        `,
+        focusConfirm: false,
+        showCancelButton: true,
+        confirmButtonText: 'Uploader le modèle',
+        confirmButtonColor: '#2563eb',
+        preConfirm: () => {
+            const role = document.getElementById('swal-tpl-role').value;
+            const label = document.getElementById('swal-tpl-label').value;
+            const file = document.getElementById('swal-tpl-file').files[0];
+
+            if (!label || !file) {
+                Swal.showValidationMessage('Veuillez remplir tous les champs et choisir un fichier.');
+                return false;
+            }
+            if (!file.name.endsWith('.docx')) {
+                Swal.showValidationMessage('Seuls les fichiers .docx sont acceptés.');
+                return false;
+            }
+            return { role, label, file };
+        }
+    });
+
+    if (formValues) {
+        Swal.fire({ title: 'Envoi en cours...', didOpen: () => Swal.showLoading(), allowOutsideClick: false });
+
+        const fd = new FormData();
+        fd.append('role_target', formValues.role);
+        fd.append('label', formValues.label);
+        fd.append('template_file', formValues.file); // Le nom du champ doit être template_file
+        fd.append('agent', currentUser.nom);
+
+        try {
+            const response = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/upload-template`, {
+                method: 'POST',
+                body: fd
+            });
+
+            if (response.ok) {
+                Swal.fire('Succès !', 'Le modèle de contrat a été enregistré.', 'success');
+                fetchTemplates(); // Recharge le tableau
+            } else {
+                throw new Error("Erreur serveur lors de l'upload.");
+            }
+        } catch (e) {
+            Swal.fire('Erreur', e.message, 'error');
+        }
+    }
+}
 
 async function setSession(n, r, id, perms) {
     currentUser = { nom: n, role: r, id: id, permissions: perms };
@@ -2530,6 +2641,8 @@ function switchView(v) {
     // MODULES MOBILES
     if (v === 'mobile-locations') fetchMobileLocations();
     if (v === 'mobile-planning') fetchMobileSchedules();
+    if (v === 'contract-templates') fetchTemplates();
+
     
     // Correction spécifique pour les rapports opérationnels
     if (v === 'mobile-reports') {
@@ -6624,6 +6737,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
