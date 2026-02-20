@@ -3521,19 +3521,24 @@ function applySmartFilter(filterType) {
 }
 
 
+
+
 async function generateDraftContract(id) {
     const e = employees.find(x => x.id === id);
     if (!e) return;
 
+    // 1. Affichage d'un loader pro
     Swal.fire({
-        title: 'Génération en cours...',
-        text: 'Préparation du document Word...',
+        title: 'Génération du Brouillon...',
+        text: 'Conversion du modèle en PDF sécurisé...',
+        allowOutsideClick: false,
         didOpen: () => Swal.showLoading()
     });
 
     try {
         const token = localStorage.getItem('sirh_token');
-        // On fait un fetch avec le token dans le header pour la sécurité
+        
+        // 2. Appel au serveur
         const response = await fetch(`${URL_CONTRACT_GENERATE}?id=${id}&token=${token}`, {
             method: 'GET',
             headers: {
@@ -3542,34 +3547,36 @@ async function generateDraftContract(id) {
         });
 
         if (!response.ok) {
+            // Si le serveur renvoie une erreur (ex: modèle manquant)
             const err = await response.json();
             throw new Error(err.error || "Erreur lors de la génération");
         }
 
-        // On récupère le fichier (Blob)
+        // 3. RÉCUPÉRATION DU PDF (BLOB)
+        // On ne crée plus de lien <a>, on récupère le flux binaire
         const blob = await response.blob();
         
-        // On crée un lien invisible pour forcer le téléchargement
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `Contrat_${e.nom.replace(/\s+/g, '_')}.docx`; // Nom du fichier
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        window.URL.revokeObjectURL(url);
+        // 4. CRÉATION D'UNE URL VIRTUELLE
+        const pdfUrl = window.URL.createObjectURL(blob);
 
+        // 5. AFFICHAGE DANS TON MODAL EXISTANT
+        // On ferme le loader et on appelle ta fonction de visualisation
         Swal.close();
-        const Toast = Swal.mixin({toast: true, position: 'top-end', showConfirmButton: false, timer: 3000});
-        Toast.fire({ icon: 'success', title: 'Document téléchargé' });
+        viewDocument(pdfUrl, `Prévisualisation Contrat : ${e.nom}`);
+
+        // Note : On ne révoque pas l'URL immédiatement car l'iframe en a besoin pour afficher le PDF
+        // Elle sera nettoyée à la fermeture ou au prochain chargement.
 
     } catch (error) {
-        console.error(error);
+        console.error("Erreur Brouillon:", error);
         Swal.fire('Erreur', error.message, 'error');
     }
 }
 
-            
+
+
+
+
                 function openContractModal(id) {
                     document.getElementById('contract-id-hidden').value = id;
                     document.getElementById('contract-modal').classList.remove('hidden');
@@ -6800,6 +6807,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
