@@ -5491,6 +5491,44 @@ async function generateAllPay() {
 
 
 
+
+// --- FONCTION POUR SUPPRIMER UN MODÈLE DE CONTRAT ---
+async function deleteTemplate(id) {
+    const confirm = await Swal.fire({
+        title: 'Supprimer ce modèle ?',
+        text: "Le fichier Word sera conservé dans le stockage mais le lien sera retiré.",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        cancelButtonColor: '#94a3b8',
+        confirmButtonText: 'Oui, supprimer',
+        cancelButtonText: 'Annuler'
+    });
+
+    if (confirm.isConfirmed) {
+        Swal.fire({ title: 'Suppression...', didOpen: () => Swal.showLoading() });
+
+        try {
+            const response = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/delete-template`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: id })
+            });
+
+            if (response.ok) {
+                Swal.fire('Supprimé !', 'Le modèle a été retiré.', 'success');
+                fetchTemplates(); // Rafraîchit le tableau
+            } else {
+                throw new Error("Erreur lors de la suppression sur le serveur.");
+            }
+        } catch (e) {
+            console.error(e);
+            Swal.fire('Erreur', e.message, 'error');
+        }
+    }
+}
+
+
 // 1. La fonction qui ouvre ou ferme le bloc quand on clique
 function toggleWidget(widgetId) {
     const content = document.getElementById(widgetId + '-content');
@@ -6785,6 +6823,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
