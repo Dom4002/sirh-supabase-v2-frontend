@@ -1279,151 +1279,135 @@ async function populateManagerSelects() {
     }
 }
 
-    function renderData() { 
-        const b = document.getElementById('full-body'); 
-        const d = document.getElementById('dashboard-body');
-        if(!b || !d) return; // Sécurité
-        const canManage = currentUser.permissions?.can_see_employees === true;
 
 
-        b.innerHTML = ''; 
-        d.innerHTML = ''; 
+
+function renderData() { 
+    const b = document.getElementById('full-body'); 
+    const d = document.getElementById('dashboard-body');
+    if(!b || !d) return; 
+
+    // 1. Détection de la permission "Maître" (RH/ADMIN)
+    const canManage = currentUser.permissions?.can_see_employees === true;
+
+    // 2. LOGIQUE ESTHÉTIQUE : On cache l'en-tête de la colonne si on n'est pas RH/ADMIN
+    const headerAction = document.querySelector('th[data-perm="can_see_employees"]');
+    if (headerAction) {
+        headerAction.style.display = canManage ? '' : 'none';
+    }
+
+    b.innerHTML = ''; 
+    d.innerHTML = ''; 
+    
+    let total = 0, alertes = 0, actifs = 0; 
+
+    // --- 1. CALCUL DES STATS (Sur le périmètre filtré par le serveur) ---
+    employees.forEach(e => { 
+        total++; 
+        const rawStatus = (e.statut || 'Actif').toLowerCase().trim();
+        const isSortie = rawStatus.includes('sortie'); 
         
-        let total = 0, alertes = 0, actifs = 0; 
+        if (rawStatus === 'actif') actifs++; 
+        
+        if(e.date && !isSortie) { 
+            let sD = parseDateSmart(e.date);
+            let eD = new Date(sD); 
+            eD.setDate(eD.getDate() + (parseInt(e.limit) || 365)); 
+            let dL = Math.ceil((eD - new Date()) / 86400000); 
 
-        // --- 1. CALCUL DES STATS (Sur TOUT l'effectif) ---
-        employees.forEach(e => { 
-            total++; 
-            const rawStatus = (e.statut || 'Actif').toLowerCase().trim();
-            const isSortie = rawStatus.includes('sortie'); 
-            
-            if (rawStatus === 'actif') actifs++; 
-            
-            let dL = 999, isU = false, isExpired = false;
-            
-            if(e.date_embauche && !isSortie) { 
-                let sD = parseDateSmart(e.date_embauche); // Récupère de la bonne colonne
-                let eD = new Date(sD); 
-                 eD.setDate(eD.getDate() + (parseInt(e.type_contrat) || 365)); // Utilise type_contrat (le texte)
-                dL = Math.ceil((eD - new Date()) / 86400000); 
+            let isExpired = dL < 0;
+            let isUrgent = dL <= 15;
 
-                if (dL < 0) { isExpired = true; alertes++; } 
-                else if (dL <= 15) { isU = true; alertes++; }
+            if(isExpired || isUrgent) {
+                alertes++;
+                // Dans le dashboard, on ne montre le bouton GÉRER que si on a le droit
+                const manageBtn = canManage ? `<button class="bg-slate-900 text-white px-3 py-1.5 rounded-lg text-[10px] font-bold" onclick="openEditModal('${escapeHTML(e.id)}')">GÉRER</button>` : '';
 
-                if(isExpired || isU) {
-                    d.innerHTML += `<tr class="bg-white border-b"><td class="p-4 text-sm font-bold text-slate-700">${escapeHTML(e.nom)}</td><td class="p-4 text-xs text-slate-500">${escapeHTML(e.poste)}</td><td class="p-4 ${isExpired ? 'text-red-600' : 'text-orange-600'} font-bold text-xs uppercase">${isExpired ? 'Expiré' : dL + ' jours'}</td><td class="p-4 rh-only text-right"><button class="bg-slate-900 text-white px-3 py-1.5 rounded-lg text-[10px] font-bold" onclick="openEditModal('${escapeHTML(e.id)}')">GÉRER</button></td></tr>`; 
-                }
+                d.innerHTML += `
+                    <tr class="bg-white border-b">
+                        <td class="p-4 text-sm font-bold text-slate-700">${escapeHTML(e.nom)}</td>
+                        <td class="p-4 text-xs text-slate-500">${escapeHTML(e.poste)}</td>
+                        <td class="p-4 ${isExpired ? 'text-red-600' : 'text-orange-600'} font-bold text-xs uppercase">${isExpired ? 'Expiré' : dL + ' j'}</td>
+                        <td class="p-4 text-right">${manageBtn}</td>
+                    </tr>`; 
             }
-        }); 
+        }
+    }); 
 
-        // --- 2. FILTRAGE POUR L'AFFICHAGE ---
-        let filteredEmployees = employees;
+    // --- 2. FILTRAGE LOCAL (Recherche / Chips) ---
+    let filteredEmployees = employees;
+    if (typeof currentFilter !== 'undefined' && currentFilter !== 'all') {
+        filteredEmployees = employees.filter(e => {
+            const search = currentFilter.toLowerCase();
+            return (e.statut || "").toLowerCase().includes(search) || (e.dept || "").toLowerCase().includes(search);
+        });
+    }
+
+    // --- 3. RENDU DU TABLEAU PRINCIPAL ---
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const paginatedEmployees = filteredEmployees.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
+    paginatedEmployees.forEach(e => {
+        const rawStatus = (e.statut || 'Actif').toLowerCase().trim();
+        const isSortie = rawStatus.includes('sortie');
+        const isConges = rawStatus.includes('cong');
         
-        if (typeof currentFilter !== 'undefined' && currentFilter !== 'all') {
-            filteredEmployees = employees.filter(e => {
-                const safeStatut = (e.statut || "").toLowerCase();
-                const safeDept = (e.dept || "").toLowerCase();
-                const search = currentFilter.toLowerCase();
-                
-                // Logique de correspondance (exacte ou partielle)
-                return safeStatut.includes(search) || safeDept.includes(search);
-            });
+        let bdgClass = isSortie ? "bg-slate-100 text-slate-500" : (isConges ? "bg-blue-100 text-blue-700" : "bg-green-100 text-green-700");
+        let bdgLabel = isSortie ? "SORTIE" : (isConges ? "CONGÉ" : (e.statut || 'Actif'));
+
+        const av = e.photo && e.photo.length > 10 
+            ? `<img src="${formatGoogleLink(e.photo)}" loading="lazy" class="w-10 h-10 rounded-full object-cover bg-slate-200 border border-slate-200">` 
+            : `<div class="w-10 h-10 bg-slate-100 border border-slate-200 rounded-full flex items-center justify-center text-xs font-black text-slate-500">${escapeHTML(e.nom).substring(0,2).toUpperCase()}</div>`;
+        
+        // --- CELLULE ACTION (Supprimée du DOM si pas autorisé) ---
+        let actionCell = "";
+        if (canManage) {
+            const isSigned = (String(e.contract_status || '').toLowerCase().trim() === 'signé');
+            const safeId = escapeHTML(e.id);
+
+            actionCell = `
+            <td class="px-8 py-4 text-right">
+                <div class="flex items-center justify-end gap-2">
+                    <button onclick="openFullFolder('${safeId}')" title="Dossier" class="p-2 bg-yellow-50 text-yellow-600 rounded-lg hover:bg-yellow-500 hover:text-white transition-all"><i class="fa-solid fa-folder-open"></i></button>
+                    <div class="h-4 w-[1px] bg-slate-200 mx-1"></div>
+                    ${!isSigned ? `
+                        <button onclick="generateDraftContract('${safeId}')" title="Brouillon" class="p-2 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-600 hover:text-white transition-all"><i class="fa-solid fa-file-contract"></i></button>
+                        <button onclick="openContractModal('${safeId}')" title="Signer" class="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white transition-all"><i class="fa-solid fa-pen-nib"></i></button>
+                        <button onclick="triggerManualContractUpload('${safeId}')" title="Scan" class="p-2 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-600 hover:text-white transition-all"><i class="fa-solid fa-file-arrow-up"></i></button>
+                    ` : `<span class="text-[10px] font-black text-emerald-500 uppercase bg-emerald-50 px-2 py-1 rounded">Signé</span>`}
+                    <div class="h-4 w-[1px] bg-slate-200 mx-1"></div>
+                    <button onclick="printBadge('${safeId}')" class="text-slate-400 hover:text-blue-600 transition-all"><i class="fa-solid fa-print"></i></button>
+                    <button onclick="openEditModal('${safeId}')" class="text-slate-400 hover:text-slate-800 transition-all"><i class="fa-solid fa-pen"></i></button>
+                </div>
+            </td>`;
         }
 
-        // --- 3. PAGINATION SUR LA LISTE FILTRÉE ---
-        const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-        const endIndex = startIndex + ITEMS_PER_PAGE;
-        const paginatedEmployees = filteredEmployees.slice(startIndex, endIndex);
+        b.innerHTML += `
+            <tr class="border-b hover:bg-slate-50 transition-colors">
+                <td class="p-4 flex gap-3 items-center min-w-[200px]">
+                    ${av}
+                    <div>
+                        <div class="font-bold text-sm text-slate-800 uppercase">${escapeHTML(e.nom)}</div>
+                        <div class="text-[10px] text-slate-400 font-mono">${e.matricule}</div>
+                    </div>
+                </td>
+                <td class="p-4 text-xs font-medium text-slate-500">${escapeHTML(e.poste)}</td>
+                <td class="p-4"><span class="px-3 py-1 border rounded-lg text-[10px] font-black uppercase ${bdgClass}">${escapeHTML(bdgLabel)}</span></td>
+                ${actionCell} 
+            </tr>`; 
+    });
 
-        paginatedEmployees.forEach(e => {
-            const rawStatus = (e.statut || 'Actif').toLowerCase().trim();
-            let dL = 999, isU = false, isExpired = false;
-            const isSortie = rawStatus.includes('sortie');
-            const isConges = rawStatus.includes('cong');
-            
-            if(e.date && !isSortie) {
-                let sD = parseDateSmart(e.date); 
-                let eD = new Date(sD); 
-                eD.setDate(eD.getDate() + (parseInt(e.limit) || 365));
-                dL = Math.ceil((eD - new Date()) / 86400000); 
-                if (dL < 0) isExpired = true;
-                else if (dL <= 15) isU = true;
-            }
+    // Mise à jour des compteurs UI
+    document.getElementById('stat-total').innerText = total; 
+    document.getElementById('stat-alert').innerText = alertes; 
+    document.getElementById('stat-active').innerText = actifs;
 
-            let bdgClass = "bg-green-100 text-green-700";
-            let bdgLabel = e.statut || 'Actif';
-
-            if(isSortie) { 
-                bdgClass = "bg-slate-100 text-slate-500"; 
-                bdgLabel = "SORTIE"; 
-            } else if(isExpired) { 
-                bdgClass = "bg-red-100 text-red-700 font-bold border border-red-200"; 
-                bdgLabel = `EXPIRÉ`; 
-            } else if(isU) { 
-                bdgClass = "bg-orange-100 text-orange-700 animate-pulse font-bold"; 
-                bdgLabel = `FIN: ${dL}j`; 
-            } else if(isConges) { 
-                bdgClass = "bg-blue-100 text-blue-700"; 
-                bdgLabel = "CONGÉ"; 
-            }
-
-            const av = e.photo && e.photo.length > 10 ? `<img src="${formatGoogleLink(e.photo)}" loading="lazy" decoding="async" class="w-10 h-10 rounded-full object-cover bg-slate-200 border border-slate-200">` : `<div class="w-10 h-10 bg-gradient-to-br from-slate-100 to-slate-200 border border-slate-200 rounded-full flex items-center justify-center text-xs font-black text-slate-500">${escapeHTML(e.nom).substring(0,2).toUpperCase()}</div>`;
-            
-            const sStr = String(e.contract_status || '').toLowerCase().trim(); 
-            const isSigned = (sStr === 'signé' || sStr === 'signe');
-            
-            const safeId = escapeHTML(e.id);
-    
-
-
-// On ne prépare les boutons QUE si l'utilisateur a la permission
-let contractActions = "";
-
-if (canManage) {
-    const sStr = String(e.contract_status || '').toLowerCase().trim(); 
-    const isSigned = (sStr === 'signé' || sStr === 'signe');
-    const safeId = escapeHTML(e.id);
-
-    contractActions = `
-    <div class="flex items-center justify-end gap-2">
-        <!-- DOSSIER COMPLET -->
-        <button onclick="openFullFolder('${safeId}')" title="Dossier Complet" class="p-2 bg-yellow-50 text-yellow-600 rounded-lg hover:bg-yellow-500 hover:text-white transition-all"><i class="fa-solid fa-folder-open"></i></button>
-        
-        <div class="h-4 w-[1px] bg-slate-200 mx-1"></div>
-
-        ${!isSigned ? `
-            <button onclick="generateDraftContract('${safeId}')" title="Brouillon PDF" class="p-2 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-600 hover:text-white transition-all"><i class="fa-solid fa-file-contract"></i></button>
-            <button onclick="openContractModal('${safeId}')" title="Signature" class="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white transition-all"><i class="fa-solid fa-pen-nib"></i></button>
-            <button onclick="triggerManualContractUpload('${safeId}')" title="Upload Scan" class="p-2 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-600 hover:text-white transition-all"><i class="fa-solid fa-file-arrow-up"></i></button>
-        ` : `
-            <span class="text-[10px] font-black text-emerald-500 uppercase bg-emerald-50 px-2 py-1 rounded">Signé</span>
-        `}
-
-        <div class="h-4 w-[1px] bg-slate-200 mx-1"></div>
-        <button onclick="printBadge('${safeId}')" class="text-slate-400 hover:text-blue-600 transition-all"><i class="fa-solid fa-print"></i></button>
-        <button onclick="openEditModal('${safeId}')" class="text-slate-400 hover:text-slate-800 transition-all"><i class="fa-solid fa-pen"></i></button>
-    </div>`;
-} else {
-    // Si l'utilisateur n'a pas la permission, on peut afficher un badge "Lecture seule" ou rien du tout
-    contractActions = `<span class="text-[9px] font-bold text-slate-300 uppercase tracking-widest">Consultation</span>`;
+    // Pagination
+    const totalPages = Math.ceil(filteredEmployees.length / ITEMS_PER_PAGE);
+    document.querySelectorAll('.page-info-global').forEach(el => { el.innerText = `PAGE ${currentPage} / ${totalPages || 1}`; });
 }
 
 
-            
-            b.innerHTML+=`<tr class="border-b hover:bg-slate-50 transition-colors"><td class="p-4 flex gap-3 items-center min-w-[200px]">${av}<div><div class="font-bold text-sm text-slate-800 uppercase">${escapeHTML(e.nom)}</div><div class="text-[10px] text-slate-400 font-mono tracking-tighter">${e.matricule}</div></div></td><td class="p-4 text-xs font-medium text-slate-500">${escapeHTML(e.poste)}</td><td class="p-4"><span class="px-3 py-1 border rounded-lg text-[10px] font-black uppercase ${bdgClass}">${escapeHTML(bdgLabel)}</span></td><td class="p-4 text-right">${contractActions}</td></tr>`; 
-        });
-
-        // Mises à jour UI
-        document.getElementById('stat-total').innerText = total; 
-        document.getElementById('stat-alert').innerText = alertes; 
-        document.getElementById('stat-active').innerText = actifs;
-
-        // Mise à jour pagination avec la liste FILTRÉE
-        const totalPages = Math.ceil(filteredEmployees.length / ITEMS_PER_PAGE);
-        document.querySelectorAll('.page-info-global').forEach(el => { el.innerText = `PAGE ${currentPage} / ${totalPages || 1}`; });
-        document.querySelectorAll('.btn-prev-global').forEach(btn => { btn.disabled = currentPage === 1; btn.classList.toggle('opacity-30', currentPage === 1); });
-        document.querySelectorAll('.btn-next-global').forEach(btn => { btn.disabled = currentPage >= totalPages; btn.classList.toggle('opacity-30', currentPage >= totalPages); });
-    }
 
 
 async function openAttendancePicker() {
@@ -6525,6 +6509,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
