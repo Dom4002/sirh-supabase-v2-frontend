@@ -833,9 +833,9 @@ async function openAddTemplateModal() {
         const roles = await response.json();
 
         // 3. On génère les options du menu déroulant dynamiquement
-        const roleOptions = roles.map(r => 
-            `<option value="${r.role_name}">${r.role_name}</option>`
-        ).join('');
+            const roleOptions = window.activeRolesList.map(r => 
+                `<option value="${r.role_name}">${r.role_name}</option>`
+            ).join('');
 
         // 4. On ouvre la vraie modale avec la liste à jour
         const { value: formValues } = await Swal.fire({
@@ -843,10 +843,10 @@ async function openAddTemplateModal() {
             html: `
                 <div class="text-left">
                     <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Rôle Cible (Base de données)</label>
-                    <select id="swal-tpl-role" class="swal2-input !mt-0">
-                        <option value="">-- Sélectionner un rôle --</option>
-                        ${roleOptions}
-                    </select>
+                        <select id="swal-tpl-role" class="swal2-input !mt-0">
+                            <option value="">-- Choisir le rôle ciblé --</option>
+                            ${roleOptions}
+                        </select>
 
                     <label class="block text-[10px] font-black text-slate-400 uppercase mt-4 mb-1">Libellé du modèle (ex: Contrat de garde)</label>
                     <input id="swal-tpl-label" class="swal2-input !mt-0" placeholder="Nom du document...">
@@ -949,9 +949,7 @@ async function setSession(n, r, id, perms) {
         refreshAllData(false); 
         syncClockInterface(); 
         fetchAndPopulateDepartments();
-        
-        // --- NOUVEAU : CHARGEMENT DES MODÈLES DE CONTRAT POUR LE SELECTEUR ---
-        // S'assure que les options sont prêtes avant d'ouvrir la vue "add-new"
+        syncAllRoleSelects();
         fetchContractTemplatesForSelection(); 
 
         // --- NOUVEAU : Écouteur pour le type d'employé (si le select existe) ---
@@ -3048,6 +3046,37 @@ async function triggerRobotCheck() {
     }
 }
 
+
+
+
+
+
+
+async function syncAllRoleSelects() {
+    try {
+        const response = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/list-roles`);
+        const roles = await response.json();
+
+        // On prépare le HTML des options
+        const optionsHtml = roles.map(r => `<option value="${r.role_name}">${r.role_name}</option>`).join('');
+        const defaultOpt = `<option value="">-- Sélectionner un rôle --</option>`;
+
+        // Liste de tous les IDs de <select> qui doivent contenir les rôles
+        const roleSelectors = ['f-role', 'edit-role']; 
+
+        roleSelectors.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.innerHTML = defaultOpt + optionsHtml;
+        });
+
+        console.log("✅ Tous les menus de rôles sont à jour avec la BDD");
+        // On stocke les rôles en global pour les modales dynamiques (comme l'upload de template)
+        window.activeRolesList = roles; 
+
+    } catch (e) {
+        console.error("Erreur synchro rôles", e);
+    }
+}
 
 
     async function saveMyProfile() {
@@ -6807,6 +6836,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
