@@ -104,7 +104,7 @@ let searchTimeout = null; // Sert à attendre que l'utilisateur finisse de taper
         },
 
         // 5. SERVEUR (BASE API)
-        apiBaseUrl: "https://sirh-secure-backend.onrender.com/api"
+        apiBaseUrl: "https://sirh-backend-docker.onrender.com/api"
     };
 
     // --- GÉNÉRATION AUTOMATIQUE DES LIENS ---
@@ -6800,6 +6800,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
