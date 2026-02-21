@@ -3745,21 +3745,19 @@ async function fetchAndPopulateDepartments() {
 
 function exportPayrollTemplate() {
     const activeEmps = employees.filter(e => e.statut === 'Actif');
-    if (activeEmps.length === 0) return;
-
-    // On retire l'ID_SYSTEME. On n'utilise que le Matricule et le Nom.
-    let csvContent = "\ufeffMATRICULE;NOM;POSTE;SALAIRE_BASE;PRIMES;RETENUES\n";
+    // En-têtes clairs pour le comptable. 
+    // On laisse "PRIMES" et "RETENUES" à la fin pour qu'il les remplisse.
+    let csvContent = "\ufeffMATRICULE;NOM;POSTE;SALAIRE_BASE;TOTAL_PRIMES;TOTAL_RETENUES\n";
 
     activeEmps.forEach(e => {
-        // \t pour forcer le format texte sur le matricule
-        csvContent += `\t${e.matricule};${e.nom};${e.poste};${e.salaire_base_fixe || 0};0;0\n`;
+        // On force le format texte avec \t pour le matricule
+        csvContent += `\t${e.matricule};${e.nom};${e.poste};${e.salaire_brut_fixe || 0};0;0\n`;
     });
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
-    link.href = url;
-    link.download = `Preparation_Paie_${document.getElementById('pay-month').value}.csv`;
+    link.href = URL.createObjectURL(blob);
+    link.download = `Saisie_Paie_${document.getElementById('pay-month').value}.csv`;
     link.click();
 }
 
@@ -3779,59 +3777,53 @@ function triggerPayrollImport() {
     document.getElementById('payroll-csv-file').click();
 }
 
+
 async function handlePayrollImport(event) {
     const file = event.target.files[0];
     if (!file) return;
+
+    Swal.fire({ title: 'Traitement Excel...', didOpen: () => Swal.showLoading() });
 
     const reader = new FileReader();
     reader.onload = function(e) {
         const text = e.target.result;
         const lines = text.split('\n');
         let count = 0;
-        let errors = 0;
 
         for (let i = 1; i < lines.length; i++) {
             const cols = lines[i].split(';');
             if (cols.length < 6) continue;
 
-            const matriculeCSV = cols[0].trim();
-            const nomCSV = cols[1].trim(); // On récupère le nom pour vérifier
-            const primeValue = cols[4].trim(); 
-            const taxValue = cols[5].trim();   
+            const matricule = cols[0].trim();
+            const nom = cols[1].trim();
+            const totalPrimes = cols[4].trim(); // Colonne E
+            const totalRetenues = cols[5].trim(); // Colonne F
 
-            // SÉCURITÉ : On cherche l'employé dans notre liste locale par son MATRICULE
-            const emp = employees.find(x => x.matricule === matriculeCSV);
+            // On cherche l'employé dans le tableau HTML via son matricule
+            // On a besoin de l'ID technique (UUID) pour trouver la bonne ligne
+            const emp = employees.find(x => x.matricule === matricule);
 
-            if (emp) {
-                // VÉRIFICATION ANTIFRAUDE : Est-ce que le nom dans le CSV est celui du matricule ?
-                if (emp.nom.trim() !== nomCSV) {
-                    console.warn(`🚨 Fraude ou Erreur détectée : Le matricule ${matriculeCSV} appartient à ${emp.nom} et non à ${nomCSV}`);
-                    errors++;
-                    continue; // On saute cette ligne suspecte
-                }
-
-                // Si c'est OK, on cherche l'index dans le tableau HTML
-                const netDisplay = document.querySelector(`div[data-id="${emp.id}"]`);
-                if (netDisplay) {
-                    const index = netDisplay.id.split('-')[1];
-                    document.getElementById(`prime-${index}`).value = primeValue;
-                    document.getElementById(`tax-${index}`).value = taxValue;
+            if (emp && emp.nom.trim() === nom) {
+                // On trouve l'index de la ligne dans le tableau de compta
+                // On utilise le sélecteur d'attribut sur le div du NET
+                const netDiv = document.querySelector(`div[data-id="${emp.id}"]`);
+                if (netDiv) {
+                    const index = netDiv.id.split('-')[1];
+                    
+                    // ON INJECTE LES VALEURS D'EXCEL
+                    document.getElementById(`prime-${index}`).value = totalPrimes;
+                    document.getElementById(`tax-${index}`).value = totalRetenues;
+                    
+                    // ON RECALCULE LE NET IMMÉDIATEMENT
                     calculateRow(index);
                     count++;
                 }
             }
         }
-        
-        if (errors > 0) {
-            Swal.fire('Importation Partielle', `${count} salaires mis à jour, mais ${errors} erreurs de noms détectées et bloquées par sécurité.`, 'warning');
-        } else {
-            Swal.fire('Succès', `${count} salaires mis à jour.`, 'success');
-        }
+        Swal.fire('Succès', `${count} lignes mises à jour depuis Excel.`, 'success');
     };
     reader.readAsText(file);
 }
-
-
 
 async function submitSignedContract() { 
     if (!signaturePad || signaturePad.isEmpty()) { 
@@ -7103,6 +7095,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
