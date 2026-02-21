@@ -520,19 +520,19 @@
 <!-- 1. SECTION IDENTITÉ GÉNÉRALE -->
 <div class="md:col-span-2 space-y-4">
     <!-- Ligne Civilité + Nom -->
-    <div class="grid grid-cols-3 gap-4">
-        <div>
-            <label class="block text-[9px] font-bold text-slate-400 uppercase mb-1">Civilité</label>
-            <select id="f-civilite" class="w-full p-4 bg-slate-50 border rounded-xl font-medium outline-none focus:ring-2 focus:ring-blue-500">
-                <option value="Monsieur">Monsieur</option>
-                <option value="Madame">Madame</option>
-            </select>
-        </div>
-        <div class="col-span-2">
-            <label class="block text-[9px] font-bold text-slate-400 uppercase mb-1">Nom Complet</label>
-            <input type="text" id="f-nom" class="w-full p-4 bg-slate-50 border rounded-xl outline-none" placeholder="Ex: Damien HABIB" required>
-        </div>
+<div class="grid grid-cols-3 gap-4">
+    <div>
+        <label class="block text-[9px] font-bold text-slate-400 uppercase mb-1">Civilité</label>
+        <select id="f-civilite" class="w-full p-4 bg-slate-50 border rounded-xl font-medium outline-none">
+            <option value="Monsieur">Monsieur</option>
+            <option value="Madame">Madame</option>
+        </select>
     </div>
+    <div class="col-span-2">
+        <label class="block text-[9px] font-bold text-slate-400 uppercase mb-1">Nom Complet</label>
+        <input type="text" id="f-nom" class="w-full p-4 bg-slate-50 border rounded-xl outline-none" placeholder="Ex: Damien HABIB" required>
+    </div>
+</div>
 
     <input type="email" id="f-email" class="w-full p-4 bg-slate-50 border rounded-xl outline-none" placeholder="Email Pro" required>
     
@@ -571,6 +571,9 @@
         </div>
     </div>
 
+
+
+    
     <!-- 3. SECTION CONTRAT & FINANCES (Le nouveau bloc intelligent) -->
     <div class="md:col-span-2 bg-green-50 p-6 rounded-[2rem] border-2 border-dashed border-green-200 space-y-6">
         <p class="text-[10px] font-black text-green-600 uppercase tracking-widest flex items-center gap-2">
@@ -660,6 +663,8 @@
     </div>
 </div>
 
+
+            
 <!-- 5. PHOTO DE PROFIL (COLONNE DROITE) -->
 <div class="flex flex-col items-center justify-start p-4 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
     <div class="w-full h-44 bg-slate-200 rounded-xl mb-4 overflow-hidden flex items-center justify-center">
@@ -1701,6 +1706,7 @@
     </body>
 
     </html>
+
 
 
 
