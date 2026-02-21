@@ -3729,7 +3729,83 @@ async function fetchAndPopulateDepartments() {
     }
 
 
+// --- 1. EXPORTER LA LISTE POUR EXCEL ---
+function exportPayrollTemplate() {
+    // On ne prend que les employés actifs
+    const activeEmps = employees.filter(e => e.statut === 'Actif');
+    if (activeEmps.length === 0) return Swal.fire('Oups', 'Aucun employé actif trouvé.', 'info');
 
+    // En-tête du fichier (ID_SYSTEME est vital pour le retour)
+    let csvContent = "\ufeffID_SYSTEME;MATRICULE;NOM;SALAIRE_BASE;PRIMES;RETENUES\n";
+
+    activeEmps.forEach(e => {
+        // On remplace les points par des virgules pour les salaires si besoin
+        csvContent += `${e.id};${e.matricule};${e.nom};${e.salaire_base_fixe || 0};0;0\n`;
+    });
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `Preparation_Paie_${document.getElementById('pay-month').value}_${document.getElementById('pay-year').value}.csv`;
+    link.click();
+}
+
+// --- 2. DÉCLENCHER L'OUVERTURE DU FICHIER ---
+function triggerPayrollImport() {
+    document.getElementById('payroll-csv-file').click();
+}
+
+// --- 3. TRAITER LE FICHIER EXCEL ET REMPLIR LE TABLEAU ---
+async function handlePayrollImport(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    Swal.fire({ title: 'Importation...', text: 'Mise à jour des salaires en cours', didOpen: () => Swal.showLoading() });
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const text = e.target.result;
+        const lines = text.split('\n');
+        let count = 0;
+
+        for (let i = 1; i < lines.length; i++) {
+            const cols = lines[i].split(';');
+            if (cols.length < 5) continue;
+
+            const empId = cols[0].trim();
+            const primeValue = cols[4].trim(); // Colonne PRIMES
+            const taxValue = cols[5].trim();   // Colonne RETENUES
+
+            // On cherche le div qui a ce data-id dans le tableau
+            const netDisplay = document.querySelector(`div[data-id="${empId}"]`);
+            if (netDisplay) {
+                // On récupère l'index (ex: net-5 -> 5)
+                const index = netDisplay.id.split('-')[1];
+                
+                // On met à jour les champs de saisie
+                const pInput = document.getElementById(`prime-${index}`);
+                const tInput = document.getElementById(`tax-${index}`);
+                
+                if (pInput) pInput.value = primeValue;
+                if (tInput) tInput.value = taxValue;
+                
+                // On force le recalcul de la ligne
+                calculateRow(index);
+                count++;
+            }
+        }
+        
+        Swal.fire({
+            icon: 'success',
+            title: 'Terminé',
+            text: `${count} salaires mis à jour à partir du fichier Excel.`,
+            confirmButtonColor: '#2563eb'
+        });
+        event.target.value = ""; // Reset de l'input file
+    };
+    reader.readAsText(file);
+}
 
 
 
@@ -6951,6 +7027,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
