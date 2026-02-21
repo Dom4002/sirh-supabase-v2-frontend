@@ -1355,6 +1355,7 @@ async function fetchData(forceUpdate = false, page = 1) {
                 diploma_link: x.diploma_url || '',
                 attestation_link: x.attestation_url || '',
                 lm_link: x.lm_url || '',
+                salaire_base_fixe: parseFloat(x.salaire_brut_fixe) || 0, // Assure-toi que le nom correspond à ta colonne SQL
                 contract_status: x.contract_status || 'Non signé'
             };
         });
@@ -5441,44 +5442,76 @@ async function downloadHtmlAsPdf(url, title) {
 
 
 
-    function loadAccountingView() {
+function calculateRow(index) {
+    const base = parseInt(document.getElementById(`base-${index}`).value) || 0;
+    const prime = parseInt(document.getElementById(`prime-${index}`).value) || 0;
+    const tax = parseInt(document.getElementById(`tax-${index}`).value) || 0;
+    
+    const net = base + prime - tax;
+    const display = document.getElementById(`net-${index}`);
+    
+    // Formatage pro (1 500 000 CFA)
+    const formattedNet = new Intl.NumberFormat('fr-FR').format(net) + " CFA";
+    
+    display.innerText = formattedNet;
+    
+    // On met à jour les données cachées pour l'envoi final
+    display.dataset.net = net;
+    display.dataset.base = base;
+    display.dataset.prime = prime;
+    display.dataset.tax = tax;
+}
+
+   
+function loadAccountingView() {
     const body = document.getElementById('accounting-table-body');
+    if (!body) return;
     body.innerHTML = '';
 
-    employees.filter(e => e.statut === 'Actif').forEach((emp, index) => {
-                        body.innerHTML += `
-                            <tr class="hover:bg-blue-50/30 transition-all">
-                                <td class="px-6 py-4">
-                                    <div class="font-bold text-slate-800">${emp.nom}</div>
-                                    <div class="text-[10px] text-slate-400 font-mono">${emp.poste}</div>
-                                </td>
-                                <td class="px-4 py-4">
-                                    <!-- On utilise ici le salaire de base récupéré de la BDD -->
-                                    <input type="number" oninput="calculateRow(${index})" id="base-${index}" 
-                                        class="pay-base w-full p-2 bg-slate-50 rounded-lg text-center font-bold outline-none focus:bg-white focus:ring-2 focus:ring-blue-500" 
-                                        value="${emp.salaire_base_fixe || 0}">
-                                </td>
-                                <td class="px-4 py-4">
-                                    <input type="number" oninput="calculateRow(${index})" id="prime-${index}" 
-                                        class="pay-prime w-full p-2 bg-slate-50 rounded-lg text-center font-bold outline-none focus:bg-white focus:ring-2 focus:ring-emerald-500" 
-                                        value="0">
-                                </td>
-                                <td class="px-4 py-4">
-                                    <input type="number" oninput="calculateRow(${index})" id="tax-${index}" 
-                                        class="pay-tax w-full p-2 bg-slate-50 rounded-lg text-center font-bold outline-none focus:bg-white focus:ring-2 focus:ring-red-500" 
-                                        value="0">
-                                </td>
-                                <td class="px-6 py-4 text-right">
-                                    <!-- SÉCURITÉ : On ajoute 'sensitive-value' et 'onclick' pour flouter le montant final -->
-                                    <div class="text-lg font-black text-blue-600 sensitive-value" 
-                                        onclick="toggleSensitiveData(this)" 
-                                        id="net-${index}" 
-                                        data-id="${emp.id}" data-nom="${emp.nom}" data-poste="${emp.poste}">
-                                        0 CFA
-                                    </div>
-                                </td>
-                            </tr>
-                        `;
+    // On filtre uniquement les actifs
+    const activeEmps = employees.filter(e => e.statut === 'Actif');
+
+    activeEmps.forEach((emp, index) => {
+        // RÉCUPÉRATION DU SALAIRE DEPUIS LA BDD (OU 0 SI VIDE)
+        const baseFromDB = emp.salaire_base_fixe || 0;
+
+        body.innerHTML += `
+            <tr class="hover:bg-blue-50/30 transition-all border-b last:border-0">
+                <td class="px-6 py-4">
+                    <div class="font-bold text-slate-800">${emp.nom}</div>
+                    <div class="text-[10px] text-slate-400 font-mono uppercase">${emp.poste}</div>
+                </td>
+                <td class="px-4 py-4">
+                    <!-- LE SALAIRE DE BASE EST PRÉ-REMPLI ICI -->
+                    <input type="number" oninput="calculateRow(${index})" id="base-${index}" 
+                        class="pay-base w-full p-2 bg-slate-50 rounded-lg text-center font-bold outline-none focus:bg-white focus:ring-2 focus:ring-blue-500" 
+                        value="${baseFromDB}">
+                </td>
+                <td class="px-4 py-4">
+                    <input type="number" oninput="calculateRow(${index})" id="prime-${index}" 
+                        class="pay-prime w-full p-2 bg-slate-50 rounded-lg text-center font-bold outline-none focus:bg-white focus:ring-2 focus:ring-emerald-500" 
+                        value="0">
+                </td>
+                <td class="px-4 py-4">
+                    <input type="number" oninput="calculateRow(${index})" id="tax-${index}" 
+                        class="pay-tax w-full p-2 bg-slate-50 rounded-lg text-center font-bold outline-none focus:bg-white focus:ring-2 focus:ring-red-500" 
+                        value="0">
+                </td>
+                <td class="px-6 py-4 text-right">
+                    <!-- LE NET EST FLOUTÉ PAR DÉFAUT -->
+                    <div class="text-lg font-black text-blue-600 sensitive-value" 
+                        onclick="toggleSensitiveData(this)" id="net-${index}" 
+                        data-id="${emp.id}" data-nom="${emp.nom}" data-poste="${emp.poste}">
+                        0 CFA
+                    </div>
+                </td>
+            </tr>
+        `;
+    });
+
+    // --- MAGIE : LANCER LE CALCUL AUTOMATIQUE DE TOUTES LES LIGNES ---
+    activeEmps.forEach((_, index) => {
+        calculateRow(index);
     });
 }
 
@@ -6918,6 +6951,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
