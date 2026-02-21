@@ -5623,7 +5623,7 @@ async function loadAccountingView() {
                         </div>
                     </td>
                     <td class="px-4 py-5 text-center">
-                        <input type="number" oninput="calculateRow(${index})" id="base-${index}" class="w-full p-2 bg-slate-50 border-none rounded-xl text-center font-black text-xs focus:bg-white focus:ring-2 focus:ring-blue-500" value="${emp.salaire_base_fixe || 0}">
+                        <input type="number" oninput="calculateRow(${index})" id="base-${index}" class="w-full p-2 bg-slate-50 border-none rounded-xl text-center font-black text-xs focus:bg-white focus:ring-2 focus:ring-blue-500" value="${emp.salaire_brute_fixe || 0}">
                     </td>
                     <td class="px-4 py-5 text-center">
                         <input type="number" oninput="calculateRow(${index})" id="prime-${index}" class="w-full p-2 bg-emerald-50 border-none rounded-xl text-center font-black text-xs text-emerald-600 focus:bg-white focus:ring-2 focus:ring-emerald-500" value="0">
@@ -7103,6 +7103,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
