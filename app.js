@@ -5632,7 +5632,7 @@ async function loadAccountingView() {
                         <input type="number" oninput="calculateRow(${index})" id="tax-${index}" class="w-full p-2 bg-red-50 border-none rounded-xl text-center font-black text-xs text-red-600 focus:bg-white focus:ring-2 focus:ring-red-500" value="0">
                     </td>
                     <td class="px-6 py-5 text-right">
-                        <div class="text-sm font-black text-blue-600 sensitive-value" onclick="toggleSensitiveData(this)" id="net-${index}" data-id="${emp.id}" data-nom="${emp.nom}" data-poste="${emp.poste}">0 CFA</div>
+                        <div class="text-sm font-black text-blue-600 sensitive-value" onclick="toggleSensitiveData(this)" id="net-${index}" data-id="${emp.id}" data-nom="${emp.nom}" data-poste="${emp.poste}" data-matricule="${emp.matricule}">0 CFA</div>
                     </td>
                 </tr>`;
         });
@@ -5691,6 +5691,7 @@ async function generateAllPay() {
         if (netValue > 0) {
             records.push({
                 id: el.dataset.id,
+                matricule: el.dataset.matricule, // AJOUTE CETTE LIGNE
                 nom: el.dataset.nom,
                 poste: el.dataset.poste,
                 mois: mois, annee: annee,
@@ -7102,6 +7103,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
