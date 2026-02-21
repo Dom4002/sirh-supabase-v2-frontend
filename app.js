@@ -2133,72 +2133,84 @@ if (!formValues) return;
 
 
 
-
-    function openFullFolder(id) {
-        const e = employees.find(x => x.id === id); if(!e) return;
-        
-        document.getElementById('folder-photo').src = formatGoogleLink(e.photo) || 'https://via.placeholder.com/150';
-        document.getElementById('folder-name').innerText = e.nom; 
-        document.getElementById('folder-id').innerText = "MATRICULE : " + e.matricule;
-        document.getElementById('folder-poste').innerText = e.poste; 
-        document.getElementById('folder-dept').innerText = e.dept;
-        document.getElementById('folder-email').innerText = e.email || "Non renseigné"; 
-        document.getElementById('folder-phone').innerText = e.telephone || "Non renseigné";
-        document.getElementById('folder-address').innerText = e.adresse || "Non renseignée";
-        
-        if(e.date) { 
-            let sD = parseDateSmart(e.date); 
-            document.getElementById('folder-start').innerText = sD.toLocaleDateString('fr-FR'); 
-            let eD = new Date(sD); eD.setDate(eD.getDate() + (parseInt(e.limit) || 365)); 
-            document.getElementById('folder-end').innerText = eD.toLocaleDateString('fr-FR'); 
-        }
-        
-        const grid = document.getElementById('folder-docs-grid'); 
-        grid.innerHTML = '';
-
-        const docs = [ 
-            { label: 'Contrat Actuel', link: e.doc, icon: 'fa-file-signature', color: 'blue', key: 'contrat' }, 
-            { label: 'Curriculum Vitae', link: e.cv_link, icon: 'fa-file-pdf', color: 'indigo', key: 'cv' }, 
-            { label: 'Lettre Motivation', link: e.lm_link, icon: 'fa-envelope-open-text', color: 'pink', key: 'lm' },
-            { label: 'Pièce d\'Identité', link: e.id_card_link, icon: 'fa-id-card', color: 'slate', key: 'id_card' }, 
-            { label: 'Diplômes/Certifs', link: e.diploma_link, icon: 'fa-graduation-cap', color: 'emerald', key: 'diploma' },
-            { label: 'Attestations / Autres', link: e.attestation_link, icon: 'fa-file-invoice', color: 'orange', key: 'attestation' } 
-        ];
-
- 
-    // DANS LA FONCTION openFullFolder(id)
-
-        docs.forEach(doc => { 
-            const hasLink = doc.link && doc.link.length > 5; 
-            const safeLabel = doc.label.replace(/'/g, "\\'");
-
-            // --- RÈGLE DE GESTION ---
-            // Admin, RH et Manager ont le droit de modifier les dossiers des autres
-            const canEdit = (currentUser.role === 'ADMIN' || currentUser.role === 'RH' || currentUser.role === 'MANAGER');
-
-            grid.innerHTML += `
-                <div class="p-4 rounded-2xl border ${hasLink ? 'bg-white shadow-sm border-slate-200' : 'bg-slate-100 opacity-50'} flex items-center justify-between group">
-                    <div class="flex items-center gap-3">
-                        <div class="p-2.5 rounded-xl bg-${doc.color}-50 text-${doc.color}-600"><i class="fa-solid ${doc.icon}"></i></div>
-                        <p class="text-xs font-bold text-slate-700">${doc.label}</p>
-                    </div>
-                    <div class="flex gap-2">
-                        <!-- BOUTON VOIR -->
-                        ${hasLink ? `<button onclick="viewDocument('${doc.link}', '${safeLabel}')" class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg" title="Consulter"><i class="fa-solid fa-eye"></i></button>` : ''}
-                        
-                        <!-- BOUTON MODIFIER (Pour les chefs) -->
-                        ${canEdit ? `
-                        <button onclick="updateSingleDoc('${doc.key}', '${e.id}')" class="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg" title="Modifier">
-                            <i class="fa-solid fa-pen-to-square"></i>
-                        </button>` : ''}
-                    </div>
-                </div>`; 
-        });        
-        
-        document.getElementById('folder-modal').classList.remove('hidden');
+function openFullFolder(id) {
+    const e = employees.find(x => x.id === id); 
+    if(!e) return;
+    
+    // 1. Remplissage de l'identité de base
+    document.getElementById('folder-photo').src = formatGoogleLink(e.photo) || 'https://via.placeholder.com/150';
+    document.getElementById('folder-name').innerText = e.nom; 
+    document.getElementById('folder-id').innerText = "MATRICULE : " + e.matricule;
+    document.getElementById('folder-poste').innerText = e.poste; 
+    document.getElementById('folder-dept').innerText = e.dept;
+    document.getElementById('folder-email').innerText = e.email || "Non renseigné"; 
+    document.getElementById('folder-phone').innerText = e.telephone || "Non renseigné";
+    document.getElementById('folder-address').innerText = e.adresse || "Non renseignée";
+    
+    // 2. Gestion des dates de contrat
+    if(e.date) { 
+        let sD = parseDateSmart(e.date); 
+        document.getElementById('folder-start').innerText = sD.toLocaleDateString('fr-FR'); 
+        let eD = new Date(sD); 
+        eD.setDate(eD.getDate() + (parseInt(e.limit) || 365)); 
+        document.getElementById('folder-end').innerText = eD.toLocaleDateString('fr-FR'); 
     }
 
+    // --- 3. NOUVEAU : INSERTION DU BLOC RÉMUNÉRATION (SÉCURISÉ) ---
+    // On cherche l'endroit dans la colonne de gauche (md:w-1/3) pour injecter le salaire
+    const infoContainer = document.getElementById('folder-dept').parentElement.parentElement;
+    
+    // On vérifie si le bloc existe déjà pour ne pas le doubler
+    const existingSalary = document.getElementById('folder-salary-block');
+    if (existingSalary) existingSalary.remove();
 
+    const salaryHtml = `
+    <div id="folder-salary-block" class="mt-4 pt-4 border-t border-white/10">
+        <p class="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Salaire de Base Fixe</p>
+        <div class="flex items-center gap-2">
+            <p class="text-sm font-black text-blue-400 sensitive-value" onclick="toggleSensitiveData(this)">
+                ${new Intl.NumberFormat('fr-FR').format(e.salaire_base_fixe || 0)} CFA
+            </p>
+            <i class="fa-solid fa-eye-slash text-[9px] text-slate-600"></i>
+        </div>
+    </div>`;
+    
+    infoContainer.insertAdjacentHTML('beforeend', salaryHtml);
+    // -------------------------------------------------------------
+
+    // 4. Remplissage de la grille des documents
+    const grid = document.getElementById('folder-docs-grid'); 
+    grid.innerHTML = '';
+
+    const docs = [ 
+        { label: 'Contrat Actuel', link: e.doc, icon: 'fa-file-signature', color: 'blue', key: 'contrat' }, 
+        { label: 'Curriculum Vitae', link: e.cv_link, icon: 'fa-file-pdf', color: 'indigo', key: 'cv' }, 
+        { label: 'Lettre Motivation', link: e.lm_link, icon: 'fa-envelope-open-text', color: 'pink', key: 'lm' },
+        { label: 'Pièce d\'Identité', link: e.id_card_link, icon: 'fa-id-card', color: 'slate', key: 'id_card' }, 
+        { label: 'Diplômes/Certifs', link: e.diploma_link, icon: 'fa-graduation-cap', color: 'emerald', key: 'diploma' },
+        { label: 'Attestations / Autres', link: e.attestation_link, icon: 'fa-file-invoice', color: 'orange', key: 'attestation' } 
+    ];
+
+    docs.forEach(doc => { 
+        const hasLink = doc.link && doc.link.length > 5; 
+        const safeLabel = doc.label.replace(/'/g, "\\'");
+        const canEdit = (currentUser.role === 'ADMIN' || currentUser.role === 'RH' || currentUser.role === 'MANAGER');
+
+        grid.innerHTML += `
+            <div class="p-4 rounded-2xl border ${hasLink ? 'bg-white shadow-sm border-slate-200' : 'bg-slate-100 opacity-50'} flex items-center justify-between group">
+                <div class="flex items-center gap-3">
+                    <div class="p-2.5 rounded-xl bg-${doc.color}-50 text-${doc.color}-600"><i class="fa-solid ${doc.icon}"></i></div>
+                    <p class="text-xs font-bold text-slate-700">${doc.label}</p>
+                </div>
+                <div class="flex gap-2">
+                    ${hasLink ? `<button onclick="viewDocument('${doc.link}', '${safeLabel}')" class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg" title="Consulter"><i class="fa-solid fa-eye"></i></button>` : ''}
+                    ${canEdit ? `<button onclick="updateSingleDoc('${doc.key}', '${e.id}')" class="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg" title="Modifier"><i class="fa-solid fa-pen-to-square"></i></button>` : ''}
+                </div>
+            </div>`; 
+    });        
+    
+    document.getElementById('folder-modal').classList.remove('hidden');
+}
             
 function closeFolderModal() { document.getElementById('folder-modal').classList.add('hidden'); }
     
@@ -5068,23 +5080,29 @@ async function fetchPayrollData() {
             const titre = `${p.mois} ${p.annee}`;
             const fileUrl = p.fiche_pdf_url; // Nom exact de ta colonne Supabase
 
-            container.innerHTML += `
-                <div class="flex flex-col justify-between p-4 border border-slate-100 bg-slate-50 rounded-xl hover:bg-white hover:border-blue-200 hover:shadow-md transition-all group">
-                    <div class="flex items-start justify-between mb-3">
-                        <div class="bg-white border border-slate-100 text-emerald-600 p-2.5 rounded-xl shadow-sm">
-                            <i class="fa-solid fa-file-invoice text-xl"></i>
-                        </div>
-                        <button onclick="viewDocument('${fileUrl}', 'Bulletin ${titre}')" class="text-slate-300 hover:text-blue-600 transition-colors">
-                            <i class="fa-solid fa-eye"></i>
-                        </button>
-                    </div>
-                    <div>
-                        <p class="text-[10px] font-black text-slate-400 uppercase mb-1">${nomEmp}</p>
-                        <p class="text-xs font-bold text-slate-700 mb-1">Bulletin de ${titre}</p>
-                        <p class="text-[10px] text-emerald-600 font-black uppercase tracking-wide bg-emerald-50 inline-block px-2 py-1 rounded">${montant}</p>
-                    </div>
-                </div>
-            `;
+                        container.innerHTML += `
+                            <div class="flex flex-col justify-between p-4 border border-slate-100 bg-slate-50 rounded-xl hover:bg-white hover:border-blue-200 hover:shadow-md transition-all group">
+                                <div class="flex items-start justify-between mb-3">
+                                    <div class="bg-white border border-slate-100 text-emerald-600 p-2.5 rounded-xl shadow-sm">
+                                        <i class="fa-solid fa-file-invoice text-xl"></i>
+                                    </div>
+                                    <button onclick="viewDocument('${fileUrl}', 'Bulletin ${titre}')" class="text-slate-300 hover:text-blue-600 transition-colors">
+                                        <i class="fa-solid fa-eye"></i>
+                                    </button>
+                                </div>
+                                <div>
+                                    <p class="text-[10px] font-black text-slate-400 uppercase mb-1">${nomEmp}</p>
+                                    <p class="text-xs font-bold text-slate-700 mb-1">Bulletin de ${titre}</p>
+                                    
+                                    <!-- MODIFICATION ICI : Ajout du Privacy Mode sur le montant -->
+                                    <p class="text-[10px] text-emerald-600 font-black uppercase tracking-wide bg-emerald-50 inline-block px-2 py-1 rounded sensitive-value" 
+                                       onclick="toggleSensitiveData(this)" 
+                                       title="Cliquez pour afficher">
+                                        ${montant}
+                                    </p>
+                                </div>
+                            </div>
+                        `;
         });
     } catch (e) {
         console.warn("Erreur bulletins:", e);
@@ -5428,27 +5446,39 @@ async function downloadHtmlAsPdf(url, title) {
     body.innerHTML = '';
 
     employees.filter(e => e.statut === 'Actif').forEach((emp, index) => {
-        body.innerHTML += `
-            <tr class="hover:bg-blue-50/30 transition-all">
-                <td class="px-6 py-4">
-                    <div class="font-bold text-slate-800">${emp.nom}</div>
-                    <div class="text-[10px] text-slate-400 font-mono">${emp.poste}</div>
-                </td>
-                <td class="px-4 py-4">
-                    <input type="number" oninput="calculateRow(${index})" id="base-${index}" class="pay-base w-full p-2 bg-slate-50 rounded-lg text-center font-bold outline-none focus:bg-white focus:ring-2 focus:ring-blue-500" value="0">
-                </td>
-                <td class="px-4 py-4">
-                    <input type="number" oninput="calculateRow(${index})" id="prime-${index}" class="pay-prime w-full p-2 bg-slate-50 rounded-lg text-center font-bold outline-none focus:bg-white focus:ring-2 focus:ring-emerald-500" value="0">
-                </td>
-                <td class="px-4 py-4">
-                    <input type="number" oninput="calculateRow(${index})" id="tax-${index}" class="pay-tax w-full p-2 bg-slate-50 rounded-lg text-center font-bold outline-none focus:bg-white focus:ring-2 focus:ring-red-500" value="0">
-                </td>
-                <td class="px-6 py-4 text-right">
-                    <div class="text-lg font-black text-blue-600" id="net-${index}" 
-                        data-id="${emp.id}" data-nom="${emp.nom}" data-poste="${emp.poste}">0 CFA</div>
-                </td>
-            </tr>
-        `;
+                        body.innerHTML += `
+                            <tr class="hover:bg-blue-50/30 transition-all">
+                                <td class="px-6 py-4">
+                                    <div class="font-bold text-slate-800">${emp.nom}</div>
+                                    <div class="text-[10px] text-slate-400 font-mono">${emp.poste}</div>
+                                </td>
+                                <td class="px-4 py-4">
+                                    <!-- On utilise ici le salaire de base récupéré de la BDD -->
+                                    <input type="number" oninput="calculateRow(${index})" id="base-${index}" 
+                                        class="pay-base w-full p-2 bg-slate-50 rounded-lg text-center font-bold outline-none focus:bg-white focus:ring-2 focus:ring-blue-500" 
+                                        value="${emp.salaire_base_fixe || 0}">
+                                </td>
+                                <td class="px-4 py-4">
+                                    <input type="number" oninput="calculateRow(${index})" id="prime-${index}" 
+                                        class="pay-prime w-full p-2 bg-slate-50 rounded-lg text-center font-bold outline-none focus:bg-white focus:ring-2 focus:ring-emerald-500" 
+                                        value="0">
+                                </td>
+                                <td class="px-4 py-4">
+                                    <input type="number" oninput="calculateRow(${index})" id="tax-${index}" 
+                                        class="pay-tax w-full p-2 bg-slate-50 rounded-lg text-center font-bold outline-none focus:bg-white focus:ring-2 focus:ring-red-500" 
+                                        value="0">
+                                </td>
+                                <td class="px-6 py-4 text-right">
+                                    <!-- SÉCURITÉ : On ajoute 'sensitive-value' et 'onclick' pour flouter le montant final -->
+                                    <div class="text-lg font-black text-blue-600 sensitive-value" 
+                                        onclick="toggleSensitiveData(this)" 
+                                        id="net-${index}" 
+                                        data-id="${emp.id}" data-nom="${emp.nom}" data-poste="${emp.poste}">
+                                        0 CFA
+                                    </div>
+                                </td>
+                            </tr>
+                        `;
     });
 }
 
@@ -6733,6 +6763,55 @@ function toggleDictation(targetId, btn) {
 
 
 
+let inactivityTimer;
+
+function resetInactivityTimer() {
+    // Si l'utilisateur n'est pas connecté, on ne fait rien
+    if (!currentUser) return;
+
+    // On efface le compte à rebours précédent
+    clearTimeout(inactivityTimer);
+
+    // On lance un nouveau compte à rebours de 15 minutes (900 000 ms)
+    inactivityTimer = setTimeout(() => {
+        handleAutoLogout();
+    }, 900000); 
+}
+
+function handleAutoLogout() {
+    Swal.fire({
+        title: 'Session expirée',
+        text: 'Pour votre sécurité, vous avez été déconnecté suite à une longue inactivité.',
+        icon: 'info',
+        confirmButtonText: 'Se reconnecter',
+        confirmButtonColor: '#0f172a'
+    }).then(() => {
+        handleLogout(); // Ta fonction de déconnexion existante
+    });
+}
+
+// On écoute tous les mouvements de l'utilisateur
+['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'].forEach(name => {
+    document.addEventListener(name, resetInactivityTimer);
+});
+
+
+
+
+
+
+function toggleSensitiveData(element) {
+    // 1. On affiche la donnée
+    element.classList.add('revealed');
+    
+    // 2. On joue une petite vibration pour le feeling pro
+    if (navigator.vibrate) navigator.vibrate(10);
+
+    // 3. Sécurité : On refloute automatiquement après 10 secondes
+    setTimeout(() => {
+        element.classList.remove('revealed');
+    }, 10000); 
+}
 
 
 
@@ -6839,6 +6918,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
