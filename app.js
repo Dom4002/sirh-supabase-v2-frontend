@@ -2035,6 +2035,18 @@ async function handleClockInOut() {
                 const canvas = document.getElementById('proof-canvas');
                 const btnSnap = document.getElementById('btn-snap');
                 const btnRetry = document.getElementById('btn-retry');
+                const checkValidationInterval = setInterval(() => {
+                const confirmBtn = Swal.getConfirmButton();
+                const currentOutcome = document.getElementById('swal-outcome').value;
+                            
+                            if (currentOutcome === 'VU' && !proofBlob) {
+                                confirmBtn.disabled = true;
+                                confirmBtn.innerText = "📸 Prenez la photo";
+                            } else {
+                                confirmBtn.disabled = false;
+                                confirmBtn.innerText = "Valider & Sortir";
+                            }
+                        }, 500); // Vérifie toutes les demi-secondes
 
                 navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
                     .then(stream => { proofStream = stream; video.srcObject = stream; })
@@ -7095,6 +7107,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
