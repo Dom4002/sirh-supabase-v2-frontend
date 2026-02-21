@@ -790,64 +790,109 @@
                         </div>
                     </section>
 
+
+
 <section id="view-accounting" class="view-section">
-    
-  <div class="flex flex-col lg:flex-row justify-between items-center lg:items-end mb-8 gap-6">
-    <!-- TITRE -->
-    <div>
-        <h2 class="text-3xl font-black text-slate-800 tracking-tighter">Comptabilité</h2>
-        <p class="text-sm font-bold text-slate-400 uppercase tracking-widest">Calcul et édition des salaires</p>
-    </div>
-    
-    <!-- OUTILS EXCEL (NOUVEAU) -->
-    <div class="flex gap-2">
-        <button onclick="exportPayrollTemplate()" class="bg-slate-100 text-slate-600 px-4 py-3 rounded-xl font-bold text-[10px] uppercase hover:bg-slate-200 transition-all flex items-center gap-2 border border-slate-200">
-            <i class="fa-solid fa-file-export"></i> Modèle Excel
-        </button>
-        <button onclick="triggerPayrollImport()" class="bg-emerald-50 text-emerald-600 px-4 py-3 rounded-xl font-bold text-[10px] uppercase hover:bg-emerald-100 transition-all flex items-center gap-2 border border-emerald-100">
-            <i class="fa-solid fa-file-import"></i> Importer Primes
-        </button>
-        <!-- Input caché pour le fichier -->
-        <input type="file" id="payroll-csv-file" class="hidden" accept=".csv" onchange="handlePayrollImport(event)">
+    <!-- 1. EN-TÊTE : TITRE, EXCEL ET PÉRIODE -->
+    <div class="flex flex-col lg:flex-row justify-between items-center lg:items-end mb-8 gap-6">
+        <div>
+            <h2 class="text-3xl font-black text-slate-800 tracking-tighter">Comptabilité</h2>
+            <p class="text-sm font-bold text-slate-400 uppercase tracking-widest">Calcul et édition des salaires</p>
+        </div>
+        
+        <div class="flex gap-2">
+            <button onclick="exportPayrollTemplate()" class="bg-slate-100 text-slate-600 px-4 py-3 rounded-xl font-bold text-[10px] uppercase hover:bg-slate-200 transition-all flex items-center gap-2 border border-slate-200">
+                <i class="fa-solid fa-file-export"></i> Modèle Excel
+            </button>
+            <button onclick="triggerPayrollImport()" class="bg-emerald-50 text-emerald-600 px-4 py-3 rounded-xl font-bold text-[10px] uppercase hover:bg-emerald-100 transition-all flex items-center gap-2 border border-emerald-100">
+                <i class="fa-solid fa-file-import"></i> Importer Primes
+            </button>
+            <input type="file" id="payroll-csv-file" class="hidden" accept=".csv" onchange="handlePayrollImport(event)">
+        </div>
+
+        <div class="flex gap-4 bg-white p-3 rounded-[2rem] shadow-xl border border-slate-100 items-center">
+            <div class="flex flex-col">
+                <label class="text-[9px] font-black text-slate-400 uppercase ml-1">Période de paie</label>
+                <div class="flex gap-2">
+                    <select id="pay-month" class="font-bold text-sm bg-slate-50 p-2 rounded-lg outline-none">
+                        <option>Janvier</option><option>Février</option><option>Mars</option><option>Avril</option><option>Mai</option><option>Juin</option><option>Juillet</option><option>Août</option><option>Septembre</option><option>Octobre</option><option>Novembre</option><option>Décembre</option>
+                    </select>
+                    <input type="number" id="pay-year" value="2026" class="w-20 font-bold text-sm bg-slate-50 p-2 rounded-lg outline-none">
+                </div>
+            </div>
+            <button onclick="generateAllPay()" class="bg-blue-600 text-white h-12 px-8 rounded-xl font-black shadow-lg shadow-blue-200 hover:scale-105 active:scale-95 transition-all">
+                PUBLIER LES BULLETINS
+            </button>
+        </div>
     </div>
 
-    <!-- PÉRIODE ET PUBLICATION -->
-    <div class="flex gap-4 bg-white p-3 rounded-[2rem] shadow-xl border border-slate-100 items-center">
-        <div class="flex flex-col">
-            <label class="text-[9px] font-black text-slate-400 uppercase ml-1">Période de paie</label>
-            <div class="flex gap-2">
-                <select id="pay-month" class="font-bold text-sm bg-slate-50 p-2 rounded-lg outline-none">
-                    <option>Janvier</option><option>Février</option><option>Mars</option><option>Avril</option><option>Mai</option><option>Juin</option><option>Juillet</option><option>Août</option><option>Septembre</option><option>Octobre</option><option>Novembre</option><option>Décembre</option>
-                </select>
-                <input type="number" id="pay-year" value="2026" class="w-20 font-bold text-sm bg-slate-50 p-2 rounded-lg outline-none">
-            </div>
+    <!-- 2. BARRE DE FILTRES INTELLIGENTE -->
+<!-- BARRE DE FILTRES COMPTABILITÉ AVANCÉE -->
+<div class="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 mb-6 space-y-4">
+    <div class="flex flex-wrap gap-4 items-center">
+        
+        <!-- 1. Recherche Nom/Matricule -->
+        <div class="flex-1 min-w-[250px] relative">
+            <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+            <input type="text" id="search-accounting" onkeyup="filterAccountingTableLocally()" placeholder="Chercher un collaborateur..." class="w-full pl-12 pr-4 py-3 bg-slate-50 border-none rounded-2xl text-sm focus:ring-2 focus:ring-blue-500 transition-all">
         </div>
-        <button onclick="generateAllPay()" class="bg-blue-600 text-white h-12 px-8 rounded-xl font-black shadow-lg shadow-blue-200 hover:scale-105 active:scale-95 transition-all">
-            PUBLIER LES BULLETINS
+
+        <!-- 2. Filtre Activité (Fixe/Mobile) -->
+        <div class="flex flex-col">
+            <label class="text-[8px] font-black text-slate-400 uppercase ml-2 mb-1">Activité</label>
+            <select id="filter-accounting-type" onchange="loadAccountingView()" class="p-3 bg-slate-50 border-none rounded-2xl text-xs font-bold outline-none cursor-pointer">
+                <option value="all">Tous</option>
+                <option value="OFFICE">🏢 Bureau</option>
+                <option value="MOBILE">🚗 Terrain</option>
+                <option value="FIXED">🏠 Site Fixe</option>
+            </select>
+        </div>
+
+        <!-- 3. Filtre Département -->
+        <div class="flex flex-col">
+            <label class="text-[8px] font-black text-slate-400 uppercase ml-2 mb-1">Département</label>
+            <select id="filter-accounting-dept" onchange="loadAccountingView()" class="p-3 bg-slate-50 border-none rounded-2xl text-xs font-bold outline-none cursor-pointer">
+                <option value="all">Tous</option>
+            </select>
+        </div>
+
+        <!-- 4. Filtre Statut (Important pour les fins de contrat) -->
+        <div class="flex flex-col">
+            <label class="text-[8px] font-black text-slate-400 uppercase ml-2 mb-1">Statut RH</label>
+            <select id="filter-accounting-status" onchange="loadAccountingView()" class="p-3 bg-slate-50 border-none rounded-2xl text-xs font-bold outline-none cursor-pointer">
+                <option value="Actif">🟢 Actifs</option>
+                <option value="Congé">🟡 En Congé</option>
+                <option value="all">⚪ Tous (Incl. Sortis)</option>
+            </select>
+        </div>
+
+        <!-- 5. Bouton Reset -->
+        <button onclick="resetAccountingFilters()" class="mt-4 p-3 text-slate-400 hover:text-red-500 transition-all" title="Réinitialiser les filtres">
+            <i class="fa-solid fa-filter-circle-xmark text-lg"></i>
         </button>
     </div>
 </div>
 
+    <!-- 3. TABLEAU DES SALAIRES -->
     <div class="bg-white rounded-[2rem] shadow-2xl border border-slate-200 overflow-hidden">
-        <table class="w-full text-left border-collapse">
-            <thead>
-                <tr class="bg-slate-900 text-white text-[10px] uppercase font-black">
-                    <th class="px-6 py-6">Collaborateur</th>
-                    <th class="px-4 py-6 text-center">Base (CFA)</th>
-                    <th class="px-4 py-6 text-center">Primes (+)</th>
-                    <th class="px-4 py-6 text-center">Retenues (-)</th>
-                    <th class="px-6 py-6 text-right">NET À PAYER</th>
-                </tr>
-            </thead>
-            <tbody id="accounting-table-body" class="divide-y divide-slate-100">
-                <!-- Rempli par JS -->
-            </tbody>
-        </table>
+        <div class="max-h-[60vh] overflow-y-auto custom-scroll">
+            <table class="w-full text-left border-collapse">
+                <thead class="sticky top-0 z-10">
+                    <tr class="bg-slate-900 text-white text-[10px] uppercase font-black">
+                        <th class="px-6 py-6">Collaborateur</th>
+                        <th class="px-4 py-6 text-center">Base (CFA)</th>
+                        <th class="px-4 py-6 text-center">Primes (+)</th>
+                        <th class="px-4 py-6 text-center">Retenues (-)</th>
+                        <th class="px-6 py-6 text-right">NET À PAYER</th>
+                    </tr>
+                </thead>
+                <tbody id="accounting-table-body" class="divide-y divide-slate-100">
+                    <!-- Rempli par JS -->
+                </tbody>
+            </table>
+        </div>
     </div>
 </section>
-
-
-
 
                     <!-- VUE 4: LOGS -->
                     <section id="view-logs" class="view-section">
@@ -1721,6 +1766,7 @@
     </body>
 
     </html>
+
 
 
 
