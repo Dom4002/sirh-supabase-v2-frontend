@@ -3738,10 +3738,13 @@ function exportPayrollTemplate() {
     // En-tête du fichier (ID_SYSTEME est vital pour le retour)
     let csvContent = "\ufeffID_SYSTEME;MATRICULE;NOM;SALAIRE_BASE;PRIMES;RETENUES\n";
 
-    activeEmps.forEach(e => {
-        // On remplace les points par des virgules pour les salaires si besoin
-        csvContent += `${e.id};${e.matricule};${e.nom};${e.salaire_base_fixe || 0};0;0\n`;
-    });
+            activeEmps.forEach(e => {
+                // On ajoute \t devant l'ID et le Matricule pour qu'Excel ne les transforme pas en notation scientifique
+                const safeId = `\t${e.id}`;
+                const safeMatricule = `\t${e.matricule}`;
+                
+                csvContent += `${safeId};${safeMatricule};${e.nom};${e.salaire_base_fixe || 0};0;0\n`;
+            });
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -5188,56 +5191,63 @@ async function fetchPayrollData() {
 }
 
 
-
-    function exportToCSV() {
-        if (employees.length === 0) {
-            return Swal.fire('Erreur', 'Aucune donnée à exporter', 'warning');
-        }
-
-        // 1. Définir les colonnes à exporter
-        const headers = ["Matricule", "Nom Complet", "Poste", "Departement", "Statut", "Email", "Telephone", "Date Embauche", "Duree Contrat"];
-        
-        // 2. Préparer les données
-        let csvContent = headers.join(";") + "\n"; // Utilisation du point-virgule pour Excel France
-
-        employees.forEach(e => {
-            const row = [
-                e.id,
-                e.nom,
-                e.poste,
-                e.dept,
-                e.statut,
-                e.email || "",
-                e.telephone || "",
-                e.date || "",
-                e.limit
-            ];
-            
-            // Nettoyage des données pour éviter les bugs de virgules/guillemets
-            const cleanRow = row.map(val => `"${String(val).replace(/"/g, '""')}"`);
-            csvContent += cleanRow.join(";") + "\n";
-        });
-
-        // 3. Créer le fichier et le télécharger
-        // Utilisation du BOM UTF-8 (\ufeff) pour que Excel affiche bien les accents (é, à, etc.)
-        const blob = new Blob(["\ufeff" + csvContent], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement("a");
-        const url = URL.createObjectURL(blob);
-        
-        const dateStr = new Date().toLocaleDateString().replace(/\//g, "-");
-        
-        link.setAttribute("href", url);
-        link.setAttribute("download", `Rapport_Effectif_${dateStr}.csv`);
-        link.style.visibility = 'hidden';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-
-        const Toast = Swal.mixin({toast: true, position: 'top-end', showConfirmButton: false, timer: 3000});
-        Toast.fire({ icon: 'success', title: 'Exportation réussie !' });
+function exportToCSV() {
+    if (employees.length === 0) {
+        return Swal.fire('Erreur', 'Aucune donnée à exporter', 'warning');
     }
 
+    // 1. Définir les colonnes à exporter
+    const headers = ["Matricule", "Nom Complet", "Poste", "Departement", "Statut", "Email", "Telephone", "Date Embauche", "Duree Contrat"];
+    
+    // 2. Préparer les données
+    let csvContent = headers.join(";") + "\n"; // Utilisation du point-virgule pour Excel France
 
+    employees.forEach(e => {
+        const row = [
+            e.id,         // Index 0
+            e.nom,        // Index 1
+            e.poste,      // Index 2
+            e.dept,       // Index 3
+            e.statut,     // Index 4
+            e.email || "",// Index 5
+            e.telephone || "", // Index 6 (Le coupable)
+            e.date || "", // Index 7
+            e.limit       // Index 8
+        ];
+        
+        // Nettoyage des données et formatage forcé pour Excel
+        const cleanRow = row.map((val, index) => {
+            let str = String(val).replace(/"/g, '""'); // Gère les guillemets internes
+            
+            // PROTECTION : Si c'est le Matricule (0) ou le Téléphone (6)
+            // On ajoute \t (tabulation) au début pour forcer Excel à lire du TEXTE
+            if (index === 0 || index === 6) {
+                return `"\t${str}"`; 
+            }
+            
+            return `"${str}"`;
+        });
+        csvContent += cleanRow.join(";") + "\n";
+    });
+
+    // 3. Créer le fichier et le télécharger
+    // Utilisation du BOM UTF-8 (\ufeff) pour les accents et du Blob pour le binaire
+    const blob = new Blob(["\ufeff" + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    
+    const dateStr = new Date().toLocaleDateString('fr-FR').replace(/\//g, "-");
+    
+    link.setAttribute("href", url);
+    link.setAttribute("download", `Rapport_Effectif_${dateStr}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    const Toast = Swal.mixin({toast: true, position: 'top-end', showConfirmButton: false, timer: 3000});
+    Toast.fire({ icon: 'success', title: 'Exportation réussie !' });
+}
 
     // 1. Initialisation (au chargement)
     function initDarkMode() {
@@ -7027,6 +7037,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
