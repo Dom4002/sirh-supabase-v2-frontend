@@ -3300,7 +3300,7 @@ async function fetchContractTemplatesForSelection() {
 
         let optionsHtml = '<option value="">-- Choisir un modèle --</option>';
         templates.forEach(tpl => {
-            optionsHtml += `<option value="${tpl.role_target}">${tpl.label} (pour ${tpl.role_target})</option>`;
+        optionsHtml += `<option value="${tpl.id}">${tpl.label}</option>`;
         });
         selectElement.innerHTML = optionsHtml;
     } catch (e) {
