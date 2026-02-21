@@ -3645,18 +3645,24 @@ async function generateDraftContract(id) {
                     signaturePad.clear(); // On vide le cadre au cas où
                 }
 
+
+
+
 async function fetchAndPopulateDepartments() {
     try {
         const response = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/list-departments`);
         const depts = await response.json();
 
         // On prépare le HTML
-        const optionsHtml = depts.map(d => `<option value="${d.code}">${d.label}</option>`).join('');
         const defaultOpt = `<option value="">-- Choisir un département --</option>`;
+            const acctDept = document.getElementById('filter-accounting-dept');
+            const optionsHtml = depts.map(d => `<option value="${d.code}">${d.label}</option>`).join('');
+            if (acctDept) acctDept.innerHTML = `<option value="all">Tous les Départements</option>` + optionsHtml;
 
         // On remplit les deux selects (Création et Edition)
         const fDept = document.getElementById('f-dept');
         const editDept = document.getElementById('edit-dept');
+                
 
         if (fDept) fDept.innerHTML = defaultOpt + optionsHtml;
         if (editDept) editDept.innerHTML = defaultOpt + optionsHtml;
@@ -5563,56 +5569,100 @@ function calculateRow(index) {
     display.dataset.tax = tax;
 }
 
-   
-function loadAccountingView() {
+ 
+
+
+
+
+
+// --- CHARGEMENT DYNAMIQUE AVEC MULTI-FILTRES ---
+async function loadAccountingView() {
     const body = document.getElementById('accounting-table-body');
     if (!body) return;
-    body.innerHTML = '';
 
-    // On filtre uniquement les actifs
-    const activeEmps = employees.filter(e => e.statut === 'Actif');
+    // 1. Récupération des valeurs de TOUS les filtres
+    const filters = {
+        type: document.getElementById('filter-accounting-type').value,
+        dept: document.getElementById('filter-accounting-dept').value,
+        status: document.getElementById('filter-accounting-status').value,
+        agent: currentUser.nom
+    };
 
-    activeEmps.forEach((emp, index) => {
-        // RÉCUPÉRATION DU SALAIRE DEPUIS LA BDD (OU 0 SI VIDE)
-        const baseFromDB = emp.salaire_base_fixe || 0;
+    body.innerHTML = '<tr><td colspan="5" class="p-12 text-center"><i class="fa-solid fa-circle-notch fa-spin text-blue-600 text-3xl"></i><p class="text-[10px] font-black text-slate-400 uppercase mt-4">Filtrage des données en cours...</p></td></tr>';
 
-        body.innerHTML += `
-            <tr class="hover:bg-blue-50/30 transition-all border-b last:border-0">
-                <td class="px-6 py-4">
-                    <div class="font-bold text-slate-800">${emp.nom}</div>
-                    <div class="text-[10px] text-slate-400 font-mono uppercase">${emp.poste}</div>
-                </td>
-                <td class="px-4 py-4">
-                    <!-- LE SALAIRE DE BASE EST PRÉ-REMPLI ICI -->
-                    <input type="number" oninput="calculateRow(${index})" id="base-${index}" 
-                        class="pay-base w-full p-2 bg-slate-50 rounded-lg text-center font-bold outline-none focus:bg-white focus:ring-2 focus:ring-blue-500" 
-                        value="${baseFromDB}">
-                </td>
-                <td class="px-4 py-4">
-                    <input type="number" oninput="calculateRow(${index})" id="prime-${index}" 
-                        class="pay-prime w-full p-2 bg-slate-50 rounded-lg text-center font-bold outline-none focus:bg-white focus:ring-2 focus:ring-emerald-500" 
-                        value="0">
-                </td>
-                <td class="px-4 py-4">
-                    <input type="number" oninput="calculateRow(${index})" id="tax-${index}" 
-                        class="pay-tax w-full p-2 bg-slate-50 rounded-lg text-center font-bold outline-none focus:bg-white focus:ring-2 focus:ring-red-500" 
-                        value="0">
-                </td>
-                <td class="px-6 py-4 text-right">
-                    <!-- LE NET EST FLOUTÉ PAR DÉFAUT -->
-                    <div class="text-lg font-black text-blue-600 sensitive-value" 
-                        onclick="toggleSensitiveData(this)" id="net-${index}" 
-                        data-id="${emp.id}" data-nom="${emp.nom}" data-poste="${emp.poste}">
-                        0 CFA
-                    </div>
-                </td>
-            </tr>
-        `;
-    });
+    try {
+        // 2. Construction de l'URL de recherche (On utilise ta route /read déjà performante)
+        let url = `${SIRH_CONFIG.apiBaseUrl}/read?limit=1000&agent=${encodeURIComponent(filters.agent)}`;
+        
+        if (filters.type !== 'all') url += `&type=${filters.type}`;
+        if (filters.dept !== 'all') url += `&dept=${encodeURIComponent(filters.dept)}`;
+        if (filters.status !== 'all') url += `&status=${filters.status}`;
 
-    // --- MAGIE : LANCER LE CALCUL AUTOMATIQUE DE TOUTES LES LIGNES ---
-    activeEmps.forEach((_, index) => {
-        calculateRow(index);
+        const r = await secureFetch(url);
+        const result = await r.json();
+        const employeesToPay = result.data || [];
+
+        body.innerHTML = '';
+        if (employeesToPay.length === 0) {
+            body.innerHTML = '<tr><td colspan="5" class="p-20 text-center text-slate-300 italic">Aucun collaborateur ne correspond à ces critères.</td></tr>';
+            return;
+        }
+
+        // 3. Rendu du tableau (Même logique que précédemment)
+        employeesToPay.forEach((emp, index) => {
+            body.innerHTML += `
+                <tr class="hover:bg-blue-50/50 transition-all accounting-row animate-fadeIn" 
+                    data-search="${emp.nom.toLowerCase()} ${emp.matricule.toLowerCase()}">
+                    <td class="px-6 py-5">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-[10px] font-black text-slate-400">${emp.nom.charAt(0)}</div>
+                            <div>
+                                <div class="font-black text-slate-800 text-[11px] uppercase">${emp.nom}</div>
+                                <div class="text-[9px] text-slate-400 font-bold">${emp.matricule} • ${emp.poste}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-4 py-5 text-center">
+                        <input type="number" oninput="calculateRow(${index})" id="base-${index}" class="w-full p-2 bg-slate-50 border-none rounded-xl text-center font-black text-xs focus:bg-white focus:ring-2 focus:ring-blue-500" value="${emp.salaire_base_fixe || 0}">
+                    </td>
+                    <td class="px-4 py-5 text-center">
+                        <input type="number" oninput="calculateRow(${index})" id="prime-${index}" class="w-full p-2 bg-emerald-50 border-none rounded-xl text-center font-black text-xs text-emerald-600 focus:bg-white focus:ring-2 focus:ring-emerald-500" value="0">
+                    </td>
+                    <td class="px-4 py-5 text-center">
+                        <input type="number" oninput="calculateRow(${index})" id="tax-${index}" class="w-full p-2 bg-red-50 border-none rounded-xl text-center font-black text-xs text-red-600 focus:bg-white focus:ring-2 focus:ring-red-500" value="0">
+                    </td>
+                    <td class="px-6 py-5 text-right">
+                        <div class="text-sm font-black text-blue-600 sensitive-value" onclick="toggleSensitiveData(this)" id="net-${index}" data-id="${emp.id}" data-nom="${emp.nom}" data-poste="${emp.poste}">0 CFA</div>
+                    </td>
+                </tr>`;
+        });
+
+        // 4. Calcul immédiat
+        employeesToPay.forEach((_, i) => calculateRow(i));
+
+    } catch (e) {
+        console.error(e);
+        body.innerHTML = '<tr><td colspan="5" class="p-10 text-center text-red-500 font-bold uppercase text-xs">Erreur de connexion au serveur de paie</td></tr>';
+    }
+}
+
+// --- RESET DES FILTRES ---
+function resetAccountingFilters() {
+    document.getElementById('search-accounting').value = "";
+    document.getElementById('filter-accounting-type').value = "all";
+    document.getElementById('filter-accounting-status').value = "Actif";
+    document.getElementById('filter-accounting-dept').value = "all";
+    loadAccountingView();
+}
+
+
+
+// --- RECHERCHE LOCALE INSTANTANÉE ---
+function filterAccountingTableLocally() {
+    const term = document.getElementById('search-accounting').value.toLowerCase();
+    document.querySelectorAll('.accounting-row').forEach(row => {
+        const text = row.getAttribute('data-search');
+        row.style.display = text.includes(term) ? '' : 'none';
     });
 }
 
@@ -7052,6 +7102,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
