@@ -3467,51 +3467,43 @@ async function fetchLogs(page = 1) { // Accepte un paramètre de page
 }
 
 
-
 async function viewDocument(url, title) {
-    if (!url || url === '#' || url === 'null') {
-        return Swal.fire('Oups', 'Aucun document disponible.', 'info');
-    }
+    if (!url || url === '#' || url === 'null') return;
 
     const urlLower = url.toLowerCase();
     const isDocx = urlLower.includes('.docx');
     const isPdf = urlLower.includes('.pdf');
-    const isHtml = urlLower.includes('.html');
     
     let finalUrl = url;
 
-    // LOGIQUE D'AFFICHAGE INTELLIGENTE
+    // Si c'est un Word, on passe par Google
     if (isDocx) {
-        // Pour Word : Lecteur Google obligatoire
         finalUrl = `https://docs.google.com/gview?url=${encodeURIComponent(url)}&embedded=true`;
     } 
-    else if (isHtml || isPdf) {
-        // Pour HTML et PDF : On affiche direct, mais on ajoute un cache-busting (?t=...) 
-        // pour forcer le navigateur à recharger si le fichier a changé
+    // Si c'est un PDF ou HTML, on ajoute un "timestamp" pour éviter que le navigateur ne garde une vieille version en mémoire
+    else {
         finalUrl = url + (url.includes('?') ? '&' : '?') + 't=' + Date.now();
     }
 
     Swal.fire({
-        title: `<span class="text-sm font-black uppercase text-slate-500">${title || 'Visualisation'}</span>`,
+        title: `<span class="text-sm font-black uppercase text-slate-500">${title}</span>`,
         html: `
-            <div class="relative rounded-2xl overflow-hidden border border-slate-200 bg-white" style="height: 75vh;">
-                <!-- Iframe qui va charger le document -->
+            <div class="rounded-2xl overflow-hidden border border-slate-200 bg-white" style="height: 75vh;">
                 <iframe src="${finalUrl}" class="w-full h-full" frameborder="0"></iframe>
             </div>
-            <div class="mt-4 flex flex-col sm:flex-row gap-3 justify-between items-center">
-                <a href="${url}" target="_blank" download class="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-xl text-xs font-black uppercase hover:bg-blue-600 hover:text-white transition-all">
+            <div class="mt-4 flex justify-between items-center">
+                <a href="${url}" target="_blank" download class="text-xs font-bold text-blue-600 hover:underline">
                     <i class="fa-solid fa-download"></i> Télécharger l'original
                 </a>
-                <button onclick="Swal.close()" class="w-full sm:w-auto px-6 py-2 bg-slate-800 text-white rounded-xl text-xs font-black uppercase shadow-lg">Fermer</button>
+                <button onclick="Swal.close()" class="px-6 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold uppercase">Fermer</button>
             </div>
         `,
-        width: '1000px',
+        width: '900px',
         showConfirmButton: false,
         padding: '1.5rem',
         customClass: { popup: 'rounded-[2.5rem]' }
     });
 }
-
 
     async function openHtmlInNewWindow(url) {
         if (!url.toLowerCase().includes('.html')) {
@@ -7060,6 +7052,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
