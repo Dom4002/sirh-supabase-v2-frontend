@@ -3729,83 +3729,94 @@ async function fetchAndPopulateDepartments() {
     }
 
 
-// --- 1. EXPORTER LA LISTE POUR EXCEL ---
+
+
+
+
 function exportPayrollTemplate() {
-    // On ne prend que les employés actifs
     const activeEmps = employees.filter(e => e.statut === 'Actif');
-    if (activeEmps.length === 0) return Swal.fire('Oups', 'Aucun employé actif trouvé.', 'info');
+    if (activeEmps.length === 0) return;
 
-    // En-tête du fichier (ID_SYSTEME est vital pour le retour)
-    let csvContent = "\ufeffID_SYSTEME;MATRICULE;NOM;SALAIRE_BASE;PRIMES;RETENUES\n";
+    // On retire l'ID_SYSTEME. On n'utilise que le Matricule et le Nom.
+    let csvContent = "\ufeffMATRICULE;NOM;POSTE;SALAIRE_BASE;PRIMES;RETENUES\n";
 
-            activeEmps.forEach(e => {
-                // On ajoute \t devant l'ID et le Matricule pour qu'Excel ne les transforme pas en notation scientifique
-                const safeId = `\t${e.id}`;
-                const safeMatricule = `\t${e.matricule}`;
-                
-                csvContent += `${safeId};${safeMatricule};${e.nom};${e.salaire_base_fixe || 0};0;0\n`;
-            });
+    activeEmps.forEach(e => {
+        // \t pour forcer le format texte sur le matricule
+        csvContent += `\t${e.matricule};${e.nom};${e.poste};${e.salaire_base_fixe || 0};0;0\n`;
+    });
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `Preparation_Paie_${document.getElementById('pay-month').value}_${document.getElementById('pay-year').value}.csv`;
+    link.download = `Preparation_Paie_${document.getElementById('pay-month').value}.csv`;
     link.click();
 }
+
+
+
+
+
+
+
+
+
+
+
 
 // --- 2. DÉCLENCHER L'OUVERTURE DU FICHIER ---
 function triggerPayrollImport() {
     document.getElementById('payroll-csv-file').click();
 }
 
-// --- 3. TRAITER LE FICHIER EXCEL ET REMPLIR LE TABLEAU ---
 async function handlePayrollImport(event) {
     const file = event.target.files[0];
     if (!file) return;
-
-    Swal.fire({ title: 'Importation...', text: 'Mise à jour des salaires en cours', didOpen: () => Swal.showLoading() });
 
     const reader = new FileReader();
     reader.onload = function(e) {
         const text = e.target.result;
         const lines = text.split('\n');
         let count = 0;
+        let errors = 0;
 
         for (let i = 1; i < lines.length; i++) {
             const cols = lines[i].split(';');
-            if (cols.length < 5) continue;
+            if (cols.length < 6) continue;
 
-            const empId = cols[0].trim();
-            const primeValue = cols[4].trim(); // Colonne PRIMES
-            const taxValue = cols[5].trim();   // Colonne RETENUES
+            const matriculeCSV = cols[0].trim();
+            const nomCSV = cols[1].trim(); // On récupère le nom pour vérifier
+            const primeValue = cols[4].trim(); 
+            const taxValue = cols[5].trim();   
 
-            // On cherche le div qui a ce data-id dans le tableau
-            const netDisplay = document.querySelector(`div[data-id="${empId}"]`);
-            if (netDisplay) {
-                // On récupère l'index (ex: net-5 -> 5)
-                const index = netDisplay.id.split('-')[1];
-                
-                // On met à jour les champs de saisie
-                const pInput = document.getElementById(`prime-${index}`);
-                const tInput = document.getElementById(`tax-${index}`);
-                
-                if (pInput) pInput.value = primeValue;
-                if (tInput) tInput.value = taxValue;
-                
-                // On force le recalcul de la ligne
-                calculateRow(index);
-                count++;
+            // SÉCURITÉ : On cherche l'employé dans notre liste locale par son MATRICULE
+            const emp = employees.find(x => x.matricule === matriculeCSV);
+
+            if (emp) {
+                // VÉRIFICATION ANTIFRAUDE : Est-ce que le nom dans le CSV est celui du matricule ?
+                if (emp.nom.trim() !== nomCSV) {
+                    console.warn(`🚨 Fraude ou Erreur détectée : Le matricule ${matriculeCSV} appartient à ${emp.nom} et non à ${nomCSV}`);
+                    errors++;
+                    continue; // On saute cette ligne suspecte
+                }
+
+                // Si c'est OK, on cherche l'index dans le tableau HTML
+                const netDisplay = document.querySelector(`div[data-id="${emp.id}"]`);
+                if (netDisplay) {
+                    const index = netDisplay.id.split('-')[1];
+                    document.getElementById(`prime-${index}`).value = primeValue;
+                    document.getElementById(`tax-${index}`).value = taxValue;
+                    calculateRow(index);
+                    count++;
+                }
             }
         }
         
-        Swal.fire({
-            icon: 'success',
-            title: 'Terminé',
-            text: `${count} salaires mis à jour à partir du fichier Excel.`,
-            confirmButtonColor: '#2563eb'
-        });
-        event.target.value = ""; // Reset de l'input file
+        if (errors > 0) {
+            Swal.fire('Importation Partielle', `${count} salaires mis à jour, mais ${errors} erreurs de noms détectées et bloquées par sécurité.`, 'warning');
+        } else {
+            Swal.fire('Succès', `${count} salaires mis à jour.`, 'success');
+        }
     };
     reader.readAsText(file);
 }
@@ -7037,6 +7048,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
