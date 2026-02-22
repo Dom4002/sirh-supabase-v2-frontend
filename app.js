@@ -1861,31 +1861,47 @@ function renderPersonalReport(reports, container) {
 
 
 
-            function updateClockUI(isIn) {
-                const btn = document.getElementById('btn-clock');
-                const dot = document.getElementById('clock-status-dot');
-                const text = document.getElementById('clock-status-text');
-                if(!btn) return; 
-                if (isIn) {
-                    btn.classList.remove('bg-emerald-500', 'hover:bg-emerald-400');
-                    btn.classList.add('bg-red-500', 'hover:bg-red-400');
-                    btn.innerHTML = '<i class="fa-solid fa-person-walking-arrow-right"></i> <span>SORTIE</span>';
-                    dot.classList.remove('bg-red-500'); dot.classList.add('bg-emerald-500', 'shadow-emerald-500/50');
-                    text.innerText = "EN POSTE"; text.classList.add('text-emerald-500'); text.classList.remove('text-slate-800');
-                } else {
-                    btn.classList.remove('bg-red-500', 'hover:bg-red-400');
-                    btn.classList.add('bg-emerald-500', 'hover:bg-emerald-400');
-                    btn.innerHTML = '<i class="fa-solid fa-fingerprint"></i> <span>ENTRÉE</span>';
-                    dot.classList.remove('bg-emerald-500'); dot.classList.add('bg-red-500', 'shadow-red-500/50');
-                    text.innerText = "NON POINTÉ"; text.classList.remove('text-emerald-500'); text.classList.add('text-slate-800');
-                }
-            }
+           
 
+function updateClockUI(statusMode) {
+    const btn = document.getElementById('btn-clock');
+    const dot = document.getElementById('clock-status-dot');
+    const text = document.getElementById('clock-status-text');
+    if(!btn) return; 
 
+    // On réinitialise les classes de base du bouton
+    btn.className = "flex-1 md:flex-none text-white px-8 py-4 rounded-2xl font-black uppercase transition-all shadow-lg flex items-center justify-center gap-2";
+    dot.className = "w-3 h-3 rounded-full";
 
-
-
-
+    if (statusMode === 'IN') {
+        // ÉTAT 2 : EN POSTE -> On propose la SORTIE
+        btn.classList.add('bg-red-500', 'hover:bg-red-400', 'active:scale-95', 'cursor-pointer');
+        btn.innerHTML = '<i class="fa-solid fa-person-walking-arrow-right"></i> <span>SORTIE</span>';
+        btn.disabled = false;
+        dot.classList.add('bg-emerald-500', 'shadow-[0_0_10px_rgba(16,185,129,0.5)]');
+        text.innerText = "EN POSTE"; 
+        text.className = "text-2xl font-black text-emerald-500";
+    } 
+    else if (statusMode === 'DONE') {
+        // ÉTAT 3 : JOURNÉE FINIE -> Bouton GRISÉ ET BLOQUÉ
+        btn.classList.add('bg-slate-300', 'text-slate-500', 'cursor-not-allowed');
+        btn.classList.remove('text-white', 'shadow-lg');
+        btn.innerHTML = '<i class="fa-solid fa-check-double"></i> <span>TERMINÉ</span>';
+        btn.disabled = true; // Empêche tout clic HTML
+        dot.classList.add('bg-slate-300');
+        text.innerText = "JOURNÉE CLÔTURÉE"; 
+        text.className = "text-2xl font-black text-slate-400";
+    } 
+    else {
+        // ÉTAT 1 : DEHORS -> On propose l'ENTRÉE (Défaut)
+        btn.classList.add('bg-emerald-500', 'hover:bg-emerald-400', 'active:scale-95', 'cursor-pointer');
+        btn.innerHTML = '<i class="fa-solid fa-fingerprint"></i> <span>ENTRÉE</span>';
+        btn.disabled = false;
+        dot.classList.add('bg-red-500', 'shadow-[0_0_10px_rgba(239,68,68,0.5)]');
+        text.innerText = "NON POINTÉ"; 
+        text.className = "text-2xl font-black text-slate-800";
+    }
+}
 
 
 
@@ -1900,31 +1916,26 @@ async function syncClockInterface() {
         });
         const data = await response.json();
 
-        // On met à jour la mémoire locale
         localStorage.setItem(`clock_status_${userId}`, data.status);
         localStorage.setItem(`clock_in_done_${userId}`, data.in_done);
         localStorage.setItem(`clock_out_done_${userId}`, data.out_done);
 
         const isMobile = data.employee_type === 'MOBILE';
+        let uiState = 'OUT'; // Par défaut
 
-        // LOGIQUE D'AFFICHAGE DU BOUTON
+        // LOGIQUE CÉRÉBRALE DU BOUTON
         if (data.status === 'IN') {
-            updateClockUI(true); // Bouton Rouge (SORTIE)
-        } else {
-            updateClockUI(false); // Bouton Vert (ENTRÉE)
-            
-            // SI JOURNÉE TERMINÉE (Fixe ou Mobile ayant validé sa dernière sortie)
-            if (data.out_done) { 
-                const btn = document.getElementById('btn-clock');
-                const text = document.getElementById('clock-status-text');
-                if(btn) {
-                    btn.innerHTML = '<i class="fa-solid fa-check-double"></i> <span>TERMINÉ</span>';
-                    btn.classList.replace('bg-emerald-50', 'bg-slate-400'); 
-                    btn.classList.replace('bg-emerald-500', 'bg-slate-400'); // Sécurité couleur
-                }
-                if(text) text.innerText = "JOURNÉE CLÔTURÉE";
+            uiState = 'IN'; // Il est au travail, on affiche ROUGE
+        } else if (data.out_done) {
+            // S'il est OUT mais qu'il a déjà fait une sortie...
+            // Si c'est un FIXE, c'est fini. S'il est MOBILE et a coché "Dernière sortie", c'est fini aussi.
+            if (!isMobile || localStorage.getItem(`clock_finished_${userId}`) === 'true') {
+                uiState = 'DONE'; // On affiche GRIS
             }
         }
+
+        updateClockUI(uiState);
+
     } catch (e) { console.error(e); }
 }
 
@@ -2136,11 +2147,40 @@ if (!formValues) return;
         const response = await secureFetch(URL_CLOCK_ACTION, { method: 'POST', body: fd });
         const resData = await response.json();
 
-        if (response.ok) {
-            if (isLastExit) localStorage.setItem(`clock_out_done_${userId}`, 'true');
-            syncClockInterface();
-            Swal.fire('Succès', `Pointage validé : ${resData.zone}`, 'success');
-        } else { throw new Error(resData.error); }
+if (response.ok) {
+            const nowStr = new Date().toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'});
+
+            if (typeof PremiumUI !== 'undefined') {
+                PremiumUI.vibrate('success');
+                PremiumUI.play('success');
+            }
+            
+            let nextUiState = 'OUT';
+
+            if (action === 'CLOCK_IN') {
+                // S'il vient d'entrer, le prochain état est forcément IN (Rouge)
+                localStorage.setItem(`clock_status_${userId}`, 'IN');
+                localStorage.setItem(`clock_in_done_${userId}`, 'true');
+                nextUiState = 'IN';
+            } else {
+                // S'il vient de sortir
+                localStorage.setItem(`clock_status_${userId}`, 'OUT');
+                localStorage.setItem(`clock_out_done_${userId}`, 'true');
+                
+                // LE FILTRE MAGIQUE : Est-ce que sa journée est finie ?
+                if (!isMobile || isLastExit) {
+                    localStorage.setItem(`clock_finished_${userId}`, 'true'); // Sécurité locale
+                    nextUiState = 'DONE'; // Passe au GRIS !
+                } else {
+                    nextUiState = 'OUT'; // Redevient VERT (il peut faire une autre pharmacie)
+                }
+            }
+            updateClockUI(nextUiState);
+            
+            document.getElementById('clock-last-action').innerText = `Validé : ${action==='CLOCK_IN'?'Entrée':'Sortie'} à ${nowStr}`;
+            Swal.fire('Succès', `Pointage enregistré : ${resData.zone || validatedZone}`, 'success');
+        } else {
+            throw new Error(resData.error); }
     } catch (e) { Swal.fire('Erreur', e.message, 'error'); }
 }
 
@@ -7194,6 +7234,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
