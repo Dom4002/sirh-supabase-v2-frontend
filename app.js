@@ -1658,7 +1658,6 @@ async function openAttendancePicker() {
 }
 
 
-
 async function fetchAttendanceReport(mode = 'PERSONAL', period = 'monthly') {
     const container = document.getElementById('personal-report-container');
     
@@ -1669,37 +1668,40 @@ async function fetchAttendanceReport(mode = 'PERSONAL', period = 'monthly') {
     }
 
     try {
+        // L'URL passe bien le paramètre 'mode' pour que le serveur sache s'il doit filtrer par individu ou non
         const url = `${URL_READ_REPORT}?agent=${encodeURIComponent(currentUser.nom)}&requester_id=${encodeURIComponent(currentUser.id)}&mode=${mode}&period=${period}`;
         const r = await secureFetch(url);
         const rawReports = await r.json();
 
-        // --- DEBUT : NORMALISATION DES DONNÉES POUR L'EXPORT ET L'AFFICHAGE ---
+        // --- NORMALISATION DES DONNÉES ---
         const cleanReports = rawReports.map(rep => {
-            // Récupère la valeur du nom (gère les listes)
             let nomRaw = rep.nom || rep['nom (from Employé)'] || rep.Employé || 'Inconnu';
             let nomAffiche = Array.isArray(nomRaw) ? nomRaw[0] : nomRaw;
 
-            // Retourne un objet avec des clés simples et sans accents
             return {
                 mois: rep.mois || rep['Mois/Année'] || '-',
                 nom: nomAffiche,
                 jours: rep.jours || rep['Jours de présence'] || 0,
                 heures: rep.heures || rep['Total Heures'] || 0,
                 statut: rep.Statut || 'Clôturé',
-                // Pour le rapport "Today" :
                 heure_arrivee: rep.heure || rep.Heure || '--:--',
                 zone: rep.zone || rep.Zone || 'Bureau'
             };
         });
-        // --- FIN : NORMALISATION ---
         
         if (mode === 'GLOBAL') {
+            Swal.close();
             let tableHtml = '';
             
             if (period === 'today') {
                 // --- RAPPORT JOURNALIER ---
-                const totalActifs = employees.filter(e => e.statut === 'Actif').length;
-                const presents = cleanReports.length; // <-- UTILISE cleanReports
+                // CORRECTION : On compte comme "devant être présents" les Actifs ET ceux En Poste
+                const totalActifs = employees.filter(e => {
+                    const s = (e.statut || "").toLowerCase();
+                    return s.includes('actif') || s.includes('poste');
+                }).length;
+
+                const presents = cleanReports.length; 
                 const taux = totalActifs > 0 ? Math.round((presents / totalActifs) * 100) : 0;
 
                 tableHtml = `
@@ -1711,7 +1713,7 @@ async function fetchAttendanceReport(mode = 'PERSONAL', period = 'monthly') {
                         <div class="w-16 h-16 rounded-full border-4 border-indigo-100 flex items-center justify-center font-black text-indigo-600 bg-white shadow-sm">${taux}%</div>
                         <button onclick="downloadReportCSV('${period}')" class="bg-emerald-600 text-white px-4 py-2 rounded-lg text-xs font-bold uppercase shadow hover:bg-emerald-700 transition-all flex items-center gap-2"><i class="fa-solid fa-file-csv"></i> Excel</button>
                     </div>
-                    <div class="overflow-x-auto max-h-[50vh]">
+                    <div class="overflow-x-auto max-h-[50vh] custom-scroll">
                         <table class="w-full text-left whitespace-nowrap">
                             <thead class="bg-slate-100 text-[10px] uppercase font-black text-slate-500 sticky top-0">
                                 <tr><th class="p-3">Employé</th><th class="p-3 text-center">Arrivée</th><th class="p-3 text-center">Zone</th><th class="p-3 text-right">Statut</th></tr>
@@ -1719,16 +1721,15 @@ async function fetchAttendanceReport(mode = 'PERSONAL', period = 'monthly') {
                             <tbody class="divide-y divide-slate-50 text-xs">
                 `;
 
-                // UTILISE cleanReports ICI
                 cleanReports.forEach(item => {
                     let hAffiche = item.heure_arrivee.match(/(\d{2}:\d{2})/) ? item.heure_arrivee.match(/(\d{2}:\d{2})/)[1] : item.heure_arrivee;
 
                     tableHtml += `
                         <tr>
-                            <td class="p-3 font-bold text-slate-700">${item.nom}</td>
-                            <td class="p-3 text-center font-mono text-blue-600">${hAffiche}</td>
+                            <td class="p-3 font-bold text-slate-700 uppercase">${item.nom}</td>
+                            <td class="p-3 text-center font-mono text-blue-600 font-bold">${hAffiche}</td>
                             <td class="p-3 text-center text-slate-500">${item.zone}</td>
-                            <td class="p-3 text-right"><span class="bg-emerald-50 text-emerald-600 px-2 py-1 rounded font-bold text-[9px]">PRÉSENT</span></td>
+                            <td class="p-3 text-right"><span class="bg-emerald-50 text-emerald-600 px-2 py-1 rounded font-black text-[9px]">PRÉSENT</span></td>
                         </tr>
                     `;
                 });
@@ -1741,48 +1742,47 @@ async function fetchAttendanceReport(mode = 'PERSONAL', period = 'monthly') {
                     <div class="flex justify-end mb-4">
                         <button onclick="downloadReportCSV('${period}')" class="bg-emerald-600 text-white px-4 py-2 rounded-lg text-xs font-bold uppercase shadow hover:bg-emerald-700 transition-all flex items-center gap-2"><i class="fa-solid fa-file-csv"></i> Télécharger Cumul</button>
                     </div>
-                    <div class="overflow-x-auto max-h-[60vh]">
-                        <table class="w-full text-left whitespace-nowrap">
+                    <div class="overflow-x-auto max-h-[60vh] custom-scroll">
+                        <table class="w-full text-left whitespace-nowrap border-collapse">
                             <thead class="bg-slate-100 text-[10px] uppercase font-black text-slate-500 sticky top-0">
-                                <tr><th class="p-3">Mois</th><th class="p-3">Employé</th><th class="p-3 text-center">Jours Prés.</th><th class="p-3 text-center">Heures Tot.</th><th class="p-3 text-right">Statut</th></tr>
+                                <tr><th class="p-4">Mois</th><th class="p-4">Employé</th><th class="p-4 text-center">Jours Prés.</th><th class="p-4 text-center">Heures Tot.</th><th class="p-4 text-right">Statut</th></tr>
                             </thead>
-                            <tbody class="divide-y divide-slate-50 text-xs">
+                            <tbody class="divide-y divide-slate-100 text-xs">
                 `;
 
-                // UTILISE cleanReports ICI
                 cleanReports.forEach(item => {
                     tableHtml += `
-                        <tr>
-                            <td class="p-3 font-bold text-slate-700">${item.mois}</td>
-                            <td class="p-3 font-medium">${item.nom}</td>
-                            <td class="p-3 text-center font-bold text-slate-800">${item.jours}</td>
-                            <td class="p-3 text-center font-mono text-blue-600">${item.heures}h</td>
-                            <td class="p-3 text-right"><span class="bg-emerald-50 text-emerald-600 px-2 py-1 rounded font-bold text-[9px]">Clôturé</span></td>
+                        <tr class="hover:bg-blue-50/30 transition-all">
+                            <td class="p-4 font-bold text-slate-700 capitalize">${item.mois}</td>
+                            <td class="p-4 font-medium uppercase">${item.nom}</td>
+                            <td class="p-4 text-center font-black text-slate-800">${item.jours} j</td>
+                            <td class="p-4 text-center font-mono text-blue-600 font-bold">${item.heures}</td>
+                            <td class="p-4 text-right"><span class="bg-emerald-50 text-emerald-600 px-2 py-1 rounded font-bold text-[9px]">Validé</span></td>
                         </tr>`;
                 });
                 if(cleanReports.length === 0) tableHtml += `<tr><td colspan="5" class="p-10 text-center text-slate-400 italic">Aucune donnée mensuelle trouvée.</td></tr>`;
             }
 
             tableHtml += `</tbody></table></div>`;
+            
             Swal.fire({
                 title: period === 'today' ? 'Pointages du Jour' : 'Rapport Mensuel',
                 html: tableHtml,
                 width: '850px',
-                confirmButtonText: 'Fermer',
-                confirmButtonColor: '#0f172a'
+                confirmButtonText: 'Fermer la fenêtre',
+                confirmButtonColor: '#0f172a',
+                customClass: { popup: 'rounded-[2rem]' }
             });
-            currentReportData = cleanReports; // <-- ENREGISTRE LES DONNÉES NORMALISÉES
+            
+            currentReportData = cleanReports; 
         } else {
-            // Mode Personnel (Mon Profil)
-            renderPersonalReport(cleanReports, container); // <-- UTILISE cleanReports
+            renderPersonalReport(cleanReports, container);
         }
     } catch (e) {
         console.error("Erreur rapport:", e);
         Swal.fire('Erreur', "Impossible de charger les données du serveur.", 'error');
     }
 }
-
-
 
 
 
@@ -7206,6 +7206,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
