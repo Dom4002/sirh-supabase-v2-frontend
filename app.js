@@ -1094,52 +1094,6 @@ async function setSession(n, r, id, perms) {
 
 
 
-async function triggerManualContractUpload(employeeId) {
-    const { value: file } = await Swal.fire({
-        title: 'Contrat scanné / Physique',
-        text: 'Sélectionnez le PDF ou prenez une photo du contrat signé manuellement.',
-        input: 'file',
-        inputAttributes: {
-            'accept': 'application/pdf,image/*',
-            'aria-label': 'Uploader le contrat'
-        },
-        showCancelButton: true,
-        confirmButtonText: 'Envoyer le document',
-        confirmButtonColor: '#10b981',
-        cancelButtonText: 'Annuler'
-    });
-
-    if (file) {
-        Swal.fire({
-            title: 'Envoi en cours...',
-            text: 'Le fichier est en cours d\'archivage...',
-            allowOutsideClick: false,
-            didOpen: () => Swal.showLoading()
-        });
-
-        const fd = new FormData();
-        fd.append('id', employeeId);
-        fd.append('contract_file', file);
-        fd.append('mode', 'manual_scan');
-        fd.append('agent', currentUser.nom);
-
-        try {
-            const response = await fetch(URL_UPLOAD_SIGNED_CONTRACT, {
-                method: 'POST',
-                body: fd
-            });
-
-            if (response.ok) {
-                Swal.fire('Succès !', 'Contrat scanné enregistré.', 'success');
-                refreshAllData();
-            } else {
-                throw new Error("Erreur serveur lors de l'upload");
-            }
-        } catch (error) {
-            Swal.fire('Échec', error.message, 'error');
-        }
-    }
-}
 
 async function fetchCompanyConfig() {
     try {
@@ -4885,8 +4839,7 @@ function showCandidateDocs(safeNom, poste, cv, lm, dip, att, idCard) {
                     
                     ${hasDocs ? `
                         <div class="absolute top-3 right-3 z-10 sticky">
-                            <a id="external-link-btn" href="${firstDocUrl || '#'}" target="_blank" class="bg-white/90 backdrop-blur text-slate-700 px-3 py-1.5 rounded-lg te
-xt-[10px] font-bold shadow-sm border hover:text-blue-600 transition-all flex items-center gap-1">
+                            <a id="external-link-btn" href="${firstDocUrl || '#'}" target="_blank" class="bg-white/90 backdrop-blur text-slate-700 px-3 py-1.5 rounded-lg text-[10px] font-bold shadow-sm border hover:text-blue-600 transition-all flex items-center gap-1">
                                 <i class="fa-solid fa-up-right-from-square"></i> Ouvrir
                             </a>
                         </div>
