@@ -1,219 +1,197 @@
-        /* ============================================================
-        1. VARIABLES DE MARQUE & CONFIGURATION (ROOT)
+/* ============================================================
+        1. VARIABLES DE MARQUE & SYSTÈME DESIGN (ROOT)
         ============================================================ */
         :root {
+            /* Couleurs de base */
             --primary: #0f172a;
             --accent: #2563eb;
             --font-main: 'Plus Jakarta Sans', sans-serif;
             --base-size: 14px;
-            /* Variables de contraste calculées par le JS */
+            
+            /* Échelle d'arrondis Premium */
+            --radius-sm: 0.5rem;   /* 8px */
+            --radius-md: 1rem;     /* 16px */
+            --radius-lg: 1.5rem;   /* 24px */
+            --radius-xl: 2.25rem;  /* 36px */
+            --radius-full: 9999px;
+
+            /* Ombres douces (Soft Shadows) */
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.04), 0 4px 6px -4px rgb(0 0 0 / 0.04);
+            --shadow-premium: 0 20px 25px -5px rgb(0 0 0 / 0.05), 0 8px 10px -6px rgb(0 0 0 / 0.05);
+
+            /* Couleurs de texte calculées par JS */
             --text-on-primary: #ffffff;
             --text-on-accent: #ffffff;
+
+            /* Transitions */
+            --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-
         /* ============================================================
-        2. DARK MODE ULTRA-CLEAN
+        2. DARK MODE ULTRA-MODERNE (Deep Slate & Navy)
         ============================================================ */
-        body.dark-mode { background-color: #020617 !important; color: #f1f5f9 !important; }
-        body.dark-mode aside { background-color: #020617 !important; border-right: 1px solid #1e293b !important; }
-        body.dark-mode header, body.dark-mode .glass { background: rgba(2, 6, 23, 0.9) !important; border-bottom: 1px solid #1e293b !important; box-shadow: none !important; color: white !important; }
+        body.dark-mode { 
+            background-color: #020617 !important; 
+            color: #f8fafc !important; 
+        }
         
-        /* Cartes et Sections en Dark Mode */
-        body.dark-mode .bg-white, body.dark-mode section, body.dark-mode .rounded-3xl, 
-        body.dark-mode .rounded-2xl, body.dark-mode .shadow-xl, body.dark-mode .bg-slate-50, 
+        body.dark-mode aside { 
+            background-color: #020617 !important; 
+            border-right: 1px solid #1e293b !important; 
+        }
+        
+        body.dark-mode header, body.dark-mode .glass { 
+            background: rgba(2, 6, 23, 0.8) !important; 
+            border-bottom: 1px solid #1e293b !important; 
+            backdrop-filter: blur(16px) !important;
+        }
+        
+        body.dark-mode .bg-white, 
+        body.dark-mode section, 
+        body.dark-mode .bg-slate-50, 
         body.dark-mode .bg-slate-100 {
-            background-color: #0f172a !important; border: 1px solid #1e293b !important; box-shadow: none !important; color: #f1f5f9 !important;
+            background-color: #0f172a !important; 
+            border: 1px solid #1e293b !important; 
+            color: #f1f5f9 !important;
+            box-shadow: none !important;
         }
 
-        /* Tableaux Dark Mode */
-        body.dark-mode table thead { background-color: #1e293b !important; }
-        body.dark-mode table thead th { color: #94a3b8 !important; border-bottom: 1px solid #334155 !important; }
-        body.dark-mode table tbody tr { background-color: transparent !important; border-bottom: 1px solid #1e293b !important; }
-        body.dark-mode table tbody tr:hover { background-color: #1e293b !important; }
-        body.dark-mode td { color: #cbd5e1 !important; }
-
-        /* Inputs Dark Mode */
         body.dark-mode input, body.dark-mode select, body.dark-mode textarea {
-            background-color: #1e293b !important; border: 1px solid #334155 !important; color: #ffffff !important; box-shadow: none !important;
+            background-color: #1e293b !important; 
+            border: 1px solid #334155 !important; 
+            color: #ffffff !important;
         }
 
-        /* Textes Dark Mode */
-        body.dark-mode h1, body.dark-mode h2, body.dark-mode h3, body.dark-mode h4, body.dark-mode .text-slate-800, body.dark-mode .text-slate-900 { color: #f8fafc !important; }
-        body.dark-mode .text-slate-500, body.dark-mode .text-slate-400 { color: #94a3b8 !important; }
-
-        /* SweetAlert Dark Mode */
-        body.dark-mode .swal2-popup { background-color: #0f172a !important; color: #f1f5f9 !important; border: 1px solid #334155 !important; }
-        body.dark-mode .swal2-title, body.dark-mode .swal2-html-container, body.dark-mode .swal2-content { color: #f1f5f9 !important; }
-        body.dark-mode .swal2-timer-progress-bar { background: #2563eb !important; }
+        body.dark-mode table thead { background-color: #1e293b !important; }
+        body.dark-mode table tbody tr:hover { background-color: #1e293b !important; }
+        body.dark-mode .text-slate-800, body.dark-mode .text-slate-900 { color: #f8fafc !important; }
 
         /* ============================================================
-        3. STYLES DE BASE & LAYOUT
+        3. LAYOUT & BARRES DE SCROLL
         ============================================================ */
-        /* FIX: Fond sombre par défaut pour éviter le flash blanc au démarrage */
-        html, body { background-color: #0f172a !important; font-family: var(--font-main); font-size: var(--base-size); }
+        html, body { 
+            background-color: #f8fafc; /* Fond clair par défaut */
+            font-family: var(--font-main); 
+            font-size: var(--base-size);
+            scroll-behavior: smooth;
+        }
+
+        /* Scrollbar Invisible mais Fonctionnelle */
+        ::-webkit-scrollbar { width: 4px; height: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { 
+            background: rgba(15, 23, 42, 0.08); 
+            border-radius: var(--radius-full); 
+        }
+        *:hover::-webkit-scrollbar-thumb { background: rgba(15, 23, 42, 0.15); }
+        body.dark-mode ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); }
+
+        /* ============================================================
+        4. ANIMATIONS & TRANSITIONS DE VUES
+        ============================================================ */
+        .view-section { 
+            display: none !important; 
+            opacity: 0; 
+            transform: translateY(10px);
+        }
         
-    
-    /* ============================================================
-    STYLE DE LA BARRE DE SCROLL "PROFESSIONNEL"
-    ============================================================ */
-
-    /* 1. Largeur de la barre (très fine) */
-    ::-webkit-scrollbar {
-        width: 5px;
-        height: 5px;
-    }
-
-    /* 2. Fond de la barre (Transparent pour ne pas faire de bande moche) */
-    ::-webkit-scrollbar-track {
-        background: transparent;
-    }
-
-    /* 3. Le curseur (la partie qui bouge) */
-    ::-webkit-scrollbar-thumb {
-        background: rgba(255, 255, 255, 0.1); /* Couleur discrète par défaut */
-        border-radius: 20px;
-        transition: background 0.3s;
-    }
-
-    /* 4. Au survol du menu, on rend la barre un peu plus visible */
-    aside:hover ::-webkit-scrollbar-thumb {
-        background: rgba(255, 255, 255, 0.25);
-    }
-
-    /* 5. Style spécifique pour le mode clair (Main content) */
-    main ::-webkit-scrollbar-thumb {
-        background: rgba(15, 23, 42, 0.1);
-    }
-
-    main:hover ::-webkit-scrollbar-thumb {
-        background: rgba(15, 23, 42, 0.2);
-    }
-
-
-        /* Gestion des vues */
-        .view-section { display: none !important; opacity: 0; }
-        .view-section.active { display: block !important; opacity: 1; animation: fadeIn 0.3s ease-out; }
+        .view-section.active { 
+            display: block !important; 
+            opacity: 1; 
+            transform: translateY(0);
+            animation: premiumFadeIn 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards; 
+        }
         
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes premiumFadeIn {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
 
-        /* Squelettes et Progressions */
-        .skeleton { background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%); background-size: 200% 100%; animation: skeleton-loading 1.5s infinite linear; }
-        @keyframes skeleton-loading { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+        /* Micro-interactions Boutons */
+        button, .nav-btn {
+            transition: var(--transition-smooth);
+            cursor: pointer;
+        }
+
+        button:active { transform: scale(0.96); }
+
+        /* ============================================================
+        5. COMPOSANTS (CARDS, MODALS, INPUTS)
+        ============================================================ */
         
-        /* FIX: Animation renommée pour correspondre au HTML progress_1.5s */
+        /* Modals & SweetAlert */
+        .swal2-popup {
+            border-radius: var(--radius-xl) !important;
+            padding: 2.5rem !important;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
+        }
 
+        /* Style des cartes */
+        .bg-white { 
+            border-radius: var(--radius-lg); 
+            box-shadow: var(--shadow-lg);
+            border: 1px solid rgba(226, 232, 240, 0.6);
+        }
 
-    /* Animation de la barre de chargement (va et vient infini) */
-    @keyframes bar-slide {
-        0% { left: -40%; width: 30%; }
-        50% { width: 60%; }
-        100% { left: 100%; width: 30%; }
-    }
+        /* Inputs & Selects */
+        input, select, textarea {
+            border-radius: var(--radius-md) !important;
+            transition: var(--transition-smooth) !important;
+        }
 
-    .loading-bar-active {
-        position: relative;
-        left: -40%;
-        width: 30%;
-        height: 100%;
-        background: linear-gradient(90deg, #2563eb, #818cf8);
-        border-radius: 9999px;
-        animation: barProgress 1.8s ease-in-out infinite;
-    }
+        input:focus, select:focus, textarea:focus {
+            ring: 2px;
+            ring-color: var(--accent);
+            border-color: var(--accent) !important;
+        }
 
-    /* État initial de l'application : invisible */
-    #app-layout {
-        opacity: 0;
-        transition: opacity 0.8s ease-in-out;
-        visibility: hidden;
-    }
+        /* Glassmorphism */
+        .glass {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
 
-    /* Quand l'application est prête */
-    #app-layout.ready {
-        opacity: 1;
-        visibility: visible;
-    }
+        /* ============================================================
+        6. BRANDING & RÔLES
+        ============================================================ */
+        aside { background-color: var(--primary) !important; color: var(--text-on-primary) !important; }
+        .nav-btn.bg-blue-600, #btn-login, .bg-blue-600 { background-color: var(--accent) !important; color: var(--text-on-accent) !important; }
 
-
-
-        /* Rôles et visibilité */
         .admin-only, .rh-only, .management-only { display: none !important; }
         body.role-admin .admin-only, body.role-admin .rh-only, body.role-admin .management-only { display: block !important; } 
         body.role-rh .rh-only, body.role-rh .management-only { display: block !important; }       
         body.role-manager .management-only { display: block !important; }
 
-        /* Éléments fixes */
-        .glass { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); }
-        main header { position: sticky; top: 0; z-index: 40; backdrop-filter: blur(12px); background: rgba(255, 255, 255, 0.85); }
-        #reader { width: 100%; border-radius: 12px; overflow: hidden; }
+        /* Squelettes Animés */
+        .skeleton { 
+            background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%); 
+            background-size: 200% 100%; 
+            animation: skeleton-loading 1.8s infinite ease-in-out; 
+        }
+        @keyframes skeleton-loading { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 
-        /* ============================================================
-        4. BRANDING DYNAMIQUE ET COMPOSANTS
-        ============================================================ */
-        
-        /* Couleurs de marque appliquées aux éléments clés */
-        aside { background-color: var(--primary) !important; color: var(--text-on-primary) !important; }
-        .nav-btn.bg-blue-600, #btn-login, .bg-blue-600 { background-color: var(--accent) !important; color: var(--text-on-accent) !important; }
-
-        /* Correction du nom de l'entreprise (Ellipsis) */
-        .company-name-display {
+        /* Privacy & Sensitive Data */
+        .sensitive-value {
+            filter: blur(6px);
+            transition: filter 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+            background-color: rgba(226, 232, 240, 0.4);
+            padding: 2px 8px;
+            border-radius: var(--radius-sm);
             display: inline-block;
-            max-width: 150px; 
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            vertical-align: middle;
         }
 
-        /* Dashboard et Header */
-        #main-scroll-container { padding-top: 1.5rem !important; }
-        #login-screen img { filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1)); }
-
-        /* Filtres et Chips */
-        .filter-chip { background-color: white; border-color: #e2e8f0; color: #64748b; }
-        .filter-chip:hover { border-color: #3b82f6; color: #3b82f6; }
-        .filter-chip.active-chip { background-color: var(--accent) !important; border-color: var(--accent) !important; color: var(--text-on-accent) !important; }
-        body.dark-mode .filter-chip { background-color: #1e293b; border-color: #334155; color: #94a3b8; }
-
-
-
-
-        .custom-scroll {
-            overflow-y: auto;
-            scrollbar-width: thin; /* Firefox */
-            scrollbar-color: #cbd5e1 transparent; /* Couleur / Fond */
-        }
-        .custom-scroll::-webkit-scrollbar {
-            width: 6px;
-        }
-        .custom-scroll::-webkit-scrollbar-track {
-            background: transparent;
-        }
-        .custom-scroll::-webkit-scrollbar-thumb {
-            background-color: #cbd5e1;
-            border-radius: 20px;
-            border: 2px solid transparent;
-            background-clip: content-box;
-        }
-        .custom-scroll:hover::-webkit-scrollbar-thumb {
-            background-color: #94a3b8;
+        .sensitive-value.revealed {
+            filter: blur(0);
+            background-color: transparent;
         }
 
-
-
-/* Style pour les données sensibles */
-.sensitive-value {
-    filter: blur(5px);
-    transition: filter 0.3s ease, background-color 0.3s ease;
-    cursor: pointer;
-    user-select: none;
-    background-color: rgba(226, 232, 240, 0.5);
-    padding: 2px 6px;
-    border-radius: 6px;
-}
-
-/* Quand on survole ou qu'on clique (via une classe JS) */
-.sensitive-value.revealed {
-    filter: blur(0);
-    background-color: transparent;
-}
+        /* Barre de progression Loader */
+        @keyframes bar-slide {
+            0% { left: -40%; width: 30%; }
+            50% { width: 60%; }
+            100% { left: 100%; width: 30%; }
+        }
