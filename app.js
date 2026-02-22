@@ -2464,16 +2464,16 @@ async function openAddProductModal() {
 
 
 async function fetchMyActivityRecap() {
-    console.log("🚀 DÉBUT fetchMyActivityRecap");
+    console.log("🚀 DÉBUT fetchMyActivityRecap (Filtrage Chronologique)");
     
     const visitContainer = document.getElementById('my-today-visits');
     const dailyContainer = document.getElementById('my-month-dailies');
     if(!visitContainer) return;
 
     visitContainer.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-spinner fa-spin text-blue-500"></i></div>';
+    if(dailyContainer) dailyContainer.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-spinner fa-spin text-blue-500"></i></div>';
 
     try {
-        // 1. On force le rafraîchissement avec un timestamp (?t=...) pour contourner le cache
         const timeHack = Date.now();
         const [visRes, daiRes] = await Promise.all([
             secureFetch(`${SIRH_CONFIG.apiBaseUrl}/read-visit-reports?limit=1000&t=${timeHack}`), 
@@ -2483,35 +2483,28 @@ async function fetchMyActivityRecap() {
         const allVisits = await visRes.json();
         const allDailies = await daiRes.json();
         
-        // 2. On calcule la date du jour LOCALE (Bénin)
         const now = new Date();
-        const todayLocal = now.toLocaleDateString(); // ex: "19/02/2026"
-        const currentMonthLocal = (now.getMonth() + 1) + "/" + now.getFullYear(); // ex: "2/2026"
+        const todayLocal = now.toLocaleDateString();
 
-        console.log("📅 DATE AUJOURD'HUI (Local) :", todayLocal);
-        console.log("👤 ID UTILISATEUR CONNECTÉ :", currentUser.id);
+        // --- CALCUL DE LA LIMITE DES 31 JOURS ---
+        const thirtyOneDaysAgo = new Date();
+        thirtyOneDaysAgo.setDate(now.getDate() - 31);
 
-        // 3. Filtrage avec logs détaillés
-        const myVisits = (allVisits.data || allVisits).filter(v => {
-            // Est-ce que c'est moi ?
-            if (v.employee_id !== currentUser.id) return false;
+        // 3. Filtrage Visites : Aujourd'hui seulement + Tri Récent en haut
+        const myVisits = (allVisits.data || allVisits)
+            .filter(v => {
+                if (v.employee_id !== currentUser.id) return false;
+                const vDate = new Date(v.check_in).toLocaleDateString();
+                return vDate === todayLocal;
+            })
+            .sort((a, b) => new Date(b.check_in) - new Date(a.check_in)); // Tri décroissant
 
-            // Conversion de la date de visite
-            const visitDateObj = new Date(v.check_in);
-            const visitDateLocal = visitDateObj.toLocaleDateString();
-            
-            // LOG pour voir pourquoi ça échoue
-            // console.log(`🔍 Test Visite ${v.lieu_nom} : ${visitDateLocal} vs ${todayLocal}`);
-
-            return visitDateLocal === todayLocal;
-        });
-
-        console.log(`✅ VISITES TROUVÉES : ${myVisits.length}`);
+        console.log(`✅ VISITES D'AUJOURD'HUI : ${myVisits.length}`);
 
         // 4. Affichage Visites
         if (myVisits.length > 0) {
             visitContainer.innerHTML = myVisits.map(v => `
-                <div class="flex items-center justify-between p-3 bg-blue-50 rounded-xl border border-blue-100 mb-2">
+                <div class="flex items-center justify-between p-3 bg-blue-50 rounded-xl border border-blue-100 mb-2 animate-fadeIn">
                     <div>
                         <p class="text-[10px] font-black text-blue-700 uppercase">${v.lieu_nom}</p>
                         <p class="text-[9px] text-slate-400">
@@ -2525,26 +2518,27 @@ async function fetchMyActivityRecap() {
             visitContainer.innerHTML = '<div class="text-center py-6 border border-dashed rounded-xl"><p class="text-[10px] text-slate-400 italic">0 visite trouvée pour ce jour.</p></div>';
         }
 
-        // 5. Filtrage Bilans
-        const myDailies = (allDailies.data || allDailies).filter(d => {
-            if (d.employee_id !== currentUser.id) return false;
-            const dDate = new Date(d.report_date);
-            const dMonth = (dDate.getMonth() + 1) + "/" + dDate.getFullYear();
-            return dMonth === currentMonthLocal;
-        });
+        // 5. Filtrage Bilans : 31 derniers jours + Tri Récent en haut
+        const myDailies = (allDailies.data || allDailies)
+            .filter(d => {
+                if (d.employee_id !== currentUser.id) return false;
+                const dDate = new Date(d.report_date);
+                return dDate >= thirtyOneDaysAgo; // Règle des 31 jours
+            })
+            .sort((a, b) => new Date(b.report_date) - new Date(a.report_date)); // Tri décroissant
 
-        console.log(`✅ BILANS TROUVÉS : ${myDailies.length}`);
+        console.log(`✅ BILANS DES 31 JOURS : ${myDailies.length}`);
 
         // Affichage Bilans
         if (myDailies.length > 0) {
             dailyContainer.innerHTML = myDailies.map(d => `
-                <div class="p-3 bg-slate-50 rounded-xl border border-slate-100 mb-2">
-                    <p class="text-[9px] font-black text-slate-500 mb-1">${new Date(d.report_date).toLocaleDateString()}</p>
+                <div class="p-3 bg-slate-50 rounded-xl border border-slate-100 mb-2 animate-fadeIn">
+                    <p class="text-[9px] font-black text-slate-500 mb-1">${new Date(d.report_date).toLocaleDateString('fr-FR', {weekday: 'short', day: 'numeric', month: 'short'})}</p>
                     <p class="text-[10px] text-slate-600 italic line-clamp-1">${d.summary}</p>
                 </div>
             `).join('');
         } else {
-            dailyContainer.innerHTML = '<div class="text-center py-6 border border-dashed rounded-xl"><p class="text-[10px] text-slate-400 italic">0 bilan ce mois-ci.</p></div>';
+            dailyContainer.innerHTML = '<div class="text-center py-6 border border-dashed rounded-xl"><p class="text-[10px] text-slate-400 italic">0 bilan sur les 31 derniers jours.</p></div>';
         }
 
     } catch (e) {
@@ -2552,8 +2546,6 @@ async function fetchMyActivityRecap() {
         visitContainer.innerHTML = '<p class="text-[10px] text-red-500">Erreur technique</p>';
     }
 }
-
-
 
 
 async function loadMyProfile() {
@@ -6508,7 +6500,6 @@ function changeReportTab(tab) {
 
  
 
-
 async function fetchMobileReports(page = 1) {
     const container = document.getElementById('reports-list-container');
     const counterEl = document.getElementById('stat-visites-total');
@@ -6518,8 +6509,11 @@ async function fetchMobileReports(page = 1) {
 
     if (!container) return;
     
+    // Détection du rôle pour afficher ou non le bouton "Archiver"
+    const isChef = currentUser.role !== 'EMPLOYEE';
+
     reportPage = page;
-    container.innerHTML = '<div class="col-span-full text-center p-10"><i class="fa-solid fa-circle-notch fa-spin text-blue-500 text-3xl"></i></div>';
+    container.innerHTML = '<div class="col-span-full text-center p-10"><i class="fa-solid fa-circle-notch fa-spin text-blue-500 text-2xl"></i></div>';
 
     try {
         const limit = 20;
@@ -6545,7 +6539,6 @@ async function fetchMobileReports(page = 1) {
         let html = '';
 
         if (currentReportTab === 'visits') {
-            // --- VISITES (Onglet 1) ---
             const grouped = {};
             data.forEach(v => {
                 const name = v.nom_agent || "Inconnu";
@@ -6574,60 +6567,20 @@ async function fetchMobileReports(page = 1) {
                                         <tr class="text-[9px] font-black text-slate-400 uppercase">
                                             <th class="p-4 w-1/4">Lieu visité</th>
                                             <th class="p-4">Arrivée</th>
-                                            <th class="p-4">Durée</th> <!-- ✅ NOUVELLE COLONNE -->
+                                            <th class="p-4">Durée</th>
                                             <th class="p-4 text-center">Preuve</th>
                                             <th class="p-4 text-right">Note</th>
+                                            ${isChef ? '<th class="p-4 text-center">Action</th>' : ''}
                                         </tr>
                                     </thead>
                                     <tbody class="divide-y divide-slate-100">`;
                
-visits.forEach(v => {
-
-                            // Calcul de l'affichage de la durée
-                            let durationText = "---";
-                            if (v.duration) {
-                                durationText = v.duration >= 60 
-                                    ? `${Math.floor(v.duration / 60)}h ${v.duration % 60}min` 
-                                    : `${v.duration} min`;
-                            }
-                    // --- LOGIQUE DE NETTOYAGE ULTIME ---
-                    let productsList = [];
-                    let raw = v.presented_products;
-
-                    // 1. On transforme le gros bloc en tableau
-                    if (typeof raw === 'string') {
-                        try { productsList = JSON.parse(raw); } catch(e) { productsList = []; }
-                    } else if (Array.isArray(raw)) {
-                        productsList = raw;
+            visits.forEach(v => {
+                    let durationText = "---";
+                    if (v.duration) {
+                        durationText = v.duration >= 60 ? `${Math.floor(v.duration / 60)}h ${v.duration % 60}min` : `${v.duration} min`;
                     }
 
-                    // 2. On nettoie CHAQUE élément du tableau un par un
-                    // C'est ici que ça coinçait : parfois les éléments sont eux-mêmes du texte JSON
-                    let prodsHtml = "";
-                    if (productsList && productsList.length > 0) {
-                        prodsHtml = `<div class="flex flex-wrap gap-1 mt-1">` + 
-                            productsList.map(p => {
-                                let item = p;
-                                
-                                // Si l'élément est une chaine de caractères qui ressemble à du JSON, on la parse encore
-                                if (typeof item === 'string' && item.trim().startsWith('{')) {
-                                    try { item = JSON.parse(item); } catch(e) {}
-                                }
-
-                                // Maintenant on cherche le nom (Majuscule ou Minuscule)
-                                let finalName = "Produit";
-                                if (typeof item === 'object' && item !== null) {
-                                    finalName = item.NAME || item.name || item.Name || "Inconnu";
-                                } else {
-                                    finalName = item; // C'est juste du texte simple
-                                }
-
-                                return `<span class="bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded text-[8px] border border-blue-100 font-black uppercase tracking-tighter">${finalName}</span>`;
-                            }).join('') + 
-                        `</div>`;
-                    }
-
-                     // --- RENDU HTML ---
                     html += `
                     <tr id="row-vis-${v.id}" class="hover:bg-white transition-colors group">
                         <td class="p-4">
@@ -6637,7 +6590,6 @@ visits.forEach(v => {
                             ${v.check_in ? new Date(v.check_in).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '--:--'}
                         </td>
                         <td class="p-4">
-                            <!-- ✅ AFFICHAGE DU TEMPS PASSÉ -->
                             <span class="px-2 py-1 bg-slate-200 text-slate-700 rounded text-[10px] font-black">
                                 <i class="fa-solid fa-hourglass-half mr-1 opacity-50"></i> ${durationText}
                             </span>
@@ -6650,6 +6602,12 @@ visits.forEach(v => {
                                 ${v.notes || 'R.A.S'}
                             </div>
                         </td>
+                        ${isChef ? `
+                        <td class="p-4 text-center">
+                            <button onclick="deleteVisitReport('${v.id}')" class="p-2 text-slate-300 hover:text-red-500 transition-all" title="Marquer comme traité">
+                                <i class="fa-solid fa-check-double"></i>
+                            </button>
+                        </td>` : ''}
                     </tr>`;
             });
 
@@ -6658,11 +6616,8 @@ visits.forEach(v => {
             html += `</div>`;
         } 
                     
-            else {
-            // --- BILANS JOURNALIERS (Onglet 2) ---
+        else {
             const groupedDaily = {};
-            
-            // 1. D'abord, on regroupe les données par nom d'agent
             data.forEach(rep => {
                 const name = rep.employees?.nom || "Agent Inconnu";
                 if (!groupedDaily[name]) groupedDaily[name] = [];
@@ -6670,15 +6625,12 @@ visits.forEach(v => {
             });
 
             html = `<div class="col-span-full space-y-3">`;
-
-            // 2. Ensuite, on génère l'affichage pour chaque groupe
             for (const [name, reports] of Object.entries(groupedDaily)) {
                 const accordionId = `acc-day-${name.replace(/\s+/g, '-')}`;
                 const hasStockAlert = reports.some(rp => rp.needs_restock);
 
                 html += `
                     <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-visible animate-fadeIn">
-                        <!-- En-tête Accordéon -->
                         <div onclick="toggleAccordion('${accordionId}')" class="flex items-center justify-between px-6 py-4 cursor-pointer hover:bg-slate-50 transition-colors">
                             <div class="flex items-center gap-4">
                                 <div class="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-black text-sm">${name.charAt(0)}</div>
@@ -6690,20 +6642,15 @@ visits.forEach(v => {
                             </div>
                         </div>
 
-                        <!-- Contenu Accordéon -->
                         <div id="${accordionId}" class="hidden border-t border-slate-100 bg-slate-50/50">
                             <table class="w-full text-left">
                                 <tbody class="divide-y divide-slate-100">`;
                 
-                // 3. Boucle sur les rapports de cet agent spécifique
                 reports.forEach(rep => {
-
-              // Calcul pour transformer les minutes en format "Xh Ymin"
-                const hours = Math.floor(rep.total_work_minutes / 60);
-                const mins = rep.total_work_minutes % 60;
-                const timeDisplay = hours > 0 ? `${hours}h ${mins}min` : `${mins} min`;
+                    const hours = Math.floor(rep.total_work_minutes / 60);
+                    const mins = rep.total_work_minutes % 60;
+                    const timeDisplay = hours > 0 ? `${hours}h ${mins}min` : `${mins} min`;
                             
-                    // --- CALCUL DES STATS PRODUITS (Intégré ici) ---
                     let statsHtml = "";
                     if (rep.products_stats && Object.keys(rep.products_stats).length > 0) {
                         statsHtml = `<div class="flex flex-wrap gap-1 mt-2">`;
@@ -6711,47 +6658,38 @@ visits.forEach(v => {
                             statsHtml += `<span class="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded text-[8px] font-black border border-indigo-100 uppercase">${prodName} <span class="text-indigo-400">x${count}</span></span>`;
                         }
                         statsHtml += `</div>`;
-                    } else {
-                        statsHtml = `<div class="mt-1 text-[8px] text-slate-300 italic">Aucun produit détecté</div>`;
                     }
 
-                    // --- GÉNÉRATION DE LA LIGNE ---
-                  // LE HTML DE LA LIGNE DU TABLEAU
-                            html += `
-                                <tr id="row-daily-${rep.id}" class="hover:bg-white transition-colors group relative">
-                                    <td class="px-6 py-4 w-1/4 align-top">
-                                        <div class="text-[10px] font-black text-indigo-500 uppercase">
-                                            ${new Date(rep.report_date).toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long'})}
-                                        </div>
-                                        
-                                        <!-- LE NOUVEAU BADGE DE TEMPS TOTAL -->
-                                        <div class="mt-2 inline-flex items-center gap-1.5 px-2 py-1 bg-blue-600 text-white rounded-lg shadow-sm">
-                                            <i class="fa-solid fa-clock text-[9px]"></i>
-                                            <span class="text-[10px] font-black uppercase">${timeDisplay}</span>
-                                        </div>
-                        
-                                        ${statsHtml}
-                                        <div class="mt-2 text-left">${rep.needs_restock ? '<span class="text-orange-500 text-[10px] font-bold"><i class="fa-solid fa-box-open"></i> REAPPRO</span>' : '<span class="text-emerald-400 text-[10px]">OK</span>'}</div>
-                                    </td>
-                                    
-                                    <td class="px-6 py-4 w-2/4 align-top relative">
-                                        <div class="text-xs text-slate-600 italic line-clamp-1 cursor-pointer transition-all duration-300"
-                                             onmouseenter="peakText(this)" 
-                                             onmouseleave="unpeakText(this)" 
-                                             onclick="toggleTextFixed(this)"
-                                             data-fixed="false">
-                                            ${rep.summary || "Aucun texte."}
-                                        </div>
-                                    </td>
-                        
-                                    <td class="px-6 py-4 w-1/4 align-top text-right">
-                                        <div class="flex items-center justify-end gap-3">
-                                            ${rep.photo_url ? `<button onclick="viewDocument('${rep.photo_url}', 'Cahier')" class="text-blue-500 hover:scale-125 transition-transform"><i class="fa-solid fa-file-image text-lg"></i></button>` : '<i class="fa-solid fa-ban text-slate-200"></i>'}
-                                            <button onclick="deleteDailyReport('${rep.id}')" class="text-slate-300 hover:text-red-500 transition-all opacity-0 group-hover:opacity-100"><i class="fa-solid fa-check"></i></button>
-                                        </div>
-                                    </td>
-                                </tr>`;
-                        });
+                    html += `
+                        <tr id="row-daily-${rep.id}" class="hover:bg-white transition-colors group relative">
+                            <td class="px-6 py-4 w-1/4 align-top">
+                                <div class="text-[10px] font-black text-indigo-500 uppercase">
+                                    ${new Date(rep.report_date).toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long'})}
+                                </div>
+                                <div class="mt-2 inline-flex items-center gap-1.5 px-2 py-1 bg-blue-600 text-white rounded-lg shadow-sm">
+                                    <i class="fa-solid fa-clock text-[9px]"></i>
+                                    <span class="text-[10px] font-black uppercase">${timeDisplay}</span>
+                                </div>
+                                ${statsHtml}
+                                <div class="mt-2 text-left">${rep.needs_restock ? '<span class="text-orange-500 text-[10px] font-bold"><i class="fa-solid fa-box-open"></i> REAPPRO</span>' : '<span class="text-emerald-400 text-[10px]">OK</span>'}</div>
+                            </td>
+                            <td class="px-6 py-4 w-2/4 align-top relative">
+                                <div class="text-xs text-slate-600 italic line-clamp-1 cursor-pointer transition-all duration-300"
+                                     onmouseenter="peakText(this)" onmouseleave="unpeakText(this)" onclick="toggleTextFixed(this)" data-fixed="false">
+                                    ${rep.summary || "Aucun texte."}
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 w-1/4 align-top text-right">
+                                <div class="flex items-center justify-end gap-3">
+                                    ${rep.photo_url ? `<button onclick="viewDocument('${rep.photo_url}', 'Cahier')" class="text-blue-500 hover:scale-125 transition-transform"><i class="fa-solid fa-file-image text-lg"></i></button>` : '<i class="fa-solid fa-ban text-slate-200"></i>'}
+                                    ${isChef ? `
+                                    <button onclick="deleteDailyReport('${rep.id}')" class="text-slate-300 hover:text-red-500 transition-all" title="Marquer comme traité">
+                                        <i class="fa-solid fa-check-double text-lg"></i>
+                                    </button>` : ''}
+                                </div>
+                            </td>
+                        </tr>`;
+                });
                 html += `</tbody></table></div></div>`;
             }
             html += `</div>`;
@@ -6771,8 +6709,6 @@ visits.forEach(v => {
         container.innerHTML = '<div class="col-span-full text-center text-red-500 py-10 font-bold uppercase text-[10px]">Erreur de connexion</div>';
     }
 }
-
-// --- SYSTÈME DE LECTURE INTELLIGENTE DES NOTES ---
 
 // 1. Pour le survol (Ordinateur)
 function peakText(el) {
@@ -7317,6 +7253,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
