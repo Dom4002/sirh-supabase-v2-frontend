@@ -1442,69 +1442,91 @@
 
 
 
-
-
+        
+        
         <section id="view-mobile-reports" class="view-section">
-    <!-- 1. BARRE DE FILTRES PRO -->
-    <div class="bg-white p-6 rounded-[2rem] shadow-sm border mb-6 flex flex-wrap gap-4 items-end">
-        <div class="flex-1 min-w-[200px]">
-            <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Rechercher un délégué</label>
+            <!-- 1. BARRE DE FILTRES PRO -->
+            <div class="bg-white p-6 rounded-[2rem] shadow-sm border mb-6 flex flex-wrap gap-4 items-end">
+                <div class="flex-1 min-w-[200px]">
+                    <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Rechercher un délégué</label>
+                    <input type="text" id="filter-report-name" 
+                           onkeyup="handleReportSearch()" 
+                           placeholder="Rechercher un délégué..." 
+                           class="w-full p-3 bg-slate-50 border-none rounded-2xl text-sm focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div class="w-48">
+                    <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Période d'affichage</label>
+                    <select id="filter-report-date" onchange="fetchMobileReports()" class="w-full p-3 bg-slate-50 border-none rounded-2xl text-sm font-bold">
+                        <option value="today">Aujourd'hui</option>
+                        <option value="month" selected>Mois en cours</option>
+                    </select>
+                </div>
+                <!-- Bouton de raccourci vers la synthèse -->
+                <button data-perm="can_view_reports" onclick="changeReportTab('audit')" class="bg-blue-600 text-white px-6 py-3 rounded-2xl font-black text-xs shadow-lg hover:scale-105 transition-all">
+                    <i class="fa-solid fa-magnifying-glass-chart mr-2"></i> VOIR L'AUDIT
+                </button>
+            </div>
+        
+            <!-- 2. ZONE DE STATISTIQUES (3 CARTES PREMIUM INTÉGRÉES) -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                <!-- Carte 1 : Visites -->
+                <div class="bg-slate-900 p-6 rounded-[2rem] text-white shadow-xl relative overflow-hidden">
+                    <div class="relative z-10">
+                        <p id="stat-report-label" class="text-[10px] font-black uppercase opacity-60 tracking-widest">Visites Identifiées</p>
+                        <h3 id="stat-visites-total" class="text-4xl font-black mt-1">0</h3>
+                    </div>
+                    <i class="fa-solid fa-location-dot absolute -right-4 -bottom-4 text-6xl opacity-10"></i>
+                </div>
+                
+                <!-- Carte 2 : Produits (NOUVEAU) -->
+                <div class="bg-blue-600 p-6 rounded-[2rem] text-white shadow-xl relative overflow-hidden">
+                    <div class="relative z-10">
+                        <p class="text-[10px] font-black uppercase opacity-80 tracking-widest">Produits Présentés</p>
+                        <h3 id="stat-produits-total" class="text-4xl font-black mt-1">0</h3>
+                    </div>
+                    <i class="fa-solid fa-pills absolute -right-4 -bottom-4 text-6xl opacity-20"></i>
+                </div>
+        
+                <!-- Carte 3 : Agents (NOUVEAU) -->
+                <div class="bg-emerald-500 p-6 rounded-[2rem] text-white shadow-xl relative overflow-hidden">
+                    <div class="relative z-10">
+                        <p class="text-[10px] font-black uppercase opacity-80 tracking-widest">Agents sur le terrain</p>
+                        <h3 id="stat-agents-actifs" class="text-4xl font-black mt-1">0</h3>
+                    </div>
+                    <i class="fa-solid fa-users absolute -right-4 -bottom-4 text-6xl opacity-20"></i>
+                </div>
+            </div>
+        
+            <!-- 3. NAVIGATION PAR ONGLETS (VISITES / BILANS / SYNTHÈSE) -->
+            <div class="flex flex-wrap gap-6 mb-6 border-b border-slate-200">
+                <button onclick="changeReportTab('visits')" id="tab-visits" class="report-tab-btn pb-4 text-sm font-bold text-blue-600 border-b-2 border-blue-600 transition-all">
+                    Visites de Sites (Cachets)
+                </button>
+                <button onclick="changeReportTab('daily')" id="tab-daily" class="report-tab-btn pb-4 text-sm font-bold text-slate-400 border-b-2 border-transparent transition-all">
+                    Bilans Journaliers (Cahiers)
+                </button>
+                <button onclick="changeReportTab('audit')" id="tab-audit" class="report-tab-btn pb-4 text-sm font-bold text-slate-400 border-b-2 border-transparent transition-all">
+                    📊 Synthèse d'Audit
+                </button>
+            </div>
+        
+            <!-- 4. SÉLECTEUR DE VUE (LISTE VS GALERIE) -->
+            <div id="view-switcher-area" class="flex justify-end gap-2 mb-4">
+                <button onclick="setReportView('list')" id="btn-view-list" class="p-2 bg-blue-100 text-blue-600 rounded-lg shadow-sm border border-blue-200 transition-all">
+                    <i class="fa-solid fa-list"></i>
+                </button>
+                <button onclick="setReportView('grid')" id="btn-view-grid" class="p-2 bg-slate-100 text-slate-400 rounded-lg shadow-sm border border-slate-200 transition-all">
+                    <i class="fa-solid fa-grip"></i>
+                </button>
+            </div>
+        
+            <!-- 5. CONTENEUR UNIQUE POUR L'INJECTION DES DONNÉES -->
+            <div id="reports-list-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Ce conteneur sera rempli dynamiquement par fetchMobileReports() ou fetchGlobalAudit() -->
+            </div>
+        </section>
+        
 
-        <input type="text" id="filter-report-name" 
-       onkeyup="handleReportSearch()" 
-       placeholder="Rechercher un délégué..." 
-       class="w-full p-3 bg-slate-50 border-none rounded-2xl text-sm focus:ring-2 focus:ring-blue-500">
-            
-        </div>
-        <div class="w-48">
-            <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Période d'affichage</label>
-            <select id="filter-report-date" onchange="fetchMobileReports()" class="w-full p-3 bg-slate-50 border-none rounded-2xl text-sm font-bold">
-                <option value="today">Aujourd'hui</option>
-                <option value="month" selected>Mois en cours</option>
-            </select>
-        </div>
-        <!-- Bouton de raccourci vers la synthèse -->
-        <button data-perm="can_view_reports" onclick="changeReportTab('audit')" class="bg-blue-600 text-white px-6 py-3 rounded-2xl font-black text-xs shadow-lg hover:scale-105 transition-all">
-            <i class="fa-solid fa-magnifying-glass-chart mr-2"></i> VOIR L'AUDIT
-        </button>
-    </div>
-
-    <!-- 2. ZONE DE STATISTIQUES (CARTE NOIRE) -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-        <div class="bg-slate-900 p-6 rounded-[2rem] text-white shadow-xl">
-            <p id="stat-report-label" class="text-[10px] font-black uppercase opacity-60 tracking-widest">Visites Identifiées</p>
-            <h3 id="stat-visites-total" class="text-4xl font-black">0</h3>
-        </div>
-    </div>
-
-    <!-- 3. NAVIGATION PAR ONGLETS (VISITES / BILANS / SYNTHÈSE) -->
-    <div class="flex flex-wrap gap-6 mb-6 border-b border-slate-200">
-        <button onclick="changeReportTab('visits')" id="tab-visits" class="report-tab-btn pb-4 text-sm font-bold text-blue-600 border-b-2 border-blue-600 transition-all">
-            Visites de Sites (Cachets)
-        </button>
-        <button onclick="changeReportTab('daily')" id="tab-daily" class="report-tab-btn pb-4 text-sm font-bold text-slate-400 border-b-2 border-transparent transition-all">
-            Bilans Journaliers (Cahiers)
-        </button>
-        <button onclick="changeReportTab('audit')" id="tab-audit" class="report-tab-btn pb-4 text-sm font-bold text-slate-400 border-b-2 border-transparent transition-all">
-            📊 Synthèse d'Audit
-        </button>
-    </div>
-
-    <!-- 4. SÉLECTEUR DE VUE (LISTE VS GALERIE) -->
-    <div id="view-switcher-area" class="flex justify-end gap-2 mb-4">
-        <button onclick="setReportView('list')" id="btn-view-list" class="p-2 bg-blue-100 text-blue-600 rounded-lg shadow-sm border border-blue-200 transition-all">
-            <i class="fa-solid fa-list"></i>
-        </button>
-        <button onclick="setReportView('grid')" id="btn-view-grid" class="p-2 bg-slate-100 text-slate-400 rounded-lg shadow-sm border border-slate-200 transition-all">
-            <i class="fa-solid fa-grip"></i>
-        </button>
-    </div>
-
-    <!-- 5. CONTENEUR UNIQUE POUR L'INJECTION DES DONNÉES -->
-    <div id="reports-list-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <!-- Ce conteneur sera rempli dynamiquement par fetchMobileReports() ou fetchGlobalAudit() -->
-    </div>
-</section>
         
                 </div>
             </main>
@@ -1766,6 +1788,7 @@
     </body>
 
     </html>
+
 
 
 
