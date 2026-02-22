@@ -1560,10 +1560,10 @@ function renderData() {
             const eStatut = (e.statut || "").toLowerCase();
             const eDept = (e.dept || "").toLowerCase();
 
-            // CORRECTION ICI : Si le filtre est "actif", on accepte aussi "en poste"
-            if (search === 'actif') {
-                return eStatut === 'actif' || eStatut === 'en poste';
-            }
+        // MODIFICATION ICI : Le bouton "Actifs" doit montrer les gens "Actif" ET "En Poste"
+        if (search === 'actifs' || search === 'actif') {
+            return eStatut === 'actif' || eStatut === 'en poste';
+        }
 
             return eStatut.includes(search) || eDept.includes(search);
         });
@@ -7206,6 +7206,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
