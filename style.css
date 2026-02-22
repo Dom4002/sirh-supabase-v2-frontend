@@ -195,3 +195,36 @@
             50% { width: 60%; }
             100% { left: 100%; width: 30%; }
         }
+
+/* --- HARMONISATION AUTOMATIQUE DES BOUTONS --- */
+
+/* 1. On cible tous les boutons principaux (ceux qui ont une couleur de fond) */
+button[onclick^="switchView"], 
+button[onclick^="handle"], 
+button[onclick^="open"], 
+button[type="submit"],
+#btn-clock {
+    border-radius: var(--radius-lg) !important; /* Arrondi pro */
+    font-weight: 900 !important;              /* Texte gras */
+    font-size: 11px !important;               /* Taille élégante */
+    text-transform: uppercase !important;      /* Majuscules */
+    letter-spacing: 0.1em !important;         /* Espacement des lettres */
+    transition: all 0.2s ease-in-out !important;
+    cursor: pointer !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 8px !important;
+    padding: 12px 24px !important;
+}
+
+/* 2. Effet au clic (sensation physique) */
+button:active {
+    transform: scale(0.95) !important;
+    opacity: 0.8 !important;
+}
+
+/* 3. Ombre portée douce pour le relief */
+.bg-blue-600, .bg-emerald-500, .bg-slate-900, .bg-orange-500 {
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1) !important;
+}
