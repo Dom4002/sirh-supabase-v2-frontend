@@ -6445,19 +6445,28 @@ async function fetchMobileReports(page = 1) {
                                 <i id="icon-${accordionId}" class="fa-solid fa-chevron-down text-white/50 transition-transform duration-300"></i>
                             </div>
                         </div>
-                        <div id="${accordionId}" class="hidden bg-slate-50/50">
-                            <table class="w-full text-left border-collapse">
-                                <thead class="bg-slate-100 border-b">
-                                    <tr class="text-[9px] font-black text-slate-400 uppercase">
-                                        <th class="p-4 w-1/4">Lieu visité</th>
-                                        <th class="p-4 w-1/4">Heure</th>
-                                        <th class="p-4 w-1/4 text-center">Preuve</th>
-                                        <th class="p-4 w-1/4 text-right">Note (Toucher pour lire)</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="divide-y divide-slate-100">`;
+                            <div id="${accordionId}" class="hidden bg-slate-50/50">
+                                <table class="w-full text-left border-collapse">
+                                    <thead class="bg-slate-100 border-b">
+                                        <tr class="text-[9px] font-black text-slate-400 uppercase">
+                                            <th class="p-4 w-1/4">Lieu visité</th>
+                                            <th class="p-4">Arrivée</th>
+                                            <th class="p-4">Durée</th> <!-- ✅ NOUVELLE COLONNE -->
+                                            <th class="p-4 text-center">Preuve</th>
+                                            <th class="p-4 text-right">Note</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-slate-100">`;
                
 visits.forEach(v => {
+
+                            // Calcul de l'affichage de la durée
+                            let durationText = "---";
+                            if (v.duration) {
+                                durationText = v.duration >= 60 
+                                    ? `${Math.floor(v.duration / 60)}h ${v.duration % 60}min` 
+                                    : `${v.duration} min`;
+                            }
                     // --- LOGIQUE DE NETTOYAGE ULTIME ---
                     let productsList = [];
                     let raw = v.presented_products;
@@ -6495,37 +6504,38 @@ visits.forEach(v => {
                         `</div>`;
                     }
 
-                    // --- RENDU HTML ---
+                     // --- RENDU HTML ---
                     html += `
-                        <tr id="row-vis-${v.id}" class="hover:bg-white transition-colors group">
-                            <td class="px-4 py-3 align-top">
-                                <div class="text-xs font-bold text-blue-600 uppercase break-words">${v.lieu_nom || 'Inconnu'}</div>
-                                ${prodsHtml} <!-- PRODUITS PROPRES -->
-                            </td>
-                            <td class="px-4 py-3 align-top text-[10px] font-mono text-slate-500">${v.check_in ? new Date(v.check_in).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '--:--'}</td>
-                            <td class="px-4 py-3 align-top text-center">
-                                ${v.proof_url ? `<button onclick="viewDocument('${v.proof_url}', 'Cachet')" class="text-emerald-500 hover:scale-110 transition-transform"><i class="fa-solid fa-camera-retro text-lg"></i></button>` : '<i class="fa-solid fa-ban text-slate-200"></i>'}
-                            </td>
-                            <td class="px-4 py-3 align-top text-right relative">
-                                <div class="text-[10px] text-slate-400 italic line-clamp-1 cursor-pointer transition-all duration-300"
-                                     onmouseenter="peakText(this)" 
-                                     onmouseleave="unpeakText(this)" 
-                                     onclick="toggleTextFixed(this)"
-                                     data-fixed="false">
-                                    ${v.notes || 'R.A.S'}
-                                </div>
-                                <div class="flex justify-end gap-2 mt-2">
-                                    <button onclick="event.stopPropagation(); deleteVisitReport('${v.id}')" class="text-slate-200 hover:text-red-500 transition-colors"><i class="fa-solid fa-trash-can text-xs"></i></button>
-                                </div>
-                            </td>
-                        </tr>`;
-                });
+                    <tr id="row-vis-${v.id}" class="hover:bg-white transition-colors group">
+                        <td class="p-4">
+                            <div class="text-xs font-bold text-blue-600 uppercase">${v.lieu_nom || 'Inconnu'}</div>
+                        </td>
+                        <td class="p-4 text-[10px] font-mono text-slate-500">
+                            ${v.check_in ? new Date(v.check_in).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '--:--'}
+                        </td>
+                        <td class="p-4">
+                            <!-- ✅ AFFICHAGE DU TEMPS PASSÉ -->
+                            <span class="px-2 py-1 bg-slate-200 text-slate-700 rounded text-[10px] font-black">
+                                <i class="fa-solid fa-hourglass-half mr-1 opacity-50"></i> ${durationText}
+                            </span>
+                        </td>
+                        <td class="p-4 text-center">
+                            ${v.proof_url ? `<button onclick="viewDocument('${v.proof_url}', 'Preuve')" class="text-emerald-500"><i class="fa-solid fa-camera-retro text-lg"></i></button>` : '<i class="fa-solid fa-ban text-slate-200"></i>'}
+                        </td>
+                        <td class="p-4 text-right">
+                            <div class="text-[10px] text-slate-400 italic line-clamp-1 cursor-pointer" onclick="toggleTextFixed(this)">
+                                ${v.notes || 'R.A.S'}
+                            </div>
+                        </td>
+                    </tr>`;
+            });
+
                 html += `</tbody></table></div></div>`;
             }
             html += `</div>`;
         } 
                     
-else {
+            else {
             // --- BILANS JOURNALIERS (Onglet 2) ---
             const groupedDaily = {};
             
@@ -7123,6 +7133,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
