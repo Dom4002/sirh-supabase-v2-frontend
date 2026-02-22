@@ -6524,6 +6524,7 @@ visits.forEach(v => {
             }
             html += `</div>`;
         } 
+                    
 else {
             // --- BILANS JOURNALIERS (Onglet 2) ---
             const groupedDaily = {};
@@ -6563,6 +6564,12 @@ else {
                 
                 // 3. Boucle sur les rapports de cet agent spécifique
                 reports.forEach(rep => {
+
+              // Calcul pour transformer les minutes en format "Xh Ymin"
+                const hours = Math.floor(rep.total_work_minutes / 60);
+                const mins = rep.total_work_minutes % 60;
+                const timeDisplay = hours > 0 ? `${hours}h ${mins}min` : `${mins} min`;
+                            
                     // --- CALCUL DES STATS PRODUITS (Intégré ici) ---
                     let statsHtml = "";
                     if (rep.products_stats && Object.keys(rep.products_stats).length > 0) {
@@ -6576,33 +6583,42 @@ else {
                     }
 
                     // --- GÉNÉRATION DE LA LIGNE ---
-                    html += `
-                        <tr id="row-daily-${rep.id}" class="hover:bg-white transition-colors group relative">
-                            <td class="px-6 py-4 w-1/4 align-top">
-                                <div class="text-[10px] font-black text-indigo-500 uppercase">${new Date(rep.report_date).toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long'})}</div>
-                                ${statsHtml} <!-- Insertion des stats ici -->
-                                <div class="text-center mt-2 text-left">${rep.needs_restock ? '<span class="text-orange-500 text-[10px] font-bold"><i class="fa-solid fa-box-open"></i> REAPPRO</span>' : '<span class="text-emerald-400 text-[10px]">OK</span>'}</div>
-                            </td>
-                            
-                            <!-- ZONE DE TEXTE INTELLIGENTE -->
-                            <td class="px-6 py-4 w-2/4 align-top relative">
-                                <div class="text-xs text-slate-600 italic line-clamp-1 cursor-pointer transition-all duration-300"
-                                     onmouseenter="peakText(this)" 
-                                     onmouseleave="unpeakText(this)" 
-                                     onclick="toggleTextFixed(this)"
-                                     data-fixed="false">
-                                    ${rep.summary || "Aucun texte."}
-                                </div>
-                            </td>
-
-                            <td class="px-6 py-4 w-1/4 align-top text-right">
-                                <div class="flex items-center justify-end gap-3">
-                                    ${rep.photo_url ? `<button onclick="viewDocument('${rep.photo_url}', 'Cahier')" class="text-blue-500 hover:scale-125 transition-transform"><i class="fa-solid fa-file-image text-lg"></i></button>` : '<i class="fa-solid fa-ban text-slate-200"></i>'}
-                                    <button onclick="deleteDailyReport('${rep.id}')" class="text-slate-300 hover:text-red-500 transition-all opacity-0 group-hover:opacity-100"><i class="fa-solid fa-check"></i></button>
-                                </div>
-                            </td>
-                        </tr>`;
-                });
+                  // LE HTML DE LA LIGNE DU TABLEAU
+                            html += `
+                                <tr id="row-daily-${rep.id}" class="hover:bg-white transition-colors group relative">
+                                    <td class="px-6 py-4 w-1/4 align-top">
+                                        <div class="text-[10px] font-black text-indigo-500 uppercase">
+                                            ${new Date(rep.report_date).toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long'})}
+                                        </div>
+                                        
+                                        <!-- LE NOUVEAU BADGE DE TEMPS TOTAL -->
+                                        <div class="mt-2 inline-flex items-center gap-1.5 px-2 py-1 bg-blue-600 text-white rounded-lg shadow-sm">
+                                            <i class="fa-solid fa-clock text-[9px]"></i>
+                                            <span class="text-[10px] font-black uppercase">${timeDisplay}</span>
+                                        </div>
+                        
+                                        ${statsHtml}
+                                        <div class="mt-2 text-left">${rep.needs_restock ? '<span class="text-orange-500 text-[10px] font-bold"><i class="fa-solid fa-box-open"></i> REAPPRO</span>' : '<span class="text-emerald-400 text-[10px]">OK</span>'}</div>
+                                    </td>
+                                    
+                                    <td class="px-6 py-4 w-2/4 align-top relative">
+                                        <div class="text-xs text-slate-600 italic line-clamp-1 cursor-pointer transition-all duration-300"
+                                             onmouseenter="peakText(this)" 
+                                             onmouseleave="unpeakText(this)" 
+                                             onclick="toggleTextFixed(this)"
+                                             data-fixed="false">
+                                            ${rep.summary || "Aucun texte."}
+                                        </div>
+                                    </td>
+                        
+                                    <td class="px-6 py-4 w-1/4 align-top text-right">
+                                        <div class="flex items-center justify-end gap-3">
+                                            ${rep.photo_url ? `<button onclick="viewDocument('${rep.photo_url}', 'Cahier')" class="text-blue-500 hover:scale-125 transition-transform"><i class="fa-solid fa-file-image text-lg"></i></button>` : '<i class="fa-solid fa-ban text-slate-200"></i>'}
+                                            <button onclick="deleteDailyReport('${rep.id}')" class="text-slate-300 hover:text-red-500 transition-all opacity-0 group-hover:opacity-100"><i class="fa-solid fa-check"></i></button>
+                                        </div>
+                                    </td>
+                                </tr>`;
+                        });
                 html += `</tbody></table></div></div>`;
             }
             html += `</div>`;
@@ -7107,6 +7123,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
