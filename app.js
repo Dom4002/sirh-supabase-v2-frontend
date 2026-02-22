@@ -6863,10 +6863,10 @@ function injectPaginationUI(containerId, meta, callbackName) {
 }
 
 
-// 3. AUDIT GLOBAL
+
+// 3. AUDIT GLOBAL (Mise à jour avec les 3 KPIs)
 async function fetchGlobalAudit() {
     const container = document.getElementById('reports-list-container');
-    const counterEl = document.getElementById('stat-visites-total');
     const labelEl = document.getElementById('stat-report-label');
     const now = new Date();
     const month = now.getMonth() + 1;
@@ -6879,9 +6879,19 @@ async function fetchGlobalAudit() {
         const r = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/get-global-audit?month=${month}&year=${year}`);
         const data = await r.json();
         lastAuditData = data;
-        if(labelEl) labelEl.innerText = "VISITES CUMULÉES (ÉQUIPE)";
-        const totalEquipe = data.reduce((acc, row) => acc + row.total_visites, 0);
-        if(counterEl) counterEl.innerText = totalEquipe;
+        
+        if(labelEl) labelEl.innerText = "VISITES CUMULÉES (ÉQUIPE TERRAIN)";
+        
+        // Calculs des 3 KPIs
+        const totalVisites = data.reduce((acc, row) => acc + row.total_visites, 0);
+        const totalProduits = data.reduce((acc, row) => acc + (row.total_produits || 0), 0);
+        const agentsActifs = data.filter(row => row.total_visites > 0).length;
+
+        // Injection dans le HTML
+        if(document.getElementById('stat-visites-total')) document.getElementById('stat-visites-total').innerText = totalVisites;
+        if(document.getElementById('stat-produits-total')) document.getElementById('stat-produits-total').innerText = totalProduits;
+        if(document.getElementById('stat-agents-actifs')) document.getElementById('stat-agents-actifs').innerText = agentsActifs;
+
         renderAuditTable(data);
     } catch (e) {
         console.error(e);
@@ -6889,12 +6899,54 @@ async function fetchGlobalAudit() {
     }
 }
 
+// Mise à jour de la table pour inclure les produits
 function renderAuditTable(data) {
     const container = document.getElementById('reports-list-container');
-    let html = `<div class="col-span-full bg-white rounded-[2.5rem] shadow-xl border overflow-hidden animate-fadeIn mb-10"><div class="p-6 border-b flex justify-between items-center bg-slate-50"><div><h3 class="font-black text-slate-800 uppercase text-sm">Audit Global d'Activité</h3></div><button onclick="exportAuditToExcel()" class="bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-bold text-xs shadow-lg">EXPORTER EXCEL</button></div><div class="overflow-x-auto"><table class="w-full text-left"><thead class="bg-slate-900 text-white text-[10px] uppercase font-bold"><tr><th class="px-6 py-5">Collaborateur</th><th class="px-6 py-5 text-center">Visites</th><th class="px-6 py-5">Lieux visités</th><th class="px-6 py-5 text-center">Absences</th><th class="px-6 py-5">Dernière Obs.</th></tr></thead><tbody class="divide-y divide-slate-100">`;
+    let html = `
+    <div class="col-span-full bg-white rounded-[2.5rem] shadow-xl border overflow-hidden animate-fadeIn mb-10">
+        <div class="p-6 border-b flex justify-between items-center bg-slate-50">
+            <div><h3 class="font-black text-slate-800 uppercase text-sm">Audit Global d'Activité (Mobiles)</h3></div>
+            <button onclick="exportAuditToExcel()" class="bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-bold text-xs shadow-lg">EXPORTER EXCEL</button>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left">
+                <thead class="bg-slate-900 text-white text-[10px] uppercase font-bold">
+                    <tr>
+                        <th class="px-6 py-5">Collaborateur</th>
+                        <th class="px-6 py-5 text-center">Visites</th>
+                        <th class="px-6 py-5 text-center">Produits Prés.</th> <!-- NOUVELLE COLONNE -->
+                        <th class="px-6 py-5">Détail des Lieux</th>
+                        <th class="px-6 py-5 text-center">Absences</th>
+                        <th class="px-6 py-5 text-right">Dernière Obs.</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">`;
+    
     data.forEach(row => {
-        html += `<tr class="hover:bg-blue-50/50"><td class="px-6 py-4"><div class="font-bold text-slate-800 uppercase text-xs">${row.nom}</div><div class="text-[9px] text-slate-400 font-mono">${row.matricule}</div></td><td class="px-6 py-4 text-center"><span class="bg-blue-600 text-white px-3 py-1 rounded-full font-black text-xs">${row.total_visites}</span></td><td class="px-6 py-4 text-[10px] text-slate-600 max-w-xs truncate">${row.detail_lieux}</td><td class="px-6 py-4 text-center"><span class="text-red-600 font-bold text-[10px]">${row.jours_absence} JOURS</span></td><td class="px-6 py-4 text-[10px] text-slate-500 italic max-w-xs truncate">${row.dernier_rapport}</td></tr>`;
+        html += `
+            <tr class="hover:bg-blue-50/50">
+                <td class="px-6 py-4">
+                    <div class="font-bold text-slate-800 uppercase text-xs">${row.nom}</div>
+                    <div class="text-[9px] text-slate-400 font-mono">${row.matricule}</div>
+                </td>
+                <td class="px-6 py-4 text-center">
+                    <span class="bg-blue-600 text-white px-3 py-1 rounded-full font-black text-xs">${row.total_visites}</span>
+                </td>
+                <td class="px-6 py-4 text-center">
+                    <span class="bg-indigo-50 text-indigo-600 border border-indigo-200 px-3 py-1 rounded-full font-black text-xs">${row.total_produits || 0}</span>
+                </td>
+                <td class="px-6 py-4 text-[10px] text-slate-600 max-w-xs truncate" title="${row.detail_lieux}">
+                    ${row.detail_lieux}
+                </td>
+                <td class="px-6 py-4 text-center">
+                    ${row.jours_absence > 0 ? `<span class="text-red-600 font-bold text-[10px] bg-red-50 px-2 py-1 rounded">${row.jours_absence} JOURS</span>` : `<span class="text-slate-300 text-[10px]">-</span>`}
+                </td>
+                <td class="px-6 py-4 text-[10px] text-slate-500 italic max-w-[150px] truncate text-right">
+                    ${row.dernier_rapport}
+                </td>
+            </tr>`;
     });
+    
     html += `</tbody></table></div></div>`;
     container.innerHTML = html;
 }
@@ -7085,42 +7137,51 @@ function handleReportSearch() {
 
 function filterAuditTableLocally(term) {
     const rows = document.querySelectorAll('#reports-list-container tbody tr');
-    const counterEl = document.getElementById('stat-visites-total');
+    
+    // On récupère nos 3 compteurs
+    const counterVisites = document.getElementById('stat-visites-total');
+    const counterProduits = document.getElementById('stat-produits-total');
+    const counterAgents = document.getElementById('stat-agents-actifs');
     const labelEl = document.getElementById('stat-report-label');
     
     let sumVisits = 0;
-    let resultsCount = 0;
+    let sumProducts = 0;
+    let activeAgents = 0;
 
     rows.forEach(row => {
-        // On récupère le texte du nom (colonne 1) et du matricule pour la recherche
+        // On récupère le texte du nom (colonne 1)
         const agentInfo = row.cells[0].innerText.toLowerCase();
         
-        // On cible précisément le chiffre dans la bulle bleue (colonne 2)
-        const visitCount = parseInt(row.cells[1].querySelector('span').innerText) || 0;
+        // On récupère les chiffres des colonnes 2 (Visites) et 3 (Produits)
+        const visitCount = parseInt(row.cells[1].innerText) || 0;
+        const productCount = parseInt(row.cells[2].innerText) || 0;
 
+        // Si la ligne correspond à la recherche
         if (agentInfo.includes(term)) {
-            row.style.display = "";
-            sumVisits += visitCount; // On additionne les vraies visites
-            resultsCount++;
+            row.style.display = ""; // On affiche
+            sumVisits += visitCount;
+            sumProducts += productCount;
+            if (visitCount > 0) activeAgents++;
         } else {
-            row.style.display = "none";
+            row.style.display = "none"; // On cache
         }
     });
 
-    // --- MISE À JOUR DE L'INTERFACE ---
-    if (counterEl) counterEl.innerText = sumVisits;
+    // --- MISE À JOUR DE L'INTERFACE EN DIRECT ---
+    if (counterVisites) counterVisites.innerText = sumVisits;
+    if (counterProduits) counterProduits.innerText = sumProducts;
+    if (counterAgents) counterAgents.innerText = activeAgents;
 
     if (labelEl) {
         if (term.length > 0) {
             labelEl.innerText = `RÉSULTAT POUR "${term.toUpperCase()}"`;
-            labelEl.classList.add('text-blue-400'); // Change la couleur pour alerter que c'est un filtre
+            labelEl.classList.add('text-blue-400'); // Passe en bleu pour montrer le filtre
         } else {
-            labelEl.innerText = "VISITES CUMULÉES (ÉQUIPE)";
+            labelEl.innerText = "VISITES CUMULÉES (ÉQUIPE TERRAIN)";
             labelEl.classList.remove('text-blue-400');
         }
     }
 }
-
 
 
 
@@ -7133,6 +7194,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
