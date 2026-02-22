@@ -1535,95 +1535,153 @@
             </main>
         </div>
 
-        <!-- MODAL DOSSIER COMPLET -->
-        <div id="folder-modal" class="fixed inset-0 bg-slate-900/90 hidden flex items-center justify-center z-[150] p-4 backdrop-blur-md">
-    <!-- NOUVELLE LIGNE CORRIGÉE -->
-    <div class="bg-white w-full max-w-4xl rounded-[2.5rem] shadow-2xl overflow-y-auto md:overflow-hidden flex flex-col md:flex-row h-[90vh] md:h-auto max-h-[95vh]">
-            <div class="md:w-1/3 bg-slate-900 p-8 text-white flex flex-col items-center text-center">
-                    <div class="w-32 h-32 rounded-3xl bg-slate-800 mb-6 overflow-hidden border-2 border-slate-700 shadow-xl"><img id="folder-photo" class="w-full h-full object-cover"></div>
-                    <h3 id="folder-name" class="text-2xl font-black mb-1 uppercase tracking-tight">...</h3>
-                    <p id="folder-id" class="text-blue-500 font-mono text-xs mb-6 uppercase tracking-widest">...</p>
-                    <div class="w-full space-y-3 text-left bg-white/5 p-4 rounded-2xl border border-white/10 mb-4">
-                        <div><p class="text-[10px] text-slate-500 font-bold uppercase">Poste Actuel</p><p id="folder-poste" class="text-sm font-bold">...</p></div>
-                        <div><p class="text-[10px] text-slate-500 font-bold uppercase">Département</p><p id="folder-dept" class="text-sm font-bold">...</p></div>
-                    </div>
-                    <div class="w-full space-y-3 text-left bg-blue-500/10 p-4 rounded-2xl border border-blue-500/20">
-                        <div><p class="text-[10px] text-blue-300 font-bold uppercase">Période Contrat</p><p class="text-xs font-bold"><span id="folder-start">--</span> ➔ <span id="folder-end">--</span></p></div>
-                    </div>
-                    <button onclick="closeFolderModal()" class="mt-8 w-full py-4 rounded-2xl bg-white/10 hover:bg-white/20 transition-all font-bold text-sm">FERMER LE DOSSIER</button>
+        <!-- MODAL DOSSIER COMPLET (VERSION PREMIUM UX) -->
+<div id="folder-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-md hidden flex items-center justify-center z-[200] p-4 transition-all duration-300">
+    
+    <!-- Conteneur principal avec arrondi XL (40px) -->
+    <div class="bg-white w-full max-w-5xl rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col md:flex-row h-[90vh] md:h-auto max-h-[95vh] border border-white/20 animate-fadeIn">
+        
+        <!-- COLONNE GAUCHE : IDENTITÉ (Design Immersif) -->
+        <div class="md:w-1/3 bg-slate-900 p-8 text-white flex flex-col items-center text-center shrink-0">
+            <!-- Photo avec bordure et ombre portée -->
+            <div class="w-32 h-32 rounded-[2.5rem] bg-slate-800 mb-6 overflow-hidden border-2 border-slate-700 shadow-2xl">
+                <img id="folder-photo" class="w-full h-full object-cover">
+            </div>
+            
+            <h3 id="folder-name" class="text-2xl font-black mb-1 uppercase tracking-tight leading-tight">...</h3>
+            <p id="folder-id" class="text-blue-500 font-mono text-[10px] mb-8 uppercase tracking-widest bg-blue-500/10 px-3 py-1 rounded-full">...</p>
+            
+            <!-- Blocs d'informations stylisés -->
+            <div class="w-full space-y-3 text-left">
+                <div class="bg-white/5 p-4 rounded-2xl border border-white/10">
+                    <p class="text-[9px] text-slate-500 font-black uppercase tracking-tighter mb-1">Poste Actuel</p>
+                    <p id="folder-poste" class="text-sm font-bold text-slate-200">...</p>
+                    <p id="folder-dept" class="text-[11px] text-blue-400 font-medium">...</p>
                 </div>
-    <!-- REMPLACE PAR CELLE-CI -->
-    <div class="flex-1 p-8 md:p-12 md:overflow-y-auto bg-slate-50 min-h-[400px]">
-                <h4 class="text-slate-400 font-black text-xs uppercase tracking-widest mb-8 flex items-center gap-2"><div class="h-[1px] flex-1 bg-slate-200"></div> ARCHIVES NUMÉRIQUES <div class="h-[1px] flex-1 bg-slate-200"></div></h4>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-10" id="folder-docs-grid"></div>
-                    <h4 class="text-slate-400 font-black text-xs uppercase tracking-widest mb-6 flex items-center gap-2"><div class="h-[1px] flex-1 bg-slate-200"></div> CONTACTS & COORDONNÉES <div class="h-[1px] flex-1 bg-slate-200"></div></h4>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
-                        <div class="bg-white p-4 rounded-2xl border shadow-sm"><p class="text-[10px] text-slate-400 font-bold uppercase mb-1">Email Personnel</p><p id="folder-email" class="font-bold text-slate-800 italic">...</p></div>
-                        <div class="bg-white p-4 rounded-2xl border shadow-sm"><p class="text-[10px] text-slate-400 font-bold uppercase mb-1">Téléphone Direct</p><p id="folder-phone" class="font-bold text-slate-800">...</p></div>
-                        <div class="bg-white p-4 rounded-2xl border shadow-sm md:col-span-2"><p class="text-[10px] text-slate-400 font-bold uppercase mb-1">Adresse de Résidence</p><p id="folder-address" class="font-bold text-slate-800">...</p></div>
-                    </div>
+                
+                <div class="bg-blue-600/10 p-4 rounded-2xl border border-blue-500/20">
+                    <p class="text-[9px] text-blue-300 font-black uppercase tracking-tighter mb-1">Validité Contrat</p>
+                    <p class="text-xs font-bold text-white"><span id="folder-start">--</span> ➔ <span id="folder-end">--</span></p>
+                </div>
+            </div>
+            
+            <!-- Bouton de fermeture intégré -->
+            <button onclick="closeFolderModal()" class="mt-8 w-full py-4 rounded-2xl bg-white/10 hover:bg-red-500/20 hover:text-red-400 transition-all font-black text-[10px] uppercase tracking-widest active:scale-95">
+                FERMER LE DOSSIER
+            </button>
+        </div>
+
+        <!-- COLONNE DROITE : ARCHIVES & CONTACTS (Aéré & Lisible) -->
+        <div class="flex-1 p-8 md:p-12 md:overflow-y-auto bg-slate-50 custom-scroll min-h-[400px]">
+            
+            <!-- Titre Section 1 -->
+            <div class="flex items-center gap-4 mb-8">
+                <div class="h-[1px] flex-1 bg-slate-200"></div>
+                <h4 class="text-slate-400 font-black text-[10px] uppercase tracking-[0.2em]">Archives Numériques</h4>
+                <div class="h-[1px] flex-1 bg-slate-200"></div>
+            </div>
+            
+            <!-- Grille des documents (Gérée par ton JS) -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-12" id="folder-docs-grid"></div>
+            
+            <!-- Titre Section 2 -->
+            <div class="flex items-center gap-4 mb-6">
+                <div class="h-[1px] flex-1 bg-slate-200"></div>
+                <h4 class="text-slate-400 font-black text-[10px] uppercase tracking-[0.2em]">Contacts & Coordonnées</h4>
+                <div class="h-[1px] flex-1 bg-slate-200"></div>
+            </div>
+            
+            <!-- Cartes de coordonnées -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="bg-white p-5 rounded-2xl border border-slate-200/60 shadow-sm transition-all hover:shadow-md">
+                    <p class="text-[9px] text-slate-400 font-black uppercase mb-1">Email Personnel</p>
+                    <p id="folder-email" class="font-bold text-slate-800 text-sm italic truncate">...</p>
+                </div>
+                
+                <div class="bg-white p-5 rounded-2xl border border-slate-200/60 shadow-sm transition-all hover:shadow-md">
+                    <p class="text-[9px] text-slate-400 font-black uppercase mb-1">Téléphone Direct</p>
+                    <p id="folder-phone" class="font-bold text-slate-800 text-sm">...</p>
+                </div>
+                
+                <div class="bg-white p-5 rounded-2xl border border-slate-200/60 shadow-sm transition-all hover:shadow-md md:col-span-2">
+                    <p class="text-[9px] text-slate-400 font-black uppercase mb-1">Adresse de Résidence</p>
+                    <p id="folder-address" class="font-bold text-slate-800 text-sm">...</p>
                 </div>
             </div>
         </div>
-
-
         
-        <!-- MODAL ADMINISTRATION (GÉRER) -->
-    <div id="edit-modal" class="fixed inset-0 bg-slate-900/90 hidden flex items-center justify-center z-[110] p-4 backdrop-blur-sm">
-        <div class="bg-white w-full max-w-lg rounded-3xl p-8 shadow-2xl overflow-y-auto max-h-[90vh]">
-            <div class="flex justify-between items-center mb-6">
-                <h3 class="font-black text-xl uppercase text-slate-800">Administration Employé</h3>
-                <button onclick="closeEditModal()" class="text-slate-400 hover:text-slate-800"><i class="fa-solid fa-xmark text-xl"></i></button>
+    </div>
+</div>
+
+
+
+        <!-- MODAL ADMINISTRATION (VERSION PREMIUM UX) -->
+    <div id="edit-modal" class="fixed inset-0 bg-slate-900/60 hidden flex items-center justify-center z-[200] p-4 backdrop-blur-md transition-all duration-300">
+        
+        <!-- Boite principale avec arrondi XL et ombre profonde -->
+        <div class="bg-white w-full max-w-lg rounded-[2.5rem] p-10 shadow-2xl overflow-y-auto max-h-[90vh] border border-white/20 animate-fadeIn">
+            
+            <!-- En-tête de la modale -->
+            <div class="flex justify-between items-center mb-10">
+                <div>
+                    <h3 class="font-black text-2xl uppercase text-slate-800 tracking-tighter">Administration</h3>
+                    <p class="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em]">Mise à jour du collaborateur</p>
+                </div>
+                <button onclick="closeEditModal()" class="w-12 h-12 flex items-center justify-center rounded-2xl bg-slate-100 text-slate-400 hover:bg-red-50 hover:text-red-500 transition-all active:scale-90">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
             </div>
             
             <input type="hidden" id="edit-id-hidden">
             
-            <form onsubmit="submitUpdate(event)" class="space-y-6">
-                <!-- 1. STATUT & RÔLE -->
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-2">Statut Actuel</label>
-                        <select id="edit-statut" class="w-full p-3 border rounded-xl font-bold bg-slate-50 outline-none focus:ring-2 focus:ring-blue-500">
-                            <option value="Actif">🟢 Actif</option>
-                            <option value="Congé">🟡 En Congé</option>
-                            <option value="Sortie">🔴 Sortie Définitive</option>
+            <form onsubmit="submitUpdate(event)" class="space-y-8">
+                
+                <!-- 1. BLOC : STATUT & ACCÈS -->
+                <div class="space-y-4">
+                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Statut & Habilitations</p>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="bg-slate-50 p-1.5 rounded-2xl border border-slate-100">
+                            <label class="block text-[9px] font-black text-slate-400 uppercase mb-1 ml-2">État Civil</label>
+                            <select id="edit-statut" class="w-full p-3 bg-transparent font-bold text-slate-700 outline-none cursor-pointer">
+                                <option value="Actif">🟢 Actif</option>
+                                <option value="Congé">🟡 En Congé</option>
+                                <option value="Sortie">🔴 Sortie Définitive</option>
+                            </select>
+                        </div>
+                        <div class="bg-blue-50/50 p-1.5 rounded-2xl border border-blue-100">
+                            <label class="block text-[9px] font-black text-blue-400 uppercase mb-1 ml-2">Rôle Système</label>
+                            <select id="edit-role" class="w-full p-3 bg-transparent font-black text-blue-700 outline-none cursor-pointer">
+                                <!-- Rempli par JS -->
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="bg-indigo-50/50 p-1.5 rounded-2xl border border-indigo-100">
+                        <label class="block text-[9px] font-black text-indigo-400 uppercase mb-1 ml-2">Type d'Activité (Règle GPS)</label>
+                        <select id="edit-type" class="w-full p-3 bg-transparent font-black text-indigo-700 outline-none cursor-pointer">
+                            <option value="OFFICE">🏢 Bureau (Fixe)</option>
+                            <option value="FIXED">🏠 Agent Site (Fixe)</option>
+                            <option value="MOBILE">🚗 Délégué (Nomade)</option>
                         </select>
                     </div>
-                    <div>
-                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-2">Rôle Système</label>
-                        <select id="edit-role" class="w-full p-3 border rounded-xl font-bold bg-blue-50 text-blue-700 outline-none focus:ring-2 focus:ring-blue-500">
-                            <option value="">Chargement...</option>
+
+                    <div class="bg-slate-50 p-1.5 rounded-2xl border border-slate-100">
+                        <label class="block text-[9px] font-black text-slate-400 uppercase mb-1 ml-2">Département / Service</label>
+                        <select id="edit-dept" class="w-full p-3 bg-transparent font-bold text-slate-700 outline-none cursor-pointer">
+                            <!-- Rempli par JS -->
                         </select>
                     </div>
                 </div>
 
-                <!-- NOUVEAU : TYPE D'ACTIVITÉ (GPS) -->
-                <div>
-                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-2">Type d'Activité (Règle GPS)</label>
-                    <select id="edit-type" class="w-full p-3 border rounded-xl font-bold bg-indigo-50 text-indigo-700 outline-none">
-                        <option value="OFFICE">🏢 Bureau (Fixe)</option>
-                        <option value="FIXED">🏠 Agent Site (Fixe)</option>
-                        <option value="MOBILE">🚗 Délégué (Nomade)</option>
-                    </select>
-                </div>
-
-                <!-- 2. DÉPARTEMENT -->
-                <div>
-                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-2">Département / Service</label>
-                    <select id="edit-dept" class="w-full p-3 border rounded-xl font-medium bg-slate-50 outline-none">
-                        <option value="">Chargement...</option>
-                    </select>
-                </div>
-
-                <!-- 3. GESTION CONTRAT -->
-                <div class="p-4 bg-orange-50 rounded-xl border border-orange-100">
-                    <p class="text-[10px] font-black text-orange-500 uppercase mb-3 flex items-center gap-2">
+                <!-- 2. BLOC : GESTION CONTRAT (Design Orange soft) -->
+                <div class="p-6 bg-orange-50/50 rounded-[2rem] border border-orange-100 space-y-4">
+                    <p class="text-[10px] font-black text-orange-600 uppercase tracking-widest flex items-center gap-2">
                         <i class="fa-solid fa-file-contract"></i> Cycle de vie du Contrat
                     </p>
                     <div class="grid grid-cols-2 gap-4">
                         <div>
-                            <label class="block text-[9px] font-bold text-slate-400 uppercase mb-1">Durée / Type</label>
-                            <select id="edit-type-contrat" class="w-full p-2 bg-white border rounded-lg text-sm font-bold text-slate-700">
+                            <label class="block text-[9px] font-black text-slate-400 uppercase mb-2 ml-1">Durée / Type</label>
+                            <select id="edit-type-contrat" class="w-full p-3 bg-white border border-orange-100 rounded-xl text-xs font-bold text-slate-700 shadow-sm outline-none focus:ring-2 focus:ring-orange-200">
                                 <option value="365">CDI (1 an)</option>
                                 <option value="180">CDD (6 mois)</option>
                                 <option value="90">Essai (3 mois)</option>
@@ -1632,136 +1690,217 @@
                             </select>
                         </div>
                         <div>
-                            <label class="block text-[9px] font-bold text-slate-400 uppercase mb-1">Date de début (Effet)</label>
-                            <input type="date" id="edit-start-date" class="w-full p-2 bg-white border rounded-lg text-sm font-bold text-slate-700">
+                            <label class="block text-[9px] font-black text-slate-400 uppercase mb-2 ml-1">Date d'effet</label>
+                            <input type="date" id="edit-start-date" class="w-full p-3 bg-white border border-orange-100 rounded-xl text-xs font-bold text-slate-700 shadow-sm outline-none">
                         </div>
                     </div>
-                    <div class="mt-3 flex items-start gap-2">
-                        <input type="checkbox" id="edit-init-check" class="mt-1 w-4 h-4 text-orange-600 rounded border-gray-300 focus:ring-orange-500">
-                        <label for="edit-init-check" class="text-[10px] text-slate-600 leading-tight">
-                            <strong>Forcer l'initialisation :</strong> Cocher pour réinitialiser le contrat avec la date ci-dessus (Embauche / Renouvellement).
+                    <div class="mt-3 flex items-start gap-3 bg-white/60 p-3 rounded-xl border border-orange-100">
+                        <input type="checkbox" id="edit-init-check" class="mt-1 w-5 h-5 text-orange-600 rounded-lg border-orange-200 focus:ring-orange-500 cursor-pointer">
+                        <label for="edit-init-check" class="text-[10px] text-orange-800 leading-tight font-medium">
+                            <b>Forcer l'initialisation :</b> Réinitialise le contrat à la date choisie (Embauche ou Renouvellement).
                         </label>
                     </div>
                 </div>
 
-                <!-- NOUVEAU BLOC : MODIFICATION HIÉRARCHIE -->
-                <div class="mt-4 p-4 bg-indigo-50 rounded-xl border border-indigo-100">
-                    <div class="grid grid-cols-1 gap-4">
+                <!-- 3. BLOC : HIÉRARCHIE (Design Indigo soft) -->
+                <div class="p-6 bg-indigo-50/50 rounded-[2rem] border border-indigo-100 space-y-4">
+                    <p class="text-[10px] font-black text-indigo-600 uppercase tracking-widest flex items-center gap-2">
+                        <i class="fa-solid fa-sitemap"></i> Management & Hiérarchie
+                    </p>
+                    <div class="space-y-4">
                         <div>
-                            <label class="block text-[10px] font-black text-indigo-500 uppercase mb-1">Responsable Direct (N+1)</label>
-                            <select id="edit-manager" class="w-full p-3 bg-white border border-slate-200 rounded-lg text-sm outline-none">
+                            <label class="block text-[9px] font-black text-slate-400 uppercase mb-2 ml-1">Responsable Direct (N+1)</label>
+                            <select id="edit-manager" class="w-full p-3 bg-white border border-indigo-100 rounded-xl text-xs font-bold text-slate-700 shadow-sm outline-none">
                                 <option value="">-- Aucun / Autonome --</option>
-                                <!-- Rempli par JS -->
                             </select>
                         </div>
                         <div>
-                            <label class="block text-[10px] font-black text-indigo-500 uppercase mb-1">Périmètre de Gestion (Scope)</label>
-                            <input type="text" id="edit-scope" class="w-full p-3 bg-white border border-slate-200 rounded-lg text-sm outline-none">
+                            <label class="block text-[9px] font-black text-slate-400 uppercase mb-2 ml-1">Périmètre Géré (Scope)</label>
+                            <input type="text" id="edit-scope" class="w-full p-3 bg-white border border-indigo-100 rounded-xl text-xs font-bold text-slate-700 shadow-sm outline-none" placeholder="Ex: IT, Finance, Cotonou...">
                         </div>
                     </div>
                 </div>
 
-                <button type="submit" class="w-full bg-slate-900 text-white py-4 rounded-xl font-bold shadow-lg uppercase tracking-widest hover:bg-slate-800 transition-all">
-                    SAUVEGARDER LES MODIFICATIONS
+                <!-- Bouton d'action massif -->
+                <button type="submit" class="w-full bg-slate-900 text-white py-5 rounded-[1.5rem] font-black text-xs uppercase tracking-[0.2em] shadow-xl hover:bg-blue-600 hover:shadow-blue-500/20 transition-all active:scale-95">
+                    Enregistrer les modifications
                 </button>
             </form>
         </div>
     </div>
-        <!-- MODAL CONTRAT SIGNE -->
 
-                                                                        <!-- MODAL SIGNATURE NUMÉRIQUE -->
-        <div id="contract-modal" class="fixed inset-0 bg-slate-900/80 hidden flex items-center justify-center z-[110] p-4 backdrop-blur-sm">
-            <div class="bg-white w-full max-w-lg rounded-3xl p-8 shadow-2xl">
-                <h3 class="font-black mb-2 text-xl text-center uppercase text-slate-800">Signature du Contrat</h3>
-                <p class="text-slate-400 text-sm text-center mb-8">Signez avec votre doigt ou votre souris dans le cadre ci-dessous pour valider le document.</p>
-                <input type="hidden" id="contract-id-hidden">
-                
-                <div class="flex flex-col items-center p-2 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 mb-8">
-                    <!-- LE CADRE DE SIGNATURE -->
-                    <canvas id="signature-pad" class="w-full h-48 bg-white rounded-xl border border-slate-200 cursor-crosshair shadow-inner"></canvas>
-                    
-                    <div class="flex justify-between w-full p-2">
-                        <button type="button" onclick="clearSignature()" class="text-[10px] font-black text-red-500 uppercase hover:underline">
-                            <i class="fa-solid fa-eraser mr-1"></i> Effacer
-                        </button>
-                        <span class="text-[9px] text-slate-400 italic font-medium">Signature électronique sécurisée</span>
-                    </div>
-                </div>
-
-                <div class="flex gap-4">
-                    <button onclick="submitSignedContract()" class="flex-1 bg-slate-900 text-white py-4 rounded-2xl font-black shadow-lg uppercase text-xs tracking-widest transition-all hover:bg-blue-600 active:scale-95">
-                        GÉNÉRER LE PDF SIGNÉ
-                    </button>
-                    <button onclick="closeContractModal()" class="flex-1 bg-slate-100 text-slate-500 py-4 rounded-2xl font-bold uppercase text-xs">Annuler</button>
-                </div>
-            </div>
-        </div>
-
-
-
-        <!-- MODAL DEMANDE CONGÉ -->
-        <div id="leave-modal" class="fixed inset-0 bg-slate-900/80 hidden flex items-center justify-center z-[120] p-4 backdrop-blur-sm">
-            <div class="bg-white w-full max-w-lg rounded-3xl p-8 shadow-2xl">
-                <div class="flex justify-between items-center mb-6">
-                    <h3 class="font-black text-xl uppercase text-slate-800">Demande d'Absence</h3>
-                    <button onclick="document.getElementById('leave-modal').classList.add('hidden')" class="text-slate-400 hover:text-red-500"><i class="fa-solid fa-xmark text-xl"></i></button>
-                </div>
-                <form onsubmit="submitLeaveRequest(event)" class="space-y-4">
-                    <div>
-                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-2">Type d'absence</label>
-                        <div class="grid grid-cols-3 gap-2">
-                            <label class="cursor-pointer"><input type="radio" name="leave_type" value="Congé Payé" class="peer sr-only" checked><div class="p-3 border rounded-xl text-center text-xs font-bold text-slate-500 peer-checked:bg-blue-600 peer-checked:text-white peer-checked:border-blue-600 transition-all">🏖️ Congé</div></label>
-                            <label class="cursor-pointer"><input type="radio" name="leave_type" value="Maladie" class="peer sr-only"><div class="p-3 border rounded-xl text-center text-xs font-bold text-slate-500 peer-checked:bg-red-500 peer-checked:text-white peer-checked:border-red-500 transition-all">💊 Maladie</div></label>
-                            <label class="cursor-pointer"><input type="radio" name="leave_type" value="Télétravail" class="peer sr-only"><div class="p-3 border rounded-xl text-center text-xs font-bold text-slate-500 peer-checked:bg-purple-500 peer-checked:text-white peer-checked:border-purple-500 transition-all">🏠 Autres</div></label>
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div><label class="block text-[10px] font-black text-slate-400 uppercase mb-2">Du (Inclus)</label><input type="date" id="leave-start" class="w-full p-3 bg-slate-50 border rounded-xl font-bold text-sm" required></div>
-                        <div><label class="block text-[10px] font-black text-slate-400 uppercase mb-2">Au (Inclus)</label><input type="date" id="leave-end" class="w-full p-3 bg-slate-50 border rounded-xl font-bold text-sm" required></div>
-                    </div>
-                    <div>
-                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-2">Motif (Optionnel)</label>
-                        <textarea id="leave-reason" rows="2" class="w-full p-3 bg-slate-50 border rounded-xl resize-none text-sm" placeholder="Précisions pour le manager..."></textarea>
-                    </div>
-
-
-                    <div>
-                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-2">Justificatif (Optionnel)</label>
-                        <div class="flex gap-2">
-                            <div id="leave-doc-preview" class="w-12 h-12 bg-slate-100 rounded-lg flex items-center justify-center border text-slate-400">
-                                <i class="fa-solid fa-camera"></i>
-                            </div>
-                            <button type="button" onclick="openDocCamera('leave_justif')" class="flex-1 bg-slate-100 text-slate-600 text-[10px] font-bold py-2 rounded-lg border uppercase">Prendre Photo</button>
-                            <button type="button" onclick="document.getElementById('f-leave_justif').click()" class="flex-1 bg-blue-50 text-blue-600 text-[10px] font-bold py-2 rounded-lg border border-blue-100 uppercase">Uploader</button>
-                        </div>
-                        <input type="file" id="f-leave_justif" class="hidden" onchange="previewDocFile(event, 'leave_justif')">
-                    </div>
-                                <div class="pt-4">
-                        <button type="submit" class="w-full bg-slate-900 text-white py-4 rounded-xl font-black uppercase tracking-widest hover:bg-slate-800 shadow-lg active:scale-95 transition-all">Envoyer la demande</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-
+         <!-- MODAL SIGNATURE NUMÉRIQUE (VERSION PREMIUM UX) -->
+<div id="contract-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-md hidden flex items-center justify-center z-[200] p-4 transition-all duration-300">
     
-
-     <!-- MODAL ENVOI FLASH (VERSION AVEC DURÉE) -->
-    <div id="flash-modal" class="fixed inset-0 bg-slate-900/90 hidden flex items-center justify-center z-[160] p-4 backdrop-blur-sm">
-        <div class="bg-white w-full max-w-md rounded-3xl p-8 shadow-2xl">
-            <div class="flex justify-between items-center mb-6">
-                <h3 class="font-black text-xl uppercase text-slate-800">Nouvelle Annonce</h3>
-                <button onclick="document.getElementById('flash-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-800"><i class="fa-solid fa-xmark text-xl"></i></button>
+    <!-- Boite principale avec arrondi XL et alignement centré pour la confiance -->
+    <div class="bg-white w-full max-w-lg rounded-[2.5rem] p-10 shadow-2xl animate-fadeIn border border-white/20 text-center">
+        
+        <!-- Icône de réassurance -->
+        <div class="w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center text-2xl mx-auto mb-6 shadow-sm">
+            <i class="fa-solid fa-file-signature"></i>
+        </div>
+        
+        <h3 class="font-black text-2xl uppercase text-slate-800 tracking-tighter mb-2">Signature Numérique</h3>
+        <p class="text-slate-400 text-xs font-medium mb-8 leading-relaxed px-4">Utilisez votre doigt ou votre souris pour signer. Cette action vaut acceptation du contrat.</p>
+        
+        <input type="hidden" id="contract-id-hidden">
+        
+        <!-- Cadre de signature stylisé -->
+        <div class="bg-slate-50 p-2 rounded-[2rem] border-2 border-dashed border-slate-200 mb-8 relative overflow-hidden">
+            <canvas id="signature-pad" class="w-full h-48 bg-white rounded-[1.5rem] border border-slate-100 cursor-crosshair shadow-inner"></canvas>
+            
+            <!-- Bouton effacer repositionné de façon discrète -->
+            <button type="button" onclick="clearSignature()" class="absolute bottom-4 right-4 bg-slate-100/80 backdrop-blur text-slate-400 px-3 py-1 rounded-lg text-[9px] font-black uppercase hover:bg-red-50 hover:text-red-500 transition-all active:scale-90">
+                <i class="fa-solid fa-eraser mr-1"></i> Effacer
+            </button>
+            
+            <div class="absolute bottom-4 left-6 pointer-events-none">
+                <p class="text-[8px] font-black text-slate-300 uppercase tracking-widest">Zone de validation</p>
             </div>
-            <form onsubmit="submitFlashMessage(event)" class="space-y-4">
+        </div>
+
+        <!-- Actions -->
+        <div class="flex gap-3">
+            <button onclick="closeContractModal()" class="flex-1 py-4 rounded-2xl text-slate-400 font-bold text-[10px] uppercase tracking-widest hover:bg-slate-50 transition-all active:scale-95">
+                Annuler
+            </button>
+            <button onclick="submitSignedContract()" class="flex-[2] bg-slate-900 text-white py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.15em] shadow-xl hover:bg-blue-600 transition-all active:scale-95">
+                Valider & Signer
+            </button>
+        </div>
+        
+        <p class="mt-6 text-[8px] text-slate-300 font-medium uppercase tracking-widest">Protocole de signature électronique sécurisé</p>
+    </div>
+</div>
+
+
+
+      <!-- MODAL DEMANDE CONGÉ (VERSION PREMIUM UX) -->
+<div id="leave-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-md hidden flex items-center justify-center z-[200] p-4 transition-all duration-300">
+    
+    <!-- Boite principale avec arrondi XL -->
+    <div class="bg-white w-full max-w-lg rounded-[2.5rem] p-10 shadow-2xl animate-fadeIn border border-white/20">
+        
+        <!-- En-tête -->
+        <div class="flex justify-between items-center mb-8">
+            <div>
+                <h3 class="font-black text-2xl uppercase text-slate-800 tracking-tighter">Absences</h3>
+                <p class="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em]">Nouvelle demande de congé</p>
+            </div>
+            <button onclick="document.getElementById('leave-modal').classList.add('hidden')" class="w-10 h-10 flex items-center justify-center rounded-2xl bg-slate-100 text-slate-400 hover:text-red-500 transition-all active:scale-90">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+        </div>
+
+        <form onsubmit="submitLeaveRequest(event)" class="space-y-6">
+            
+            <!-- 1. SÉLECTION DU TYPE (Design Chips) -->
+            <div>
+                <label class="block text-[10px] font-black text-slate-400 uppercase mb-3 ml-1">Nature de l'absence</label>
+                <div class="grid grid-cols-3 gap-2">
+                    <label class="cursor-pointer group">
+                        <input type="radio" name="leave_type" value="Congé Payé" class="peer sr-only" checked>
+                        <div class="p-3 border-2 border-slate-50 rounded-2xl text-center transition-all peer-checked:border-blue-600 peer-checked:bg-blue-50/50 shadow-sm">
+                            <span class="block text-xl mb-1">🏖️</span>
+                            <span class="text-[9px] font-black uppercase text-slate-500 peer-checked:text-blue-700">Congé</span>
+                        </div>
+                    </label>
+                    <label class="cursor-pointer group">
+                        <input type="radio" name="leave_type" value="Maladie" class="peer sr-only">
+                        <div class="p-3 border-2 border-slate-50 rounded-2xl text-center transition-all peer-checked:border-red-600 peer-checked:bg-red-50/50 shadow-sm">
+                            <span class="block text-xl mb-1">💊</span>
+                            <span class="text-[9px] font-black uppercase text-slate-500 peer-checked:text-red-700">Maladie</span>
+                        </div>
+                    </label>
+                    <label class="cursor-pointer group">
+                        <input type="radio" name="leave_type" value="Télétravail" class="peer sr-only">
+                        <div class="p-3 border-2 border-slate-50 rounded-2xl text-center transition-all peer-checked:border-purple-600 peer-checked:bg-purple-50/50 shadow-sm">
+                            <span class="block text-xl mb-1">🏠</span>
+                            <span class="text-[9px] font-black uppercase text-slate-500 peer-checked:text-purple-700">Autres</span>
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            <!-- 2. SÉLECTION DES DATES -->
+            <div class="grid grid-cols-2 gap-4">
+                <div class="bg-slate-50 p-2 rounded-2xl border border-slate-100">
+                    <label class="block text-[9px] font-black text-slate-400 uppercase mb-1 ml-2">Du (Matin)</label>
+                    <input type="date" id="leave-start" class="w-full bg-transparent p-2 font-bold text-slate-700 outline-none text-sm" required>
+                </div>
+                <div class="bg-slate-50 p-2 rounded-2xl border border-slate-100">
+                    <label class="block text-[9px] font-black text-slate-400 uppercase mb-1 ml-2">Au (Soir)</label>
+                    <input type="date" id="leave-end" class="w-full bg-transparent p-2 font-bold text-slate-700 outline-none text-sm" required>
+                </div>
+            </div>
+
+            <!-- 3. MOTIF -->
+            <div>
+                <label class="block text-[10px] font-black text-slate-400 uppercase mb-2 ml-1">Motif de la demande</label>
+                <textarea id="leave-reason" rows="2" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none text-sm font-medium transition-all focus:bg-white focus:ring-2 focus:ring-blue-100" placeholder="Précisez la raison de votre absence..."></textarea>
+            </div>
+
+            <!-- 4. JUSTIFICATIF (Design Pro) -->
+            <div class="p-5 bg-blue-50/50 rounded-3xl border border-blue-100">
+                <label class="block text-[9px] font-black text-blue-400 uppercase mb-3 ml-1">Pièce jointe / Justificatif</label>
+                <div class="flex items-center gap-4">
+                    <!-- Preview -->
+                    <div id="leave-doc-preview" class="w-14 h-14 bg-white rounded-2xl flex items-center justify-center border border-blue-100 text-blue-300 shadow-sm shrink-0">
+                        <i class="fa-solid fa-camera text-lg"></i>
+                    </div>
+                    <!-- Actions -->
+                    <div class="flex-1 grid grid-cols-2 gap-2">
+                        <button type="button" onclick="openDocCamera('leave_justif')" class="bg-white text-slate-600 text-[10px] font-black py-2.5 rounded-xl border border-slate-200 uppercase tracking-tighter hover:bg-slate-100 transition-all">
+                            Prendre Photo
+                        </button>
+                        <button type="button" onclick="document.getElementById('f-leave_justif').click()" class="bg-blue-600 text-white text-[10px] font-black py-2.5 rounded-xl uppercase tracking-tighter shadow-lg shadow-blue-500/20 active:scale-95 transition-all">
+                            Uploader
+                        </button>
+                    </div>
+                </div>
+                <input type="file" id="f-leave_justif" class="hidden" onchange="previewDocFile(event, 'leave_justif')">
+            </div>
+
+            <!-- Bouton de validation -->
+            <button type="submit" class="w-full bg-slate-900 text-white py-5 rounded-[1.5rem] font-black text-xs uppercase tracking-[0.2em] shadow-xl hover:bg-blue-600 transition-all active:scale-95">
+                Soumettre la demande
+            </button>
+        </form>
+    </div>
+</div>
+
+     <!-- MODAL ENVOI FLASH (VERSION PREMIUM UX) -->
+    <div id="flash-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-md hidden flex items-center justify-center z-[200] p-4 transition-all duration-300">
+        
+        <!-- Boite principale avec arrondi XL -->
+        <div class="bg-white w-full max-w-md rounded-[2.5rem] p-10 shadow-2xl animate-fadeIn border border-white/20">
+            
+            <!-- En-tête -->
+            <div class="flex justify-between items-center mb-8">
                 <div>
-                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-2">Urgence & Durée d'affichage</label>
-                    <div class="grid grid-cols-2 gap-3">
-                        <select id="flash-input-type" class="p-3 border rounded-xl text-xs font-bold bg-slate-50 outline-none">
-                            <option value="Info">ℹ️ Info</option>
-                            <option value="Urgent">🚨 Urgent</option>
+                    <h3 class="font-black text-2xl uppercase text-slate-800 tracking-tighter">Annonce</h3>
+                    <p class="text-[10px] font-black text-orange-500 uppercase tracking-[0.2em]">Diffusion immédiate</p>
+                </div>
+                <button onclick="document.getElementById('flash-modal').classList.add('hidden')" class="w-10 h-10 flex items-center justify-center rounded-2xl bg-slate-100 text-slate-400 hover:text-red-500 transition-all active:scale-90">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <form onsubmit="submitFlashMessage(event)" class="space-y-6">
+                
+                <!-- 1. PARAMÈTRES (Sévérité & Temps) -->
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="bg-slate-50 p-2 rounded-2xl border border-slate-100">
+                        <label class="block text-[9px] font-black text-slate-400 uppercase mb-1 ml-2">Sévérité</label>
+                        <select id="flash-input-type" class="w-full bg-transparent p-1 font-bold text-xs text-slate-700 outline-none cursor-pointer">
+                            <option value="Info">ℹ️ Information</option>
+                            <option value="Urgent">🚨 Urgence</option>
                             <option value="Maintenance">⚠️ Travaux</option>
                         </select>
-                        <select id="flash-input-duration" class="p-3 border rounded-xl text-xs font-bold bg-blue-50 text-blue-700 outline-none">
+                    </div>
+                    <div class="bg-blue-50/50 p-2 rounded-2xl border border-blue-100">
+                        <label class="block text-[9px] font-black text-blue-400 uppercase mb-1 ml-2">Visibilité</label>
+                        <select id="flash-input-duration" class="w-full bg-transparent p-1 font-bold text-xs text-blue-700 outline-none cursor-pointer">
                             <option value="15">15 minutes</option>
                             <option value="30">30 minutes</option>
                             <option value="60" selected>1 heure</option>
@@ -1769,21 +1908,24 @@
                             <option value="240">4 heures</option>
                             <option value="720">12 heures</option>
                             <option value="1440">1 jour (24h)</option>
-                            <option value="2880">2 jours</option>
                             <option value="10080">1 semaine</option>
                         </select>
-                                                    
+                    </div>
                 </div>
+
+                <!-- 2. MESSAGE -->
                 <div>
-                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-2">Message</label>
-                    <textarea id="flash-input-msg" rows="4" class="w-full p-4 bg-slate-50 border rounded-xl outline-none font-medium text-sm" placeholder="Votre annonce..." required></textarea>
+                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-2 ml-1">Contenu du message</label>
+                    <textarea id="flash-input-msg" rows="4" class="w-full p-5 bg-slate-50 border border-slate-200 rounded-[1.5rem] outline-none font-medium text-sm leading-relaxed transition-all focus:bg-white focus:ring-2 focus:ring-orange-100" placeholder="Écrivez votre annonce aux collaborateurs..." required></textarea>
                 </div>
-                <button type="submit" class="w-full bg-slate-900 text-white py-4 rounded-xl font-black uppercase tracking-widest hover:bg-blue-600 shadow-lg transition-all">PUBLIER MAINTENANT</button>
+
+                <!-- Bouton Publier -->
+                <button type="submit" class="w-full bg-slate-900 text-white py-5 rounded-[1.5rem] font-black text-xs uppercase tracking-[0.2em] shadow-xl hover:bg-orange-500 transition-all active:scale-95">
+                    PUBLIER L'ANNONCE
+                </button>
             </form>
         </div>
     </div>
- 
-
 
     <script src="app.js"></script>
 
