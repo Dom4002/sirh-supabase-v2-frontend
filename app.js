@@ -1500,12 +1500,20 @@ function renderData() {
         }
     }); 
 
-    // --- 2. FILTRAGE LOCAL (Recherche / Chips) ---
+   // --- 2. FILTRAGE LOCAL CORRIGÉ ---
     let filteredEmployees = employees;
     if (typeof currentFilter !== 'undefined' && currentFilter !== 'all') {
         filteredEmployees = employees.filter(e => {
             const search = currentFilter.toLowerCase();
-            return (e.statut || "").toLowerCase().includes(search) || (e.dept || "").toLowerCase().includes(search);
+            const eStatut = (e.statut || "").toLowerCase();
+            const eDept = (e.dept || "").toLowerCase();
+
+            // CORRECTION ICI : Si le filtre est "actif", on accepte aussi "en poste"
+            if (search === 'actif') {
+                return eStatut === 'actif' || eStatut === 'en poste';
+            }
+
+            return eStatut.includes(search) || eDept.includes(search);
         });
     }
 
@@ -7209,6 +7217,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
