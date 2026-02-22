@@ -1869,40 +1869,35 @@ function updateClockUI(statusMode) {
     const text = document.getElementById('clock-status-text');
     if(!btn) return; 
 
-    // On réinitialise les classes de base du bouton
-    btn.className = "flex-1 md:flex-none text-white px-8 py-4 rounded-2xl font-black uppercase transition-all shadow-lg flex items-center justify-center gap-2";
+    // On nettoie les classes
+    btn.className = "flex-1 md:flex-none px-8 py-4 rounded-2xl font-black uppercase transition-all flex items-center justify-center gap-2";
     dot.className = "w-3 h-3 rounded-full";
 
-    if (statusMode === 'IN') {
-        // ÉTAT 2 : EN POSTE -> On propose la SORTIE
-        btn.classList.add('bg-red-500', 'hover:bg-red-400', 'active:scale-95', 'cursor-pointer');
+    if (statusMode === 'DONE') {
+        // ÉTAT 3 : JOURNÉE FINIE -> GRIS ET BLOQUÉ
+        btn.classList.add('bg-slate-200', 'text-slate-400', 'cursor-not-allowed', 'border', 'border-slate-300');
+        btn.innerHTML = '<i class="fa-solid fa-lock"></i> <span>CLÔTURÉ</span>';
+        btn.disabled = true; // Empêche physiquement le clic HTML
+        dot.classList.add('bg-slate-300');
+        if(text) { text.innerText = "FIN DE SERVICE"; text.className = "text-2xl font-black text-slate-400"; }
+    }
+    else if (statusMode === 'IN') {
+        // ÉTAT 2 : EN POSTE -> ROUGE
+        btn.classList.add('bg-red-500', 'text-white', 'shadow-lg', 'hover:bg-red-400', 'active:scale-95');
         btn.innerHTML = '<i class="fa-solid fa-person-walking-arrow-right"></i> <span>SORTIE</span>';
         btn.disabled = false;
         dot.classList.add('bg-emerald-500', 'shadow-[0_0_10px_rgba(16,185,129,0.5)]');
-        text.innerText = "EN POSTE"; 
-        text.className = "text-2xl font-black text-emerald-500";
-    } 
-    else if (statusMode === 'DONE') {
-        // ÉTAT 3 : JOURNÉE FINIE -> Bouton GRISÉ ET BLOQUÉ
-        btn.classList.add('bg-slate-300', 'text-slate-500', 'cursor-not-allowed');
-        btn.classList.remove('text-white', 'shadow-lg');
-        btn.innerHTML = '<i class="fa-solid fa-check-double"></i> <span>TERMINÉ</span>';
-        btn.disabled = true; // Empêche tout clic HTML
-        dot.classList.add('bg-slate-300');
-        text.innerText = "JOURNÉE CLÔTURÉE"; 
-        text.className = "text-2xl font-black text-slate-400";
+        if(text) { text.innerText = "EN POSTE"; text.className = "text-2xl font-black text-emerald-500"; }
     } 
     else {
-        // ÉTAT 1 : DEHORS -> On propose l'ENTRÉE (Défaut)
-        btn.classList.add('bg-emerald-500', 'hover:bg-emerald-400', 'active:scale-95', 'cursor-pointer');
+        // ÉTAT 1 : DEHORS -> VERT
+        btn.classList.add('bg-emerald-500', 'text-white', 'shadow-lg', 'hover:bg-emerald-400', 'active:scale-95');
         btn.innerHTML = '<i class="fa-solid fa-fingerprint"></i> <span>ENTRÉE</span>';
         btn.disabled = false;
         dot.classList.add('bg-red-500', 'shadow-[0_0_10px_rgba(239,68,68,0.5)]');
-        text.innerText = "NON POINTÉ"; 
-        text.className = "text-2xl font-black text-slate-800";
+        if(text) { text.innerText = "NON POINTÉ"; text.className = "text-2xl font-black text-slate-800"; }
     }
 }
-
 
 
 
@@ -1911,31 +1906,21 @@ async function syncClockInterface() {
     const userId = currentUser.id;
 
     try {
-        const response = await fetch(`${SIRH_CONFIG.apiBaseUrl}/get-clock-status?employee_id=${userId}`, {
-            headers: { 'Authorization': `Bearer ${localStorage.getItem('sirh_token')}` }
-        });
+        const response = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/get-clock-status?employee_id=${userId}`);
         const data = await response.json();
 
+        // On stocke la VÉRITÉ absolue du serveur
         localStorage.setItem(`clock_status_${userId}`, data.status);
-        localStorage.setItem(`clock_in_done_${userId}`, data.in_done);
-        localStorage.setItem(`clock_out_done_${userId}`, data.out_done);
+        localStorage.setItem(`clock_finished_${userId}`, data.day_finished);
 
-        const isMobile = data.employee_type === 'MOBILE';
-        let uiState = 'OUT'; // Par défaut
-
-        // LOGIQUE CÉRÉBRALE DU BOUTON
-        if (data.status === 'IN') {
-            uiState = 'IN'; // Il est au travail, on affiche ROUGE
-        } else if (data.out_done) {
-            // S'il est OUT mais qu'il a déjà fait une sortie...
-            // Si c'est un FIXE, c'est fini. S'il est MOBILE et a coché "Dernière sortie", c'est fini aussi.
-            if (!isMobile || localStorage.getItem(`clock_finished_${userId}`) === 'true') {
-                uiState = 'DONE'; // On affiche GRIS
-            }
+        // LOGIQUE D'AFFICHAGE DU BOUTON (Priorité au verrouillage)
+        if (data.day_finished === true) {
+            updateClockUI('DONE'); // Force le gris, peu importe le reste
+        } else if (data.status === 'IN') {
+            updateClockUI('IN'); // Rouge (Sortie)
+        } else {
+            updateClockUI('OUT'); // Vert (Entrée)
         }
-
-        updateClockUI(uiState);
-
     } catch (e) { console.error(e); }
 }
 
@@ -2149,36 +2134,26 @@ if (!formValues) return;
 
 if (response.ok) {
             const nowStr = new Date().toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'});
-
-            if (typeof PremiumUI !== 'undefined') {
-                PremiumUI.vibrate('success');
-                PremiumUI.play('success');
-            }
+            if (typeof PremiumUI !== 'undefined') { PremiumUI.vibrate('success'); PremiumUI.play('success'); }
             
-            let nextUiState = 'OUT';
-
+            // On détermine le prochain état visuel
+            let nextState = 'OUT';
             if (action === 'CLOCK_IN') {
-                // S'il vient d'entrer, le prochain état est forcément IN (Rouge)
+                nextState = 'IN';
                 localStorage.setItem(`clock_status_${userId}`, 'IN');
-                localStorage.setItem(`clock_in_done_${userId}`, 'true');
-                nextUiState = 'IN';
             } else {
-                // S'il vient de sortir
                 localStorage.setItem(`clock_status_${userId}`, 'OUT');
-                localStorage.setItem(`clock_out_done_${userId}`, 'true');
-                
-                // LE FILTRE MAGIQUE : Est-ce que sa journée est finie ?
+                // Est-ce que ça vient de se terminer ?
                 if (!isMobile || isLastExit) {
-                    localStorage.setItem(`clock_finished_${userId}`, 'true'); // Sécurité locale
-                    nextUiState = 'DONE'; // Passe au GRIS !
-                } else {
-                    nextUiState = 'OUT'; // Redevient VERT (il peut faire une autre pharmacie)
+                    nextState = 'DONE';
+                    localStorage.setItem(`clock_finished_${userId}`, 'true');
                 }
             }
-            updateClockUI(nextUiState);
+
+            updateClockUI(nextState); // Mise à jour instantanée !
             
             document.getElementById('clock-last-action').innerText = `Validé : ${action==='CLOCK_IN'?'Entrée':'Sortie'} à ${nowStr}`;
-            Swal.fire('Succès', `Pointage enregistré : ${resData.zone || validatedZone}`, 'success');
+            Swal.fire('Succès', `Pointage validé : ${resData.zone}`, 'success');
         } else {
             throw new Error(resData.error); }
     } catch (e) { Swal.fire('Erreur', e.message, 'error'); }
@@ -7234,6 +7209,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
