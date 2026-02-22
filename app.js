@@ -648,8 +648,6 @@ async function secureFetch(url, options = {}) {
         headers['Authorization'] = `Bearer ${token}`;
     }
 
-    // --- CORRECTION ICI : ON PASSE DE 60000 à 120000 (2 minutes) ---
-    // Cela laisse le temps à Render/Make de se réveiller sans planter
     const TIMEOUT_MS = 120000; 
     
     const controller = new AbortController();
@@ -678,7 +676,21 @@ async function secureFetch(url, options = {}) {
                 }
             } catch (e) { }
 
+            // --- CORRECTION : DÉTECTION ET TRAITEMENT DE L'EXPIRATION ---
             if (response.status === 401 || response.status === 403) {
+                // 1. On informe l'utilisateur
+                Swal.fire({
+                    title: 'Session expirée',
+                    text: 'Pour votre sécurité, vous avez été déconnecté. Veuillez vous reconnecter.',
+                    icon: 'info',
+                    confirmButtonColor: '#0f172a'
+                });
+
+                // 2. On lance la déconnexion (nettoyage mémoire + redirection)
+                if (typeof handleLogout === 'function') {
+                    handleLogout(); 
+                }
+
                 if (specificMessage) {
                     throw new Error(`AUTH_ERROR_SPECIFIC:${specificMessage}`);
                 }
@@ -693,7 +705,6 @@ async function secureFetch(url, options = {}) {
     } catch (error) {
         // 4. GESTION DES ERREURS TECHNIQUES
         if (error.name === 'AbortError') {
-            // Message plus clair pour l'utilisateur
             throw new Error("Le serveur démarre (Délai > 2min). Veuillez réessayer dans 30 secondes.");
         }
         if (error.message.includes('Failed to fetch')) {
@@ -776,8 +787,95 @@ if(d.status === "success") {
 
 
 
+// ============================================================
+// GESTION DU MOT DE PASSE OUBLIÉ (FLOW EN 2 ÉTAPES) ✅
+// ============================================================
 
-// --- 1. CHARGER LA LISTE DES MODÈLES DANS LE TABLEAU ---
+async function handleForgotPassword() {
+    // ÉTAPE 1 : Demander l'email
+    const { value: email } = await Swal.fire({
+        title: 'Mot de passe oublié ?',
+        text: "Entrez votre email pour recevoir un code de sécurité.",
+        input: 'email',
+        inputPlaceholder: 'votre-email@entreprise.com',
+        showCancelButton: true,
+        confirmButtonText: 'Envoyer le code',
+        confirmButtonColor: '#2563eb',
+        cancelButtonText: 'Annuler'
+    });
+
+    if (!email) return; // L'utilisateur a annulé
+
+    // Affichage d'un chargement
+    Swal.fire({ title: 'Vérification...', didOpen: () => Swal.showLoading(), allowOutsideClick: false });
+
+    try {
+        const response = await fetch(`${SIRH_CONFIG.apiBaseUrl}/request-password-reset`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: email.toLowerCase().trim() })
+        });
+
+        const data = await response.json();
+
+        if (data.status === "success") {
+            // ÉTAPE 2 : Demander le code et le nouveau mot de passe
+            const { value: formValues } = await Swal.fire({
+                title: 'Code envoyé !',
+                text: 'Consultez votre boîte mail (et vos spams).',
+                html: `
+                    <input id="swal-code" class="swal2-input" placeholder="Code à 6 chiffres" maxlength="6">
+                    <input id="swal-newpass" type="password" class="swal2-input" placeholder="Nouveau mot de passe">
+                `,
+                focusConfirm: false,
+                confirmButtonText: 'Changer le mot de passe',
+                confirmButtonColor: '#10b981',
+                preConfirm: () => {
+                    const code = document.getElementById('swal-code').value;
+                    const pass = document.getElementById('swal-newpass').value;
+                    if (!code || !pass) {
+                        Swal.showValidationMessage(`Veuillez remplir les deux champs`);
+                        return false;
+                    }
+                    if (pass.length < 6) {
+                        Swal.showValidationMessage(`Le mot de passe doit faire au moins 6 caractères`);
+                        return false;
+                    }
+                    return { code: code, newPassword: pass };
+                }
+            });
+
+            if (formValues) {
+                Swal.fire({ title: 'Mise à jour...', didOpen: () => Swal.showLoading() });
+
+                const resReset = await fetch(`${SIRH_CONFIG.apiBaseUrl}/reset-password`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        email: email.toLowerCase().trim(), 
+                        code: formValues.code, 
+                        newPassword: formValues.newPassword 
+                    })
+                });
+
+                if (resReset.ok) {
+                    Swal.fire('Succès !', 'Votre mot de passe a été modifié. Vous pouvez vous connecter.', 'success');
+                } else {
+                    const err = await resReset.json();
+                    throw new Error(err.error || "Code invalide ou expiré");
+                }
+            }
+
+        } else {
+            throw new Error(data.error || "Une erreur est survenue");
+        }
+    } catch (e) {
+        Swal.fire('Échec', e.message, 'error');
+    }
+}
+
+
+
 async function fetchTemplates() {
     const tbody = document.getElementById('templates-body');
     if (!tbody) return;
@@ -5673,6 +5771,8 @@ async function loadAccountingView() {
     }
 }
 
+
+
 // --- RESET DES FILTRES ---
 function resetAccountingFilters() {
     document.getElementById('search-accounting').value = "";
@@ -7217,6 +7317,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
