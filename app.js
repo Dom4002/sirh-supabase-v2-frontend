@@ -1634,6 +1634,10 @@ async function renderPerformanceTable() {
     const body = document.getElementById('performance-table-body');
     if (!body) return;
 
+    if (currentUser.role === 'EMPLOYEE' || !currentUser.permissions.can_see_employees) {
+        return; // On arrête silencieusement, pas d'erreur serveur.
+    }
+
     // On définit la période (Mois en cours)
     const now = new Date();
     const month = now.getMonth() + 1;
@@ -7794,6 +7798,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
