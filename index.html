@@ -121,10 +121,10 @@
 </div>
         <!-- APP LAYOUT -->
         <div id="app-layout" class="hidden h-screen flex flex-col md:flex-row overflow-hidden relative">
-            <aside id="sidebar" class="w-72 bg-slate-900 text-slate-300 flex flex-col fixed md:relative inset-y-0 left-0 z-50 transform -translate-x-full md:translate-x-0 transition-transform duration-300 border-r border-slate-800">
+        <!-- Nouvelle version de la balise aside -->
+            <aside id="sidebar" class="w-72 bg-slate-900 text-slate-300 flex flex-col fixed md:sticky inset-y-0 left-0 z-50 transform transition-transform duration-300 border-r border-slate-800">                
                 <div class="p-5 flex-1 overflow-y-auto">
                     <div class="flex items-center justify-between mb-10 text-white">
-    
     <div class="flex items-center gap-3">
         <div class="p-1.5 rounded-xl shadow-lg flex items-center justify-center" style="background-color: var(--accent); min-width: 40px; height: 40px;">
             <img src="" class="app-logo-display w-7 h-7 object-contain">
@@ -307,8 +307,10 @@
 
 
                 <div class="flex items-center flex-1 max-w-2xl gap-3">
-                        <button onclick="toggleSidebar()" class="md:hidden p-2 text-slate-600 bg-white border border-slate-200 rounded-lg"><i class="fa-solid fa-bars text-lg"></i></button>
-                        <div id="global-search-container" class="relative w-full">
+                    <button onclick="toggleSidebar()" class="p-2 text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-all">
+                        <i class="fa-solid fa-bars-staggered text-lg"></i>
+                    </button>                        
+                    <div id="global-search-container" class="relative w-full">
                             <i class="fa-solid fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
                             <input type="text" id="search-input" onkeyup="filterTable()" placeholder="Rechercher..." class="w-full pl-12 pr-4 py-3 bg-slate-100 border-none rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none text-sm transition-all">
                         </div>
@@ -1987,6 +1989,7 @@
     </body>
 
     </html>
+
 
 
 
