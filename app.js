@@ -605,8 +605,9 @@ async function fetchMobileSchedules() {
                                     </button>
 
                                     <!-- BOUTON 2 : LANCER LA VISITE (VALIDER) -->
-                                    <button onclick="startMissionFromAgenda('${mission.location_name}')" class="bg-slate-900 text-white px-4 py-2 rounded-xl text-[10px] font-bold uppercase shadow-lg active:scale-95 transition-transform flex items-center gap-2 hover:bg-blue-600">
-                                        🚀 Lancer la visite
+                                    <button onclick="startMissionFromAgenda('${mission.id}', '${mission.location_id}', '${mission.prescripteur_id || ''}', '${mission.notes ? mission.notes.replace(/'/g, "\\'") : ''}')" 
+                                        class="bg-slate-900 text-white px-4 py-2 rounded-xl text-[10px] font-bold uppercase shadow-lg active:scale-95 transition-transform flex items-center gap-2 hover:bg-blue-600">
+                                        🚀 Démarrer
                                     </button>
                                 </div>
                             ` : ''}
@@ -638,20 +639,74 @@ async function fetchMobileSchedules() {
 }
 
 
-
-function startMissionFromAgenda(lieuName) {
-    // 1. On redirige vers le Dashboard (là où est le gros bouton ENTRÉE)
-    switchView('dash');
+// FONCTION INTELLIGENTE : LANCE LE POINTAGE DIRECTEMENT DEPUIS L'AGENDA
+async function startMissionFromAgenda(missionId, locationId, presId, notes) {
     
-    // 2. Petit message visuel pour dire "C'est parti"
-    const Toast = Swal.mixin({toast: true, position: 'top', showConfirmButton: false, timer: 3000});
-    Toast.fire({
-        icon: 'info',
-        title: `Prêt pour : ${lieuName}`,
-        text: 'Cliquez sur ENTRÉE pour démarrer le chronomètre.'
+    // 1. Confirmation rapide
+    const confirm = await Swal.fire({
+        title: 'Démarrer la visite ?',
+        text: "Cela va valider votre ENTRÉE immédiatement.",
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#10b981',
+        confirmButtonText: 'Oui, j\'y suis !'
     });
-}
 
+    if (!confirm.isConfirmed) return;
+
+    Swal.fire({ title: 'Validation GPS...', didOpen: () => Swal.showLoading() });
+
+    try {
+        // 2. Récupération GPS & IP
+        const pos = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej));
+        const currentGps = `${pos.coords.latitude},${pos.coords.longitude}`;
+        const ipRes = await fetch('https://api.ipify.org?format=json').then(r => r.json());
+
+        // 3. Envoi au serveur (CLOCK IN + LIEN AVEC LE PLANNING)
+        const fd = new FormData();
+        fd.append('id', currentUser.id);
+        fd.append('action', 'CLOCK_IN'); // On force l'entrée
+        fd.append('gps', currentGps);
+        fd.append('ip', ipRes.ip);
+        fd.append('agent', currentUser.nom);
+        
+        // C'EST ICI QUE TOUT SE JOUE : On envoie l'ID du planning et du lieu prévu
+        fd.append('schedule_id', missionId); 
+        fd.append('forced_location_id', locationId); // Pour dire au serveur "C'est ce lieu là, ne cherche pas"
+
+        const response = await secureFetch(URL_CLOCK_ACTION, { method: 'POST', body: fd });
+        const resData = await response.json();
+
+        if (response.ok) {
+            // 4. MÉMOIRE LOCALE : On retient les infos pour le CLOCK OUT tout à l'heure
+            localStorage.setItem('active_mission_context', JSON.stringify({
+                missionId: missionId,
+                prescripteurId: presId, // On retient le médecin
+                preNotes: notes // On retient la note préparatoire
+            }));
+
+            // 5. Mise à jour Interface
+            localStorage.setItem(`clock_status_${currentUser.id}`, 'IN');
+            updateClockUI('IN');
+            
+            Swal.fire({
+                icon: 'success',
+                title: 'Visite démarrée !',
+                text: `Bon courage pour le ${presId ? 'Dr sélectionné' : 'RDV'}.`,
+                timer: 2000,
+                showConfirmButton: false
+            });
+
+            switchView('dash'); // Retour accueil
+        } else {
+            throw new Error(resData.error);
+        }
+
+    } catch (e) {
+        console.error(e);
+        Swal.fire('Erreur', e.message || "Impossible de démarrer (Vérifiez le GPS).", 'error');
+    }
+}
 // --- FONCTION POUR CRÉER UNE MISSION (PLANNING) ---
 async function openAddScheduleModal() {
     Swal.fire({ title: 'Chargement des données...', didOpen: () => Swal.showLoading() });
@@ -2555,25 +2610,51 @@ async function handleClockInOut() {
             confirmButtonColor: '#2563eb',
             allowOutsideClick: false,
             didOpen: () => {
-                // LOGIQUE D'AFFICHAGE INTELLIGENT DU CHAMP "AUTRE"
+                // --- 1. LA MAGIE : On vérifie la mémoire du téléphone ---
+                const memoireMission = localStorage.getItem('active_mission_context');
+                
+                if (memoireMission) {
+                    const ctx = JSON.parse(memoireMission);
+                    
+                    // Si on avait enregistré un médecin, on le sélectionne tout de suite
+                    if (ctx.prescripteurId) {
+                        const select = document.getElementById('swal-prescripteur');
+                        if (select) {
+                            select.value = ctx.prescripteurId;
+                            // Petit effet visuel pour montrer que c'est auto-rempli
+                            select.style.border = "2px solid #2563eb"; 
+                        }
+                    }
+
+                    // Si on avait mis une note de préparation, on la met dans le rapport
+                    if (ctx.preNotes) {
+                        const textArea = document.getElementById('swal-report');
+                        if (textArea) textArea.value = `[Objectif: ${ctx.preNotes}] \nRésultat : `;
+                    }
+                }
+                
+                // --- 2. LE RESTE DU CODE (Classique) ---
                 const presSelect = document.getElementById('swal-prescripteur');
                 const autreInputContainer = document.getElementById('container-autre-nom');
                 
-                presSelect.addEventListener('change', (e) => {
-                    if (e.target.value === 'autre') {
-                        autreInputContainer.classList.remove('hidden');
-                    } else {
-                        autreInputContainer.classList.add('hidden');
-                    }
-                });
+                if(presSelect) {
+                    presSelect.addEventListener('change', (e) => {
+                        if (e.target.value === 'autre') {
+                            autreInputContainer.classList.remove('hidden');
+                        } else {
+                            autreInputContainer.classList.add('hidden');
+                        }
+                    });
+                }
 
-                // GESTION CAMÉRA (Inchangée)
+                // GESTION CAMÉRA (Reste identique)
                 const video = document.getElementById('proof-video');
                 const img = document.getElementById('proof-image');
                 const canvas = document.getElementById('proof-canvas');
                 const btnSnap = document.getElementById('btn-snap');
                 const btnRetry = document.getElementById('btn-retry');
 
+                // Validation photo (Reste identique)
                 const checkValidationInterval = setInterval(() => {
                     const confirmBtn = Swal.getConfirmButton();
                     if (!confirmBtn) return;
@@ -2609,6 +2690,7 @@ async function handleClockInOut() {
                     btnRetry.classList.add('hidden');
                 };
             },
+                    
             willClose: () => { if(proofStream) proofStream.getTracks().forEach(t => t.stop()); },
             preConfirm: () => {
                 const outcomeVal = document.getElementById('swal-outcome').value;
@@ -2686,9 +2768,10 @@ async function handleClockInOut() {
         const response = await secureFetch(URL_CLOCK_ACTION, { method: 'POST', body: fd });
         const resData = await response.json();
 
-if (response.ok) {
+          if (response.ok) {
             const nowStr = new Date().toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'});
             if (typeof PremiumUI !== 'undefined') { PremiumUI.vibrate('success'); PremiumUI.play('success'); }
+            localStorage.removeItem('active_mission_context');
             
             // On détermine le prochain état visuel
             let nextState = 'OUT';
@@ -2703,12 +2786,16 @@ if (response.ok) {
                     localStorage.setItem(`clock_finished_${userId}`, 'true');
                 }
             }
-
+            
+            
+            fetchMobileSchedules(); 
             updateClockUI(nextState); // Mise à jour instantanée !
             
             document.getElementById('clock-last-action').innerText = `Validé : ${action==='CLOCK_IN'?'Entrée':'Sortie'} à ${nowStr}`;
             Swal.fire('Succès', `Pointage validé : ${resData.zone}`, 'success');
-        } else {
+        } 
+          
+        else {
             throw new Error(resData.error); }
     } catch (e) { Swal.fire('Erreur', e.message, 'error'); }
 }
@@ -7736,6 +7823,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
