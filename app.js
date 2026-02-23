@@ -6264,13 +6264,12 @@ async function generateAllPay() {
 // --- FONCTION POUR SUPPRIMER UN MODÈLE DE CONTRAT ---
 async function deleteTemplate(id) {
     const confirm = await Swal.fire({
-        title: 'Supprimer ce modèle ?',
-        text: "Le fichier Word sera conservé dans le stockage mais le lien sera retiré.",
-        icon: 'warning',
+        title: 'Archiver ce modèle ?',
+        text: "Il ne sera plus proposé pour les futurs contrats, mais restera conservé dans l'historique pour les employés actuels.",
+        icon: 'info',
         showCancelButton: true,
-        confirmButtonColor: '#ef4444',
-        cancelButtonColor: '#94a3b8',
-        confirmButtonText: 'Oui, supprimer',
+        confirmButtonColor: '#0f172a',
+        confirmButtonText: 'Oui, archiver',
         cancelButtonText: 'Annuler'
     });
 
@@ -7709,6 +7708,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
