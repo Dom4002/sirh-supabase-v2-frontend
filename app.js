@@ -1901,8 +1901,8 @@ async function fetchData(forceUpdate = false, page = 1) {
         const meta = result.meta || { total: d.length, page: 1, last_page: 1 };
 
         console.log(`✅ Page ${meta.page} reçue :`, d.length, "enregistrements trouvés");
-
-        // 3. MAPPING (TON CODE ORIGINAL CONSERVÉ TEL QUEL)
+      
+        // 3. MAPPING (CORRIGÉ POUR INCLURE TRANSPORT ET LOGEMENT)
         employees = d.map(x => {
             return { 
                 id: x.id, 
@@ -1929,7 +1929,11 @@ async function fetchData(forceUpdate = false, page = 1) {
                 diploma_link: x.diploma_url || '',
                 attestation_link: x.attestation_url || '',
                 lm_link: x.lm_url || '',
-                salaire_base_fixe: parseFloat(x.salaire_brut_fixe) || 0, // Assure-toi que le nom correspond à ta colonne SQL
+                // --- LES CHAMPS FINANCIERS ---
+                salaire_base_fixe: parseFloat(x.salaire_brut_fixe) || 0,
+                indemnite_transport: parseFloat(x.indemnite_transport) || 0, // AJOUTÉ
+                indemnite_logement: parseFloat(x.indemnite_logement) || 0,   // AJOUTÉ
+                // -----------------------------
                 contract_status: x.contract_status || 'Non signé'
             };
         });
@@ -2108,27 +2112,50 @@ function renderData() {
             : `<div class="w-10 h-10 bg-slate-100 border border-slate-200 rounded-full flex items-center justify-center text-xs font-black text-slate-500">${escapeHTML(e.nom).substring(0,2).toUpperCase()}</div>`;
         
         // --- CELLULE ACTION (Supprimée du DOM si pas autorisé) ---
+// --- DEBUT DU BLOC CORRIGÉ ---
         let actionCell = "";
-        if (canManage) {
-            const isSigned = (String(e.contract_status || '').toLowerCase().trim() === 'signé');
-            const safeId = escapeHTML(e.id);
+        const perms = currentUser.permissions || {}; // Sécurité pour éviter les erreurs
+        const safeId = escapeHTML(e.id);
 
-            actionCell = `
-            <td class="px-8 py-4 text-right">
-                <div class="flex items-center justify-end gap-2">
-                    <button onclick="openFullFolder('${safeId}')" title="Dossier" class="p-2 bg-yellow-50 text-yellow-600 rounded-lg hover:bg-yellow-500 hover:text-white transition-all"><i class="fa-solid fa-folder-open"></i></button>
-                    <div class="h-4 w-[1px] bg-slate-200 mx-1"></div>
-                    ${!isSigned ? `
-                        <button onclick="generateDraftContract('${safeId}')" title="Brouillon" class="p-2 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-600 hover:text-white transition-all"><i class="fa-solid fa-file-contract"></i></button>
-                        <button onclick="openContractModal('${safeId}')" title="Signer" class="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white transition-all"><i class="fa-solid fa-pen-nib"></i></button>
-                        <button onclick="triggerManualContractUpload('${safeId}')" title="Scan" class="p-2 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-600 hover:text-white transition-all"><i class="fa-solid fa-file-arrow-up"></i></button>
-                    ` : `<span class="text-[10px] font-black text-emerald-500 uppercase bg-emerald-50 px-2 py-1 rounded">Signé</span>`}
-                    <div class="h-4 w-[1px] bg-slate-200 mx-1"></div>
-                    <button onclick="printBadge('${safeId}')" class="text-slate-400 hover:text-blue-600 transition-all"><i class="fa-solid fa-print"></i></button>
-                    <button onclick="openEditModal('${safeId}')" class="text-slate-400 hover:text-slate-800 transition-all"><i class="fa-solid fa-pen"></i></button>
-                </div>
-            </td>`;
+        // On ouvre la cellule et le conteneur de boutons
+        actionCell = `<td class="px-8 py-4 text-right"><div class="flex items-center justify-end gap-2">`;
+
+        // 1. Bouton DOSSIER (📂)
+        if (perms.can_view_employee_files) {
+            actionCell += `<button onclick="openFullFolder('${safeId}')" title="Dossier" class="p-2 bg-yellow-50 text-yellow-600 rounded-lg hover:bg-yellow-500 hover:text-white transition-all"><i class="fa-solid fa-folder-open"></i></button>`;
         }
+
+        // 2. Section CONTRATS (Brouillon, Signer, Scan)
+        if (perms.can_manage_contracts) {
+            const isSigned = (String(e.contract_status || '').toLowerCase().trim() === 'signé');
+            actionCell += `<div class="h-4 w-[1px] bg-slate-200 mx-1"></div>`; // Séparateur
+            
+            if (!isSigned) {
+                actionCell += `
+                    <button onclick="generateDraftContract('${safeId}')" title="Brouillon" class="p-2 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-600 hover:text-white transition-all"><i class="fa-solid fa-file-contract"></i></button>
+                    <button onclick="openContractModal('${safeId}')" title="Signer" class="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white transition-all"><i class="fa-solid fa-pen-nib"></i></button>
+                    <button onclick="triggerManualContractUpload('${safeId}')" title="Scan" class="p-2 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-600 hover:text-white transition-all"><i class="fa-solid fa-file-arrow-up"></i></button>
+                `;
+            } else {
+                actionCell += `<span class="text-[10px] font-black text-emerald-500 uppercase bg-emerald-50 px-2 py-1 rounded">Signé</span>`;
+            }
+        }
+
+        // 3. Bouton IMPRIMER (🖨️)
+        if (perms.can_print_badges) {
+            actionCell += `<div class="h-4 w-[1px] bg-slate-200 mx-1"></div>`; // Séparateur
+            actionCell += `<button onclick="printBadge('${safeId}')" class="text-slate-400 hover:text-blue-600 transition-all"><i class="fa-solid fa-print"></i></button>`;
+        }
+
+        // 4. Bouton ÉDITER (✏️)
+        // Accessible si on peut gérer les contrats OU simplement modifier les infos de base
+        if (perms.can_edit_employee_basic || perms.can_manage_contracts) {
+            actionCell += `<button onclick="openEditModal('${safeId}')" class="text-slate-400 hover:text-slate-800 transition-all"><i class="fa-solid fa-pen"></i></button>`;
+        }
+
+        // On ferme les balises
+        actionCell += `</div></td>`;
+        // --- FIN DU BLOC CORRIGÉ ---
 
         b.innerHTML += `
             <tr class="border-b hover:bg-slate-50 transition-colors">
@@ -2142,7 +2169,7 @@ function renderData() {
                 <td class="p-4 text-xs font-medium text-slate-500">${escapeHTML(e.poste)}</td>
                 <td class="p-4"><span class="px-3 py-1 border rounded-lg text-[10px] font-black uppercase ${bdgClass}">${escapeHTML(bdgLabel)}</span></td>
                 ${actionCell} 
-            </tr>`; 
+            </tr>`;; 
     });
 
     // Mise à jour des compteurs UI
@@ -3424,9 +3451,8 @@ function toggleSidebar() {
             function convertToInputDate(dStr){if(!dStr) return ""; if(dStr.match(/^\d{4}-\d{2}-\d{2}$/)) return dStr; if(dStr.includes('/')){const p=dStr.split('/'); return `${p[2]}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}`;} return "";}
             
     
-
 async function openEditModal(id) {
-    // 1. ON TROUVE L'EMPLOYÉ EN PREMIER (Ligne déplacée en haut)
+    // 1. ON TROUVE L'EMPLOYÉ EN PREMIER
     const e = employees.find(x => x.id === id);
     
     if (e) {
@@ -3434,17 +3460,38 @@ async function openEditModal(id) {
         document.getElementById('edit-modal').classList.remove('hidden');
         document.getElementById('edit-id-hidden').value = id;
 
+        // --- DEBUT DU BLOC DE PROTECTION STRATÉGIQUE ---
+        const perms = currentUser.permissions || {};
+        const blockStatus = document.getElementById('edit-block-status');
+        const blockContract = document.getElementById('edit-block-contract');
+        const blockHierarchy = document.getElementById('edit-block-hierarchy');
+
+        // Seul le DRH (can_manage_contracts) voit le bloc Contrat/Salaire
+        if (blockContract) {
+            blockContract.style.display = perms.can_manage_contracts ? 'block' : 'none';
+        }
+
+        // Seul le DRH (can_manage_contracts) voit le bloc Hiérarchie/Manager
+        if (blockHierarchy) {
+            blockHierarchy.style.display = perms.can_manage_contracts ? 'block' : 'none';
+        }
+
+        // Le bloc statut (Rôle/Dép) est visible pour le DRH OU pour l'édition de base
+        if (blockStatus) {
+            blockStatus.style.display = (perms.can_manage_contracts || perms.can_edit_employee_basic) ? 'block' : 'none';
+        }
+        // --- FIN DU BLOC DE PROTECTION ---
+
         // 3. Charger la liste des managers
         await populateManagerSelects(); 
 
-        // 4. Maintenant on peut utiliser 'e' sans erreur
+        // 4. Remplissage des données (Logique originale conservée + Ajout Finances)
         const mgrSelect = document.getElementById('edit-manager');
         if(mgrSelect) mgrSelect.value = e.manager_id || "";
     
         const scopeInput = document.getElementById('edit-scope');
         if(scopeInput) scopeInput.value = (e.scope || []).join(', ');
 
-        // Remplissage des autres champs
         document.getElementById('edit-type').value = e.employee_type || 'OFFICE';
         document.getElementById('edit-statut').value = e.statut || 'Actif';
         
@@ -3462,14 +3509,19 @@ async function openEditModal(id) {
             dateInput.value = e.date ? convertToInputDate(e.date) : new Date().toISOString().split('T')[0];
         }
 
+        // --- NOUVEAU : Remplissage des montants financiers ---
+        const inputSalaire = document.getElementById('edit-salaire-fixe');
+        const inputTransport = document.getElementById('edit-indemnite-transport');
+        const inputLogement = document.getElementById('edit-indemnite-logement');
+
+        if(inputSalaire) inputSalaire.value = e.salaire_base_fixe || 0;
+        if(inputTransport) inputTransport.value = e.indemnite_transport || 0;
+        if(inputLogement) inputLogement.value = e.indemnite_logement || 0;
+
         const initCheck = document.getElementById('edit-init-check');
         if(initCheck) initCheck.checked = false;
     }
 }
-
-
-
-
 
 function updatePaginationUI(containerId, meta, callbackName) {
     const footer = document.getElementById(containerId);
@@ -3498,59 +3550,65 @@ function updatePaginationUI(containerId, meta, callbackName) {
 }
 
 
-
 async function submitUpdate(e) {
-        e.preventDefault(); 
-        const id = document.getElementById('edit-id-hidden').value;
-        
-        // Récupération des valeurs
-        const statut = document.getElementById('edit-statut').value;
-        const role = document.getElementById('edit-role') ? document.getElementById('edit-role').value : 'EMPLOYEE';
-        const dept = document.getElementById('edit-dept') ? document.getElementById('edit-dept').value : '';
-        const typeContrat = document.getElementById('edit-type-contrat').value;
-        const typeActivité = document.getElementById('edit-type').value;
+    e.preventDefault(); 
+    const id = document.getElementById('edit-id-hidden').value;
+    
+    // Récupération des valeurs existantes
+    const statut = document.getElementById('edit-statut').value;
+    const role = document.getElementById('edit-role') ? document.getElementById('edit-role').value : 'EMPLOYEE';
+    const dept = document.getElementById('edit-dept') ? document.getElementById('edit-dept').value : '';
+    const typeContrat = document.getElementById('edit-type-contrat').value;
+    const typeActivité = document.getElementById('edit-type').value;
+    const newStartDate = document.getElementById('edit-start-date').value;
+    const forceInit = document.getElementById('edit-init-check').checked;
 
-        
-        // NOUVEAU : Récupération Date & Checkbox
-        const newStartDate = document.getElementById('edit-start-date').value;
-        const forceInit = document.getElementById('edit-init-check').checked;
+    // --- NOUVEAU : Récupération des données financières ---
+    const salaire = document.getElementById('edit-salaire-fixe').value;
+    const transport = document.getElementById('edit-indemnite-transport').value;
+    const logement = document.getElementById('edit-indemnite-logement').value;
 
-        Swal.fire({title: 'Mise à jour...', text: 'Synchronisation...', allowOutsideClick: false, didOpen: () => Swal.showLoading()}); 
-            const managerId = document.getElementById('edit-manager').value;
-            const scopeVal = document.getElementById('edit-scope').value;
-            const scopeArray = scopeVal ? scopeVal.split(',').map(s=>s.trim()) : [];
-        // Construction propre des paramètres pour Supabase
-        const params = new URLSearchParams({
-            id: id,
-            agent: currentUser.nom,
-            statut: statut,
-            role: role,
-            dept: dept,
-            limit: typeContrat,
-            start_date: newStartDate,
-            employee_type: typeActivité, 
-            force_init: forceInit,
-            manager_id: managerId,
-            scope: JSON.stringify(scopeArray) // On encode le tableau
-        });
+    Swal.fire({title: 'Mise à jour...', text: 'Synchronisation...', allowOutsideClick: false, didOpen: () => Swal.showLoading()}); 
+    
+    const managerId = document.getElementById('edit-manager').value;
+    const scopeVal = document.getElementById('edit-scope').value;
+    const scopeArray = scopeVal ? scopeVal.split(',').map(s=>s.trim()) : [];
 
-        try {
-            const response = await secureFetch(`${URL_UPDATE}?${params.toString()}`);
-            if(response.ok) {
-                closeEditModal(); 
-                await Swal.fire('Succès', 'Contrat et dossier mis à jour', 'success'); 
+    // Construction des paramètres pour Supabase
+    const params = new URLSearchParams({
+        id: id,
+        agent: currentUser.nom,
+        statut: statut,
+        role: role,
+        dept: dept,
+        limit: typeContrat,
+        start_date: newStartDate,
+        employee_type: typeActivité, 
+        force_init: forceInit,
+        manager_id: managerId,
+        scope: JSON.stringify(scopeArray),
+        // --- NOUVEAU : Envoi des montants financiers ---
+        salaire_brut_fixe: salaire,
+        indemnite_transport: transport,
+        indemnite_logement: logement
+    });
 
-                // Mise à jour globale (Liste + Graphiques + Stats)
-                refreshAllData(true); 
+    try {
+        const response = await secureFetch(`${URL_UPDATE}?${params.toString()}`);
+        if(response.ok) {
+            closeEditModal(); 
+            await Swal.fire('Succès', 'Contrat et dossier mis à jour', 'success'); 
 
-            } else {
-                throw new Error("Erreur serveur lors de la mise à jour");
-            }
-        } catch(e) { 
-            Swal.fire('Erreur', e.message, 'error'); 
+            // Mise à jour globale (Liste + Graphiques + Stats)
+            refreshAllData(true); 
+
+        } else {
+            throw new Error("Erreur serveur lors de la mise à jour");
         }
+    } catch(e) { 
+        Swal.fire('Erreur', e.message, 'error'); 
     }
-
+}
         
         function closeEditModal(){document.getElementById('edit-modal').classList.add('hidden');}
             
@@ -7798,6 +7856,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
