@@ -42,7 +42,7 @@
     <!-- Logo Container -->
     <div class="relative mb-8">
         <div class="absolute inset-0 bg-blue-500 rounded-full blur-xl opacity-20 animate-pulse"></div>
-        <div class="relative bg-slate-800 p-6 rounded-3xl border border-slate-700 shadow-2xl flex items-center justify-center">
+        <div class="relative bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-2xl flex items-center justify-center">
             <i class="fa-solid fa-fingerprint text-5xl text-blue-500 animate-pulse"></i>
         </div>
     </div>
@@ -65,30 +65,66 @@
         <div id="sidebar-overlay" onclick="toggleSidebar()" class="fixed inset-0 bg-slate-900/80 z-40 hidden md:hidden transition-opacity backdrop-blur-sm"></div>
 
         <!-- ECRAN DE CONNEXION -->
-        <div id="login-screen" class="fixed inset-0 bg-slate-900 flex items-center justify-center z-[100] transition-all duration-500 p-4">
-            <div class="bg-white p-6 md:p-10 rounded-3xl shadow-2xl w-full max-w-md border border-slate-100">
-                <div class="text-center mb-8">
-                    <div class="inline-flex items-center justify-center w-20 h-20 bg-blue-600 rounded-2xl shadow-xl shadow-blue-500/30 mb-6 text-white"><i class="fa-solid fa-fingerprint text-3xl"></i></div>
-                    <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight text-center">SIRH Secure</h1>
-                    <p class="text-slate-400 mt-2 font-medium text-center">Portail De Connexion</p>
-                </div>
-                <form onsubmit="handleLogin(event)" class="space-y-5">
-                    <div><label class="block text-xs font-bold text-slate-500 uppercase mb-2">Identifiant</label><input type="text" id="login-user" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" required></div>
-                    <div><label class="block text-xs font-bold text-slate-500 uppercase mb-2">Mot de passe</label><input type="password" id="login-pass" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" required></div>
-                    <button type="submit" id="btn-login" class="w-full bg-blue-600 text-white font-bold py-4 rounded-xl hover:bg-blue-700 shadow-lg transition-all active:scale-95 uppercase tracking-widest">Se Connecter</button>
-                    <div class="text-center mt-4">
-                    <button type="button" onclick="handleForgotPassword()" class="text-xs font-bold text-blue-600 hover:underline">Mot de passe oublié ?</button>
-</div>
-                </form>
+<div id="login-screen" class="fixed inset-0 bg-slate-900 flex items-center justify-center z-[100] transition-all duration-500 p-4 sm:p-6">
+
+    <!-- Carte Principale -->
+<div class="bg-white relative w-full max-w-[420px] p-5 sm:p-6 rounded-xl shadow-xl z-10 flex flex-col gap-6 border border-slate-100">
+        
+        <!-- En-tête -->
+        <div class="flex flex-col items-center text-center">
+            <div class="flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 bg-blue-600 rounded-2xl sm:rounded-[1.5rem] shadow-xl shadow-blue-500/30 mb-4 text-white transition-transform hover:scale-105 duration-300">
+                <i class="fa-solid fa-fingerprint text-3xl sm:text-4xl"></i>
             </div>
+            <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">SIRH-SECURE</h1>
+            <p class="text-slate-500 mt-1.5 text-sm sm:text-base font-medium">Connectez-vous à votre espace</p>
         </div>
 
+        <!-- Formulaire -->
+        <form onsubmit="handleLogin(event)" class="flex flex-col gap-5 mt-2">
+            
+            <!-- Champ Identifiant -->
+            <div class="relative">
+                <label for="login-user" class="block text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2 ml-1">Identifiant</label>
+                <!-- Group permet de changer la couleur de l'icône quand on clique sur l'input -->
+                <div class="relative group">
+                    <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-600 transition-colors">
+                        <i class="fa-solid fa-user"></i>
+                    </div>
+                    <input type="text" id="login-user" class="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all placeholder-slate-400 text-sm" placeholder="exemple@email.com" required>
+                </div>
+            </div>
+
+            <!-- Champ Mot de passe -->
+            <div class="relative">
+                <!-- Astuce UX : Mettre le lien "oublié" sur la même ligne que le label -->
+                <div class="flex justify-between items-end mb-2 ml-1 mr-1">
+                    <label for="login-pass" class="block text-[11px] font-bold text-slate-500 uppercase tracking-widest">Mot de passe</label>
+                    
+                    <!-- Remplacé par une balise <a> pour éviter le conflit avec ton CSS des boutons -->
+                    <a href="#" onclick="handleForgotPassword(); return false;" class="text-[11px] font-bold text-blue-600 hover:text-blue-800 hover:underline transition-all">Oublié ?</a>
+                </div>
+                <div class="relative group">
+                    <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-600 transition-colors">
+                        <i class="fa-solid fa-lock"></i>
+                    </div>
+                    <input type="password" id="login-pass" class="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all placeholder-slate-400 text-sm" placeholder="••••••••" required>
+                </div>
+            </div>
+
+            <!-- Bouton Submit -->
+            <button type="submit" id="btn-login" class="mt-4 w-full bg-blue-600 text-white font-bold py-4 rounded-xl hover:bg-blue-700 shadow-md transition-all active:scale-95 uppercase tracking-widest flex justify-center items-center gap-2">
+                <span>Se Connecter</span>
+                <i class="fa-solid fa-arrow-right"></i>
+            </button>
+        </form>
+    </div>
+</div>
         <!-- APP LAYOUT -->
         <div id="app-layout" class="hidden h-screen flex flex-col md:flex-row overflow-hidden relative">
-            <aside id="sidebar" class="w-72 bg-slate-900 text-slate-300 flex flex-col fixed md:relative inset-y-0 left-0 z-50 transform -translate-x-full md:translate-x-0 transition-transform duration-300 border-r border-slate-800">
-                <div class="p-8 flex-1 overflow-y-auto">
+        <!-- Nouvelle version de la balise aside -->
+            <aside id="sidebar" class="w-72 bg-slate-900 text-slate-300 flex flex-col fixed md:sticky inset-y-0 left-0 z-50 transform transition-transform duration-300 border-r border-slate-800">                
+                <div class="p-5 flex-1 overflow-y-auto">
                     <div class="flex items-center justify-between mb-10 text-white">
-    
     <div class="flex items-center gap-3">
         <div class="p-1.5 rounded-xl shadow-lg flex items-center justify-center" style="background-color: var(--accent); min-width: 40px; height: 40px;">
             <img src="" class="app-logo-display w-7 h-7 object-contain">
@@ -271,8 +307,10 @@
 
 
                 <div class="flex items-center flex-1 max-w-2xl gap-3">
-                        <button onclick="toggleSidebar()" class="md:hidden p-2 text-slate-600 bg-white border border-slate-200 rounded-lg"><i class="fa-solid fa-bars text-lg"></i></button>
-                        <div id="global-search-container" class="relative w-full">
+                    <button onclick="toggleSidebar()" class="p-2 text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-all">
+                        <i class="fa-solid fa-bars-staggered text-lg"></i>
+                    </button>                        
+                    <div id="global-search-container" class="relative w-full">
                             <i class="fa-solid fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
                             <input type="text" id="search-input" onkeyup="filterTable()" placeholder="Rechercher..." class="w-full pl-12 pr-4 py-3 bg-slate-100 border-none rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none text-sm transition-all">
                         </div>
@@ -283,7 +321,7 @@
                     <button onclick="startScanner()" class="bg-slate-900 text-white px-5 py-2.5 rounded-xl text-sm font-bold ml-4 transition-all hover:scale-105 shadow-lg active:scale-95"><i class="fa-solid fa-qrcode mr-2"></i> SCANNER</button>
                 </header>
 
-    <div id="main-scroll-container" class="flex-1 overflow-y-auto p-3 md:p-8 scroll-smooth no-scrollbar">             
+    <div id="main-scroll-container" class="flex-1 overflow-y-auto p-3 md:p-5 scroll-smooth no-scrollbar">             
                     
 
                     <!-- CONTENEUR POUR PLUSIEURS ALERTES -->
@@ -323,9 +361,9 @@
             <i id="w-stats-icon" class="fa-solid fa-chevron-up text-slate-300 group-hover:text-blue-600 transition-all"></i>
         </div>
         <div id="w-stats-content" class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-            <div class="bg-white p-7 rounded-3xl shadow-sm border border-slate-100"><p class="text-slate-400 text-xs font-bold uppercase tracking-widest">Effectif Total</p><h3 id="stat-total" class="text-4xl font-black mt-2 text-slate-800">0</h3></div>
-            <div class="bg-white p-7 rounded-3xl shadow-sm border border-slate-100"><p class="text-slate-400 text-xs font-bold uppercase tracking-widest">Alertes Contrats</p><h3 id="stat-alert" class="text-4xl font-black mt-2 text-red-600">0</h3></div>
-            <div class="bg-white p-7 rounded-3xl shadow-sm border border-slate-100"><p class="text-slate-400 text-xs font-bold uppercase tracking-widest">Collaborateurs Actifs</p><h3 id="stat-active" class="text-4xl font-black mt-2 text-emerald-600">0</h3></div>
+            <div class="bg-white p-7 rounded-xl shadow-sm border border-slate-100"><p class="text-slate-400 text-xs font-bold uppercase tracking-widest">Effectif Total</p><h3 id="stat-total" class="text-4xl font-black mt-2 text-slate-800">0</h3></div>
+            <div class="bg-white p-7 rounded-xl shadow-sm border border-slate-100"><p class="text-slate-400 text-xs font-bold uppercase tracking-widest">Alertes Contrats</p><h3 id="stat-alert" class="text-4xl font-black mt-2 text-red-600">0</h3></div>
+            <div class="bg-white p-7 rounded-xl shadow-sm border border-slate-100"><p class="text-slate-400 text-xs font-bold uppercase tracking-widest">Collaborateurs Actifs</p><h3 id="stat-active" class="text-4xl font-black mt-2 text-emerald-600">0</h3></div>
         </div>
     </div>
 
@@ -336,7 +374,7 @@
             <i id="w-live-icon" class="fa-solid fa-chevron-up text-slate-300 group-hover:text-blue-600 transition-all"></i>
         </div>
         <div id="w-live-content" class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-            <div class="bg-emerald-500 rounded-3xl p-6 text-white shadow-lg shadow-emerald-200 relative overflow-hidden">
+            <div class="bg-emerald-500 rounded-xl p-6 text-white shadow-lg shadow-emerald-200 relative overflow-hidden">
                 <div class="relative z-10">
                     <p class="text-[10px] font-black uppercase opacity-80">En poste actuellement</p>
                     <h3 id="live-presents-count" class="text-4xl font-black mt-1">0</h3>
@@ -344,7 +382,7 @@
                 </div>
                 <i class="fa-solid fa-house-user absolute -right-4 -bottom-4 text-6xl opacity-20"></i>
             </div>
-            <div class="bg-blue-500 rounded-3xl p-6 text-white shadow-lg shadow-blue-200 relative overflow-hidden">
+            <div class="bg-blue-500 rounded-xl p-6 text-white shadow-lg shadow-blue-200 relative overflow-hidden">
                 <div class="relative z-10">
                     <p class="text-[10px] font-black uppercase opacity-80">Journée terminée</p>
                     <h3 id="live-partis-count" class="text-4xl font-black mt-1">0</h3>
@@ -352,7 +390,7 @@
                 </div>
                 <i class="fa-solid fa-car-side absolute -right-4 -bottom-4 text-6xl opacity-20"></i>
             </div>
-            <div class="bg-slate-800 rounded-3xl p-6 text-white shadow-lg relative overflow-hidden">
+            <div class="bg-slate-800 rounded-xl p-6 text-white shadow-lg relative overflow-hidden">
                 <div class="relative z-10">
                     <p class="text-[10px] font-black uppercase opacity-80">Absents / Non pointés</p>
                     <h3 id="live-absents-count" class="text-4xl font-black mt-1">0</h3>
@@ -369,12 +407,12 @@
             <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Analyses Graphiques</h3>
             <i id="w-charts-icon" class="fa-solid fa-chevron-up text-slate-300 group-hover:text-blue-600 transition-all"></i>
         </div>
-        <div id="w-charts-content" class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
-            <div class="bg-white p-6 rounded-3xl shadow-xl border border-slate-100">
+        <div id="w-charts-content" class="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-10">
+            <div class="bg-white p-6 rounded-xl shadow-xl border border-slate-100">
                 <p class="font-bold text-slate-700 mb-4 uppercase text-xs tracking-widest">Répartition par Statut</p>
                 <canvas id="chartStatus" height="200"></canvas>
             </div>
-            <div class="bg-white p-6 rounded-3xl shadow-xl border border-slate-100">
+            <div class="bg-white p-6 rounded-xl shadow-xl border border-slate-100">
                 <p class="font-bold text-slate-700 mb-4 uppercase text-xs tracking-widest">Répartition par Département</p>
                 <canvas id="chartDept" height="200"></canvas>
             </div>
@@ -388,7 +426,7 @@
             <i id="w-leaves-icon" class="fa-solid fa-chevron-up text-slate-300 group-hover:text-blue-600 transition-all"></i>
         </div>
     <div id="w-leaves-content" data-perm="can_see_employees">
-            <div id="manager-leave-section" class="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden mb-10">
+            <div id="manager-leave-section" class="bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden mb-10">
                 <div class="px-8 py-6 border-b border-slate-100 font-extrabold text-slate-700 flex items-center gap-2">
                     <i class="fa-solid fa-clipboard-check text-blue-500"></i> Demandes de congés à valider
                 </div>
@@ -417,7 +455,7 @@
             <i id="w-alerts-icon" class="fa-solid fa-chevron-up text-slate-300 group-hover:text-blue-600 transition-all"></i>
         </div>
         <div id="w-alerts-content">
-            <div class="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden">
+            <div class="bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden">
                 <div class="px-8 py-6 border-b border-slate-100 font-extrabold text-slate-700 flex items-center gap-2">
                     <i class="fa-solid fa-hourglass-half text-orange-500"></i> Alertes Fin de Contrat / Essai
                 </div>
@@ -491,7 +529,7 @@
         </div>
 
         <!-- TABLEAU -->
-        <div class="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden min-h-[500px] flex flex-col justify-between">
+        <div class="bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden min-h-[500px] flex flex-col justify-between">
             <div class="overflow-x-auto">
                 <table class="w-full text-left whitespace-nowrap">
                     <thead class="bg-slate-900 text-white text-[10px] uppercase font-bold">
@@ -520,12 +558,12 @@
                     <!-- VUE 3: AJOUT -->
                   
         <section id="view-add-new" class="view-section">
-    <div class="max-w-4xl mx-auto bg-white rounded-3xl shadow-2xl overflow-hidden border">
+    <div class="max-w-4xl mx-auto bg-white rounded-xl shadow-2xl overflow-hidden border">
         <div class="bg-slate-900 px-10 py-6 text-white flex justify-between items-center">
             <h2 class="text-xl font-bold">Nouveau Profil</h2>
             <i class="fa-solid fa-user-plus opacity-20 text-3xl"></i>
         </div>
-        <form id="form-onboarding" onsubmit="handleOnboarding(event)" class="p-10 grid grid-cols-1 md:grid-cols-3 gap-8">
+        <form id="form-onboarding" onsubmit="handleOnboarding(event)" class="p-6 grid grid-cols-1 md:grid-cols-3 gap-5">
 <!-- 1. SECTION IDENTITÉ GÉNÉRALE -->
 <div class="md:col-span-2 space-y-4">
     <!-- Ligne Civilité + Nom -->
@@ -584,7 +622,7 @@
 
     
     <!-- 3. SECTION CONTRAT & FINANCES (Le nouveau bloc intelligent) -->
-    <div class="md:col-span-2 bg-green-50 p-6 rounded-[2rem] border-2 border-dashed border-green-200 space-y-6">
+    <div class="md:col-span-2 bg-green-50 p-6 rounded-xl border-2 border-dashed border-green-200 space-y-6">
         <p class="text-[10px] font-black text-green-600 uppercase tracking-widest flex items-center gap-2">
             <i class="fa-solid fa-file-signature text-lg"></i> Conditions Contractuelles & Modèle
         </p>
@@ -780,7 +818,7 @@
                             </div>
                         </div>
 
-                        <div class="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden">
+                        <div class="bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden">
                             <div class="overflow-x-auto">
                                 <table class="w-full text-left whitespace-nowrap">
                                     <thead class="bg-slate-900 text-white text-[10px] uppercase font-bold">
@@ -819,7 +857,7 @@
             <input type="file" id="payroll-csv-file" class="hidden" accept=".csv" onchange="handlePayrollImport(event)">
         </div>
 
-        <div class="flex gap-4 bg-white p-3 rounded-[2rem] shadow-xl border border-slate-100 items-center">
+        <div class="flex gap-4 bg-white p-3 rounded-xl shadow-xl border border-slate-100 items-center">
             <div class="flex flex-col">
                 <label class="text-[9px] font-black text-slate-400 uppercase ml-1">Période de paie</label>
                 <div class="flex gap-2">
@@ -837,7 +875,7 @@
 
     <!-- 2. BARRE DE FILTRES INTELLIGENTE -->
 <!-- BARRE DE FILTRES COMPTABILITÉ AVANCÉE -->
-<div class="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 mb-6 space-y-4">
+<div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 mb-6 space-y-4">
     <div class="flex flex-wrap gap-4 items-center">
         
         <!-- 1. Recherche Nom/Matricule -->
@@ -883,7 +921,7 @@
 </div>
 
     <!-- 3. TABLEAU DES SALAIRES -->
-    <div class="bg-white rounded-[2rem] shadow-2xl border border-slate-200 overflow-hidden">
+    <div class="bg-white rounded-xl shadow-2xl border border-slate-200 overflow-hidden">
         <div class="max-h-[60vh] overflow-y-auto custom-scroll">
             <table class="w-full text-left border-collapse">
                 <thead class="sticky top-0 z-10">
@@ -905,8 +943,8 @@
 
                     <!-- VUE 4: LOGS -->
                     <section id="view-logs" class="view-section">
-                        <div class="bg-white rounded-3xl shadow-xl border overflow-hidden">
-                            <div class="p-8 border-b font-black text-slate-800 flex justify-between items-center uppercase text-sm">Journal d'Audit Système <button onclick="fetchLogs()" class="text-blue-600"><i class="fa-solid fa-rotate"></i></button></div>
+                        <div class="bg-white rounded-xl shadow-xl border overflow-hidden">
+                            <div class="p-5 border-b font-black text-slate-800 flex justify-between items-center uppercase text-sm">Journal d'Audit Système <button onclick="fetchLogs()" class="text-blue-600"><i class="fa-solid fa-rotate"></i></button></div>
                             <div class="overflow-x-auto"><table class="w-full text-left whitespace-nowrap"><thead class="bg-slate-900 text-white text-[10px] uppercase"><tr><th class="p-5">Date</th><th class="p-5">Agent</th><th class="p-5">Action</th><th class="p-5">Détails</th></tr></thead><tbody id="logs-body"></tbody></table></div>
                         </div>
                     </section>
@@ -930,8 +968,8 @@
         <!-- Bandeau décoratif -->
         <div class="h-2 bg-gradient-to-r from-slate-700 to-slate-900"></div>
         
-        <div class="p-8 md:p-12">
-            <div class="flex flex-col md:flex-row gap-8 items-start">
+        <div class="p-5 md:p-12">
+            <div class="flex flex-col md:flex-row gap-5 items-start">
                 
                 <!-- Icône et Description -->
                 <div class="flex-1">
@@ -962,7 +1000,7 @@
                 </div>
 
                 <!-- Zone d'Action -->
-                <div class="w-full md:w-1/3 bg-slate-50 rounded-3xl p-6 border border-slate-200 text-center">
+                <div class="w-full md:w-1/3 bg-slate-50 rounded-xl p-6 border border-slate-200 text-center">
                     <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Action Administrateur</p>
                     <button onclick="runArchivingJob()" class="w-full bg-slate-900 text-white py-4 rounded-xl font-black text-xs uppercase tracking-widest shadow-xl hover:bg-red-600 transition-all active:scale-95 flex items-center justify-center gap-3">
                         <i class="fa-solid fa-recycle"></i> Lancer le Nettoyage
@@ -988,7 +1026,7 @@
     </div>
 
     <!-- Zone des messages (Scrollable) -->
-    <div id="chat-container" class="flex-1 bg-white rounded-[2rem] shadow-inner border border-slate-200 p-6 overflow-y-auto custom-scroll space-y-6 mb-4 relative" style="height: 60vh; background-image: radial-gradient(#f1f5f9 1px, transparent 1px); background-size: 20px 20px;">
+    <div id="chat-container" class="flex-1 bg-white rounded-xl shadow-inner border border-slate-200 p-6 overflow-y-auto custom-scroll space-y-6 mb-4 relative" style="height: 60vh; background-image: radial-gradient(#f1f5f9 1px, transparent 1px); background-size: 20px 20px;">
         <!-- Les messages s'afficheront ici -->
         <div class="flex flex-col items-center justify-center h-full text-slate-300 gap-3">
             <i class="fa-regular fa-comments text-4xl"></i>
@@ -1013,7 +1051,7 @@
     
 
     <!-- Barre de saisie (Fixe en bas) -->
-    <form onsubmit="sendMessage(event)" class="bg-white p-3 rounded-[2rem] border border-slate-200 shadow-xl flex items-end gap-2 shrink-0">
+    <form onsubmit="sendMessage(event)" class="bg-white p-3 rounded-xl border border-slate-200 shadow-xl flex items-end gap-2 shrink-0">
         
         <!-- Bouton Pièce Jointe -->
         <label for="chat-file" class="p-4 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-full cursor-pointer transition-all relative">
@@ -1038,7 +1076,7 @@
             <h2 class="text-2xl font-extrabold text-slate-800 mb-8">Mon Espace Personnel</h2>
 
             <!-- WIDGET POINTAGE & ACTION -->
-            <div class="bg-slate-900 rounded-3xl p-6 mb-8 text-white shadow-xl flex flex-col md:flex-row items-center justify-between relative overflow-hidden">
+            <div class="bg-slate-900 rounded-xl p-6 mb-8 text-white shadow-xl flex flex-col md:flex-row items-center justify-between relative overflow-hidden">
                 <div class="absolute top-0 right-0 w-64 h-64 bg-blue-600 rounded-full blur-[80px] opacity-20 pointer-events-none"></div>
                 
                 <div class="z-10 mb-6 md:mb-0 text-center md:text-left">
@@ -1065,7 +1103,7 @@
 
 
                         <!-- NOUVEAU WIDGET SOLDE CONGÉS -->
-            <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 mb-8 flex justify-between items-center">
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 mb-8 flex justify-between items-center">
                 <div>
                     <p class="text-slate-400 text-xs font-bold uppercase tracking-widest">Solde Congés Restant</p>
                     <h3 id="leave-balance-display" class="text-4xl font-black mt-2 text-indigo-600">--</h3>
@@ -1075,16 +1113,16 @@
             <!-- FIN NOUVEAU WIDGET SOLDE CONGÉS -->
 
             <!-- WIDGET POINTAGE & ACTION (Qui est déjà là) -->
-            <div class="bg-slate-900 rounded-3xl p-6 mb-8 text-white shadow-xl flex flex-col md:flex-row items-center justify-between relative overflow-hidden">
+            <div class="bg-slate-900 rounded-xl p-6 mb-8 text-white shadow-xl flex flex-col md:flex-row items-center justify-between relative overflow-hidden">
                 <!-- ... le reste du code du pointage ... -->
             </div>
 
             <!-- ZONE HAUTE : PHOTO (Gauche) + FORMULAIRE (Droite) -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
                 
                 <!-- COLONNE GAUCHE : PHOTO & IDENTITÉ -->
                 <div class="space-y-6">
-                    <div class="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 text-center relative overflow-hidden h-full">
+                    <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-100 text-center relative overflow-hidden h-full">
                         <div class="absolute top-0 left-0 w-full h-24 bg-blue-600/10"></div>
                         <div class="relative">
                             <div class="w-28 h-28 bg-white p-1 rounded-full mx-auto mb-4 shadow-lg overflow-hidden relative group">
@@ -1105,7 +1143,7 @@
 
                 <!-- COLONNE DROITE : FORMULAIRE -->
                 <div class="md:col-span-2 space-y-6">
-                    <div class="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 h-full">
+                    <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-100 h-full">
                         <div class="flex justify-between items-center mb-8"><h3 class="font-bold text-lg text-slate-800">Coordonnées</h3><button data-perm="can_edit_own_profile" onclick="toggleEditMode()" class="text-blue-600 text-sm font-bold bg-blue-50 px-4 py-1.5 rounded-lg active:scale-95 transition-all">Modifier</button></div>
                         <form id="form-self-update" class="space-y-5">
                             <input type="file" id="emp-upload-photo" class="hidden" accept="image/*" onchange="previewPhoto(event)">
@@ -1128,7 +1166,7 @@
             
 
                 <!-- BLOC SUIVI DEMANDES CONGÉS (Employé) -->
-    <div class="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 mb-8">
+    <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-100 mb-8">
         <h3 class="font-black text-xs uppercase text-slate-400 mb-6 flex items-center gap-2 tracking-widest">
             <i class="fa-solid fa-hourglass-half text-blue-500 text-lg"></i> Mes Demandes de Congés
         </h3>
@@ -1154,13 +1192,13 @@
 <!-- RECAPITULATIF POUR DELEGUES UNIQUEMENT (Ajout de l'ID ici) -->
 <div id="mobile-recap-section" class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 hidden">
     <!-- RECAP VISITES DU JOUR -->
-    <div class="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
+    <div class="bg-white p-6 rounded-xl border border-slate-100 shadow-sm">
         <h4 class="text-[10px] font-black text-slate-400 uppercase mb-4 tracking-widest"><i class="fa-solid fa-location-dot mr-2"></i> Mes Visites du Jour</h4>
         <div id="my-today-visits" class="space-y-2 max-h-48 overflow-y-auto custom-scroll"></div>
     </div>
 
     <!-- RECAP BILANS DU MOIS -->
-    <div class="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
+    <div class="bg-white p-6 rounded-xl border border-slate-100 shadow-sm">
         <h4 class="text-[10px] font-black text-slate-400 uppercase mb-4 tracking-widest"><i class="fa-solid fa-clipboard-check mr-2"></i> Mes Bilans Mensuels</h4>
         <div id="my-month-dailies" class="space-y-2 max-h-48 overflow-y-auto custom-scroll"></div>
     </div>
@@ -1172,7 +1210,7 @@
             <div class="space-y-8">
                 
                 <!-- BLOC DOCUMENTS -->
-                <div class="bg-white p-8 rounded-3xl shadow-sm border border-slate-100">
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-100">
                     <h3 class="font-black text-xs uppercase text-slate-400 mb-6 flex items-center gap-2 tracking-widest">
                         <i class="fa-solid fa-folder-open text-yellow-500 text-lg"></i> Mes Documents Administratifs
                     </h3>
@@ -1183,7 +1221,7 @@
 
 
             <!-- Bloc Rapports avec Scroll -->
-            <div class="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 mb-8">
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-100 mb-8">
                 <div class="flex justify-between items-center mb-4"> <!-- mb réduit -->
                     <h3 class="font-black text-xs uppercase text-slate-400 flex items-center gap-2 tracking-widest">
                         <i class="fa-solid fa-clock-rotate-left text-indigo-500 text-lg"></i> Mes Rapports d'Activité
@@ -1202,7 +1240,7 @@
 
 
                                         <!-- Bloc Paie avec Scroll -->
-                <div class="bg-white p-8 rounded-3xl shadow-sm border border-slate-100">
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-100">
                     <div class="flex justify-between items-center mb-4">
                         <h3 class="font-black text-xs uppercase text-slate-400 flex items-center gap-2 tracking-widest">
                             <i class="fa-solid fa-file-invoice-dollar text-emerald-500 text-lg"></i> Mes Bulletins de Paie
@@ -1236,7 +1274,7 @@
             <h2 class="text-2xl font-extrabold text-slate-800 mb-8">Centre d'Information</h2>
 
             <!-- ZONE 1 : FLASH INFO / ANNONCE GÉNÉRALE -->
-            <div class="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-3xl p-8 text-white shadow-xl mb-10 relative overflow-hidden">
+            <div class="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl p-5 text-white shadow-xl mb-10 relative overflow-hidden">
                 <div class="relative z-10">
                     <div class="flex items-center gap-3 mb-4">
                         <span class="bg-white/20 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-white/30">Note de service</span>
@@ -1258,7 +1296,7 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
                 
                 <!-- Carte 1 : Pointage -->
-                <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-all">
+                <div class="bg-white p-6 rounded-xl border border-slate-100 shadow-sm hover:shadow-md transition-all">
                     <div class="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center text-xl mb-4">
                         <i class="fa-solid fa-fingerprint"></i>
                     </div>
@@ -1273,7 +1311,7 @@
                 </div>
 
                 <!-- Carte 2 : Congés -->
-                <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-all">
+                <div class="bg-white p-6 rounded-xl border border-slate-100 shadow-sm hover:shadow-md transition-all">
                     <div class="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center text-xl mb-4">
                         <i class="fa-solid fa-plane-departure"></i>
                     </div>
@@ -1288,7 +1326,7 @@
                 </div>
 
                 <!-- Carte 3 : Documents -->
-                <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-all">
+                <div class="bg-white p-6 rounded-xl border border-slate-100 shadow-sm hover:shadow-md transition-all">
                     <div class="w-12 h-12 bg-orange-50 text-orange-600 rounded-2xl flex items-center justify-center text-xl mb-4">
                         <i class="fa-solid fa-folder-open"></i>
                     </div>
@@ -1300,7 +1338,7 @@
                 </div>
 
                 <!-- Carte 4 : Support -->
-                <div class="bg-slate-900 p-6 rounded-3xl border border-slate-800 shadow-sm text-white">
+                <div class="bg-slate-900 p-6 rounded-xl border border-slate-800 shadow-sm text-white">
                     <div class="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-xl mb-4">
                         <i class="fa-solid fa-headset"></i>
                     </div>
@@ -1363,7 +1401,7 @@
         </button>
     </div>
 
-    <div class="bg-white rounded-[2rem] shadow-xl border border-slate-200 overflow-hidden">
+    <div class="bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden">
         <div class="overflow-x-auto">
             <table class="w-full text-left whitespace-nowrap">
                 <thead class="bg-slate-900 text-white text-[10px] uppercase font-bold">
@@ -1438,7 +1476,7 @@
         
         <section id="view-mobile-reports" class="view-section">
             <!-- 1. BARRE DE FILTRES PRO -->
-            <div class="bg-white p-6 rounded-[2rem] shadow-sm border mb-6 flex flex-wrap gap-4 items-end">
+            <div class="bg-white p-6 rounded-xl shadow-sm border mb-6 flex flex-wrap gap-4 items-end">
                 <div class="flex-1 min-w-[200px]">
                     <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Rechercher un délégué</label>
                     <input type="text" id="filter-report-name" 
@@ -1462,7 +1500,7 @@
             <!-- 2. ZONE DE STATISTIQUES (3 CARTES PREMIUM INTÉGRÉES) -->
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
                 <!-- Carte 1 : Visites -->
-                <div class="bg-slate-900 p-6 rounded-[2rem] text-white shadow-xl relative overflow-hidden">
+                <div class="bg-slate-900 p-6 rounded-xl text-white shadow-xl relative overflow-hidden">
                     <div class="relative z-10">
                         <p id="stat-report-label" class="text-[10px] font-black uppercase opacity-60 tracking-widest">Visites Identifiées</p>
                         <h3 id="stat-visites-total" class="text-4xl font-black mt-1">0</h3>
@@ -1471,7 +1509,7 @@
                 </div>
                 
                 <!-- Carte 2 : Produits (NOUVEAU) -->
-                <div class="bg-blue-600 p-6 rounded-[2rem] text-white shadow-xl relative overflow-hidden">
+                <div class="bg-blue-600 p-6 rounded-xl text-white shadow-xl relative overflow-hidden">
                     <div class="relative z-10">
                         <p class="text-[10px] font-black uppercase opacity-80 tracking-widest">Produits Présentés</p>
                         <h3 id="stat-produits-total" class="text-4xl font-black mt-1">0</h3>
@@ -1480,7 +1518,7 @@
                 </div>
         
                 <!-- Carte 3 : Agents (NOUVEAU) -->
-                <div class="bg-emerald-500 p-6 rounded-[2rem] text-white shadow-xl relative overflow-hidden">
+                <div class="bg-emerald-500 p-6 rounded-xl text-white shadow-xl relative overflow-hidden">
                     <div class="relative z-10">
                         <p class="text-[10px] font-black uppercase opacity-80 tracking-widest">Agents sur le terrain</p>
                         <h3 id="stat-agents-actifs" class="text-4xl font-black mt-1">0</h3>
@@ -1560,7 +1598,7 @@
     <div class="bg-white w-full max-w-5xl rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col md:flex-row h-[90vh] md:h-auto max-h-[95vh] border border-white/20 animate-fadeIn">
         
         <!-- COLONNE GAUCHE : IDENTITÉ (Design Immersif) -->
-        <div class="md:w-1/3 bg-slate-900 p-8 text-white flex flex-col items-center text-center shrink-0">
+        <div class="md:w-1/3 bg-slate-900 p-5 text-white flex flex-col items-center text-center shrink-0">
             <!-- Photo avec bordure et ombre portée -->
             <div class="w-32 h-32 rounded-[2.5rem] bg-slate-800 mb-6 overflow-hidden border-2 border-slate-700 shadow-2xl">
                 <img id="folder-photo" class="w-full h-full object-cover">
@@ -1590,7 +1628,7 @@
         </div>
 
         <!-- COLONNE DROITE : ARCHIVES & CONTACTS (Aéré & Lisible) -->
-        <div class="flex-1 p-8 md:p-12 md:overflow-y-auto bg-slate-50 custom-scroll min-h-[400px]">
+        <div class="flex-1 p-5 md:p-12 md:overflow-y-auto bg-slate-50 custom-scroll min-h-[400px]">
             
             <!-- Titre Section 1 -->
             <div class="flex items-center gap-4 mb-8">
@@ -1637,7 +1675,7 @@
     <div id="edit-modal" class="fixed inset-0 bg-slate-900/60 hidden flex items-center justify-center z-[200] p-4 backdrop-blur-md transition-all duration-300">
         
         <!-- Boite principale avec arrondi XL et ombre profonde -->
-        <div class="bg-white w-full max-w-lg rounded-[2.5rem] p-10 shadow-2xl overflow-y-auto max-h-[90vh] border border-white/20 animate-fadeIn">
+        <div class="bg-white w-full max-w-lg rounded-[2.5rem] p-6 shadow-2xl overflow-y-auto max-h-[90vh] border border-white/20 animate-fadeIn">
             
             <!-- En-tête de la modale -->
             <div class="flex justify-between items-center mb-10">
@@ -1692,7 +1730,7 @@
                 </div>
 
                 <!-- 2. BLOC : GESTION CONTRAT (Design Orange soft) -->
-                <div class="p-6 bg-orange-50/50 rounded-[2rem] border border-orange-100 space-y-4">
+                <div class="p-6 bg-orange-50/50 rounded-xl border border-orange-100 space-y-4">
                     <p class="text-[10px] font-black text-orange-600 uppercase tracking-widest flex items-center gap-2">
                         <i class="fa-solid fa-file-contract"></i> Cycle de vie du Contrat
                     </p>
@@ -1721,7 +1759,7 @@
                 </div>
 
                 <!-- 3. BLOC : HIÉRARCHIE (Design Indigo soft) -->
-                <div class="p-6 bg-indigo-50/50 rounded-[2rem] border border-indigo-100 space-y-4">
+                <div class="p-6 bg-indigo-50/50 rounded-xl border border-indigo-100 space-y-4">
                     <p class="text-[10px] font-black text-indigo-600 uppercase tracking-widest flex items-center gap-2">
                         <i class="fa-solid fa-sitemap"></i> Management & Hiérarchie
                     </p>
@@ -1751,7 +1789,7 @@
 <div id="contract-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-md hidden flex items-center justify-center z-[200] p-4 transition-all duration-300">
     
     <!-- Boite principale avec arrondi XL et alignement centré pour la confiance -->
-    <div class="bg-white w-full max-w-lg rounded-[2.5rem] p-10 shadow-2xl animate-fadeIn border border-white/20 text-center">
+    <div class="bg-white w-full max-w-lg rounded-[2.5rem] p-6 shadow-2xl animate-fadeIn border border-white/20 text-center">
         
         <!-- Icône de réassurance -->
         <div class="w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center text-2xl mx-auto mb-6 shadow-sm">
@@ -1764,7 +1802,7 @@
         <input type="hidden" id="contract-id-hidden">
         
         <!-- Cadre de signature stylisé -->
-        <div class="bg-slate-50 p-2 rounded-[2rem] border-2 border-dashed border-slate-200 mb-8 relative overflow-hidden">
+        <div class="bg-slate-50 p-2 rounded-xl border-2 border-dashed border-slate-200 mb-8 relative overflow-hidden">
             <canvas id="signature-pad" class="w-full h-48 bg-white rounded-[1.5rem] border border-slate-100 cursor-crosshair shadow-inner"></canvas>
             
             <!-- Bouton effacer repositionné de façon discrète -->
@@ -1797,7 +1835,7 @@
 <div id="leave-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-md hidden flex items-center justify-center z-[200] p-4 transition-all duration-300">
     
     <!-- Boite principale avec arrondi XL -->
-    <div class="bg-white w-full max-w-lg rounded-[2.5rem] p-10 shadow-2xl animate-fadeIn border border-white/20">
+    <div class="bg-white w-full max-w-lg rounded-[2.5rem] p-6 shadow-2xl animate-fadeIn border border-white/20">
         
         <!-- En-tête -->
         <div class="flex justify-between items-center mb-8">
@@ -1859,7 +1897,7 @@
             </div>
 
             <!-- 4. JUSTIFICATIF (Design Pro) -->
-            <div class="p-5 bg-blue-50/50 rounded-3xl border border-blue-100">
+            <div class="p-5 bg-blue-50/50 rounded-xl border border-blue-100">
                 <label class="block text-[9px] font-black text-blue-400 uppercase mb-3 ml-1">Pièce jointe / Justificatif</label>
                 <div class="flex items-center gap-4">
                     <!-- Preview -->
@@ -1891,7 +1929,7 @@
     <div id="flash-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-md hidden flex items-center justify-center z-[200] p-4 transition-all duration-300">
         
         <!-- Boite principale avec arrondi XL -->
-        <div class="bg-white w-full max-w-md rounded-[2.5rem] p-10 shadow-2xl animate-fadeIn border border-white/20">
+        <div class="bg-white w-full max-w-md rounded-[2.5rem] p-6 shadow-2xl animate-fadeIn border border-white/20">
             
             <!-- En-tête -->
             <div class="flex justify-between items-center mb-8">
@@ -1951,6 +1989,11 @@
     </body>
 
     </html>
+
+
+
+
+
 
 
 
