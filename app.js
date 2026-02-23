@@ -1248,18 +1248,24 @@ async function openAddTemplateModal() {
 
 
 
-
 async function setSession(n, r, id, perms) {
     currentUser = { nom: n, role: r, id: id, permissions: perms };
     
-    // --- NETTOYAGE PRÉVENTIF IMMÉDIAT ---
-    // On cache tout ce qui est sensible avant d'afficher quoi que ce soit
-    document.querySelectorAll('[data-perm]').forEach(el => el.style.display = 'none');
-    document.querySelectorAll('.menu-group').forEach(group => group.style.display = 'none');
-    
+    // --- 1. NETTOYAGE RADICAL (SOUS LE RIDEAU) ---
+    // On cache tout ce qui est protégé par défaut avant de commencer
+    document.querySelectorAll('[data-perm], .menu-group').forEach(el => {
+        el.style.display = 'none';
+        el.classList.add('hidden');
+    });
+
+    // 2. Préparation visuelle de base
     applyBranding();
-    
-    // 1. Cacher le login IMMÉDIATEMENT, mais GARDER le loader (pour le style)
+    document.getElementById('name-display').innerText = n; 
+    document.getElementById('role-display').innerText = r; 
+    document.getElementById('avatar-display').innerText = n[0]; 
+    document.body.className = "text-slate-900 overflow-hidden h-screen w-screen role-" + r.toLowerCase(); 
+
+    // 3. Masquer le login et maintenir le loader
     document.getElementById('login-screen').classList.add('hidden');
     const loader = document.getElementById('initial-loader');
     const appLayout = document.getElementById('app-layout');
@@ -1269,24 +1275,60 @@ async function setSession(n, r, id, perms) {
         loader.style.opacity = '1';
     }
 
-    // 2. Préparer l'identité visuelle de base
-    document.getElementById('name-display').innerText = n; 
-    document.getElementById('role-display').innerText = r; 
-    document.getElementById('avatar-display').innerText = n[0]; 
+    // 4. RÉGLAGES DES DROITS (EN COULISSES)
+    // On applique les permissions AVANT de décider quelle page afficher
+    await applyModulesUI(); 
+    applyPermissionsUI(perms);
 
-    document.body.className = "text-slate-900 overflow-hidden h-screen w-screen role-" + r.toLowerCase(); 
+    // 5. DÉCISION DE LA VUE (SÉCURISÉE)
+    // On vérifie les droits sur la vue sauvegardée avant de l'ouvrir
+    let savedView = localStorage.getItem('sirh_last_view') || 'my-profile';
+    
+    const hasAccessTo = (v) => {
+        if (v === 'dash') return perms?.can_see_dashboard;
+        if (v === 'employees') return perms?.can_see_employees;
+        if (v === 'logs') return perms?.can_see_audit;
+        if (v === 'accounting') return perms?.can_see_payroll;
+        if (v === 'recruitment') return perms?.can_see_recruitment;
+        return true; // Les autres vues (profil, help) sont publiques
+    };
 
-    // 3. Injecter les SKELETONS
-    const skeletonRow = `<tr class="border-b"><td class="p-4 flex gap-3 items-center"><div class="w-10 h-10 rounded-full skeleton"></div><div class="space-y-2"><div class="h-3 w-24 rounded skeleton"></div></div></td><td class="p-4"><div class="h-3 w-32 rounded skeleton"></div></td><td class="p-4"><div class="h-6 w-16 rounded-lg skeleton"></div></td><td class="p-4"></td></tr>`;
-    ['full-body', 'dashboard-body'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.innerHTML = skeletonRow.repeat(6);
-    });
+    if (!hasAccessTo(savedView)) {
+        savedView = perms?.can_see_dashboard ? 'dash' : 'my-profile';
+    }
 
-    // 4. RÉVÉLATION DE L'INTERFACE
+    // On force le switch de vue alors que l'interface est encore invisible ou sous le loader
+    currentView = savedView; 
+    switchView(savedView); 
+
+    // 6. RÉVÉLATION DE L'INTERFACE
     appLayout.classList.remove('hidden'); 
     appLayout.classList.add('ready');     
-    
+
+    // 7. CHARGEMENT DES DONNÉES (NON BLOQUANT)
+    try {
+        // refreshAllData ne chargera que ce que les permissions autorisent
+        refreshAllData(false); 
+        syncClockInterface(); 
+        fetchAndPopulateDepartments();
+        syncAllRoleSelects();
+        fetchContractTemplatesForSelection(); 
+
+        const searchContainer = document.getElementById('global-search-container');
+        if (searchContainer) {
+            searchContainer.style.display = perms?.can_see_employees ? 'block' : 'none';
+        }
+
+        applyWidgetPreferences(); 
+        requestNotificationPermission();
+        initDarkMode();
+        
+    } catch (e) {
+        console.error("Erreur d'initialisation:", e);
+    }
+
+    // 8. LEVÉE DU RIDEAU (Loader)
+    // On attend un petit délai (1.2s) pour que le rendu soit stable
     setTimeout(() => {
         if (loader) {
             loader.style.opacity = '0';
@@ -1295,63 +1337,10 @@ async function setSession(n, r, id, perms) {
                 document.body.style.backgroundColor = "#f1f5f9"; 
             }, 800); 
         }
-    }, 100); 
-
-    // 5. CONFIGURATION DES DROITS ET DE LA VUE (ORDRE CRITIQUE)
-    try {
-        // A. On applique d'abord les permissions à l'UI
-        await applyModulesUI(); 
-        applyPermissionsUI(perms);
-
-        // B. On sécurise la recherche globale
-        const searchContainer = document.getElementById('global-search-container');
-        if (searchContainer) {
-            searchContainer.style.display = perms?.can_see_employees ? 'block' : 'none';
-        }
-
-        // C. LOGIQUE DE NAVIGATION SÉCURISÉE (On vérifie les droits AVANT de switcher)
-        let savedView = localStorage.getItem('sirh_last_view');
-        
-        // --- VÉRIFICATION DE SÉCURITÉ SUR LA VUE ---
-        // Si la vue sauvegardée est interdite pour ce rôle, on reset
-        if (savedView === 'dash' && !perms?.can_see_dashboard) savedView = 'my-profile';
-        if (savedView === 'employees' && !perms?.can_see_employees) savedView = 'my-profile';
-        if (savedView === 'logs' && !perms?.can_see_audit) savedView = 'my-profile';
-        if (savedView === 'accounting' && !perms?.can_see_payroll) savedView = 'my-profile';
-
-        if (savedView && document.getElementById('view-' + savedView)) {
-            switchView(savedView);
-        } else {
-            if (perms?.can_see_dashboard) {
-                switchView('dash');
-            } else {
-                switchView('my-profile'); 
-            }
-        }
-
-        // D. MAINTENANT SEULEMENT ON CHARGE LES DONNÉES (refreshAllData utilisera la vue correcte)
-        refreshAllData(false); 
-        syncClockInterface(); 
-        fetchAndPopulateDepartments();
-        syncAllRoleSelects();
-        fetchContractTemplatesForSelection(); 
-
-        const fTypeSelect = document.getElementById('f-type');
-        if (fTypeSelect) {
-            fTypeSelect.removeEventListener('change', toggleContractFieldsVisibility);
-            fTypeSelect.addEventListener('change', toggleContractFieldsVisibility);
-            toggleContractFieldsVisibility(); 
-        }
-
-        applyWidgetPreferences(); 
-        requestNotificationPermission();
-        initDarkMode();
-        
-    } catch (e) {
-        console.error("Erreur critique au démarrage de l'app:", e);
-        Swal.fire('Erreur', 'Impossible de démarrer l\'application. Réessayez.', 'error');
-    }
+    }, 1200);
 }
+
+
 
 
 // ============================================================
@@ -4559,25 +4548,32 @@ function showLeaveDetail(btn) {
 
 
 function handleLogout() {
-    // 1. Arrêter les flux caméra s'ils tournent
-    if(videoStream) videoStream.getTracks().forEach(t => t.stop());
-    if(contractStream) contractStream.getTracks().forEach(t => t.stop());
+    // 1. Arrêter les flux caméra immédiatement
+    if(videoStream) { videoStream.getTracks().forEach(t => t.stop()); videoStream = null; }
+    if(contractStream) { contractStream.getTracks().forEach(t => t.stop()); contractStream = null; }
 
-    // 2. VIDER TOTALEMENT LE CACHE ET LA MÉMOIRE
-    localStorage.removeItem('sirh_token');
-    localStorage.removeItem('sirh_user_session');
-    localStorage.removeItem('sirh_last_view');
-    // Optionnel : vider les préférences de widgets pour repartir à zéro
-    const keys = Object.keys(localStorage);
-    keys.forEach(k => { if(k.startsWith('pref_')) localStorage.removeItem(k); });
-
-    // 3. CACHER L'INTERFACE IMMÉDIATEMENT (évite le flash au prochain login)
+    // 2. CACHER L'INTERFACE ET VIDER LE CONTENU SENSIBLE (Anti-Ghosting)
     const appLayout = document.getElementById('app-layout');
-    if(appLayout) appLayout.classList.add('hidden');
-    
-    // 4. REDIRECTION PROPRE
-    window.location.reload(); 
+    if(appLayout) {
+        appLayout.classList.add('hidden');
+        // On vide les tableaux pour qu'aucune donnée ne reste dans le DOM au prochain login
+        const containers = ['full-body', 'dashboard-body', 'leave-requests-body', 'logs-body', 'candidates-body'];
+        containers.forEach(id => {
+            const el = document.getElementById(id);
+            if(el) el.innerHTML = '';
+        });
+    }
+
+    // 3. VIDER TOTALEMENT TOUTE LA MÉMOIRE (Nuclear Reset)
+    // On utilise clear() pour être sûr de ne rien oublier (tokens, sessions, filtres, caches)
+    localStorage.clear();
+    sessionStorage.clear();
+
+    // 4. REDIRECTION ET RELOAD COMPLET
+    // On force le retour à l'URL de base pour nettoyer les éventuels paramètres d'URL
+    window.location.href = window.location.origin + window.location.pathname;
 }
+
 
 
             async function syncOfflineData() {
@@ -7766,6 +7762,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
