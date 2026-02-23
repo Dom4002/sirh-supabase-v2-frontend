@@ -84,7 +84,7 @@
             
             <!-- Champ Identifiant -->
             <div class="relative">
-                <label for="login-user" class="block text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2 text-center">Identifiant</label>
+                <label for="login-user" class="block text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2 ml-1">Identifiant</label>
                 <!-- Group permet de changer la couleur de l'icône quand on clique sur l'input -->
                 <div class="relative group">
                     <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-600 transition-colors">
@@ -98,7 +98,7 @@
             <div class="relative">
                 <!-- Astuce UX : Mettre le lien "oublié" sur la même ligne que le label -->
                 <div class="flex justify-between items-end mb-2 ml-1 mr-1">
-                    <label for="login-pass" class="block text-[11px] font-bold text-slate-500 uppercase tracking-widest text-center">Mot de passe</label>
+                    <label for="login-pass" class="block text-[11px] font-bold text-slate-500 uppercase tracking-widest">Mot de passe</label>
                     
                     <!-- Remplacé par une balise <a> pour éviter le conflit avec ton CSS des boutons -->
                     <a href="#" onclick="handleForgotPassword(); return false;" class="text-[11px] font-bold text-blue-600 hover:text-blue-800 hover:underline transition-all">Oublié ?</a>
@@ -122,7 +122,7 @@
         <!-- APP LAYOUT -->
         <div id="app-layout" class="hidden h-screen flex flex-col md:flex-row overflow-hidden relative">
         <!-- Nouvelle version de la balise aside -->
-            <aside id="sidebar" class=" bg-slate-900 text-slate-300 flex flex-col fixed md:sticky inset-y-0 left-0 z-50 transform transition-transform duration-300 border-r border-slate-800">                
+            <aside id="sidebar" class="w-72 bg-slate-900 text-slate-300 flex flex-col fixed md:sticky inset-y-0 left-0 z-50 transform transition-transform duration-300 border-r border-slate-800">                
                 <div class="p-5 flex-1 overflow-y-auto">
                     <div class="flex items-center justify-between mb-10 text-white">
     <div class="flex items-center gap-3">
@@ -148,15 +148,15 @@
                             <i id="m-perso-icon" class="fa-solid fa-chevron-up text-[8px] text-slate-600 group-hover:text-blue-500 transition-colors"></i>
                         </div>
                         <div id="m-perso-content" class="space-y-1">
-                            <button onclick="switchView('my-profile')" class="nav-btn w-full flex items-center gap-4 rounded-xl transition-all hover:text-white group">
+                            <button onclick="switchView('my-profile')" class="nav-btn w-full flex items-center gap-4 p-4 rounded-xl transition-all hover:text-white group">
                                 <i class="fa-solid fa-id-badge w-5"></i> <span class="font-semibold">Mon Profil</span>
                             </button>
-                            <button onclick="switchView('help')" class="nav-btn w-full flex items-center gap-4 rounded-xl transition-all hover:text-white group">
+                            <button onclick="switchView('help')" class="nav-btn w-full flex items-center gap-4 p-4 rounded-xl transition-all hover:text-white group">
                                 <i class="fa-solid fa-circle-info w-5"></i> <span class="font-semibold">Infos & Aide</span>
                             </button>
 
                             <!-- Bouton Chat -->
-                        <button data-perm="can_use_chat" onclick="switchView('chat')" class="nav-btn w-full flex items-center gap-4 rounded-xl transition-all hover:text-white group">
+                        <button data-perm="can_use_chat" onclick="switchView('chat')" class="nav-btn w-full flex items-center gap-4 p-4 rounded-xl transition-all hover:text-white group">
                             <i class="fa-solid fa-comments w-5"></i> 
                             <span class="font-semibold">Messagerie Équipe</span>
                         </button>
@@ -178,28 +178,28 @@
     <div id="m-gestion-content" class="space-y-1">
         
         <!-- Serrure : Tableau de Bord -->
-        <button data-perm="can_see_dashboard" onclick="switchView('dash')" class="nav-btn w-full flex items-center gap-4 rounded-xl transition-all hover:text-white group">
+        <button data-perm="can_see_dashboard" onclick="switchView('dash')" class="nav-btn w-full flex items-center gap-4 p-4 rounded-xl transition-all hover:text-white group">
             <i class="fa-solid fa-chart-pie w-5"></i> <span class="font-semibold">Tableau de Bord</span>
         </button>
 
         <!-- Serrure : Diffuser une Annonce -->
-        <button data-perm="can_send_announcements" onclick="openFlashModal()" class="nav-btn w-full flex items-center gap-4 rounded-xl transition-all hover:text-white group">
+        <button data-perm="can_send_announcements" onclick="openFlashModal()" class="nav-btn w-full flex items-center gap-4 p-4 rounded-xl transition-all hover:text-white group">
             <i class="fa-solid fa-bullhorn w-5 text-orange-500"></i> 
             <span class="font-semibold text-orange-400 group-hover:text-white">Diffuser Une Annonce</span>
         </button>
 
         <!-- Serrure : Collaborateurs -->
-        <button data-perm="can_view_team" onclick="switchView('employees')" class="nav-btn w-full flex items-center gap-4 rounded-xl transition-all hover:text-white group">
+        <button data-perm="can_view_team" onclick="switchView('employees')" class="nav-btn w-full flex items-center gap-4 p-4 rounded-xl transition-all hover:text-white group">
             <i class="fa-solid fa-user-group w-5"></i> <span class="font-semibold">Collaborateurs</span>
         </button>
 
         <!-- Serrure : Nouveau Profil -->
-        <button data-perm="can_create_profiles" onclick="switchView('add-new')" class="nav-btn w-full flex items-center gap-4 rounded-xl transition-all hover:text-white group">
+        <button data-perm="can_create_profiles" onclick="switchView('add-new')" class="nav-btn w-full flex items-center gap-4 p-4 rounded-xl transition-all hover:text-white group">
             <i class="fa-solid fa-user-plus w-5"></i> <span class="font-semibold">Nouveau Profil</span>
         </button>
 
         <!-- Serrure : Recrutement -->
-        <button data-perm="can_see_recruitment" onclick="switchView('recruitment')" class="nav-btn w-full flex items-center gap-4 rounded-xl transition-all hover:text-white group">
+        <button data-perm="can_see_recruitment" onclick="switchView('recruitment')" class="nav-btn w-full flex items-center gap-4 p-4 rounded-xl transition-all hover:text-white group">
             <i class="fa-solid fa-briefcase w-5"></i> <span class="font-semibold">Recrutement</span>
         </button>
     </div>
@@ -218,28 +218,28 @@
     <div id="m-ops-content" class="space-y-1">
         
         <!-- Lieux & Sites : can_manage_mobile -->
-        <button data-perm="can_manage_mobile_locations" onclick="switchView('mobile-locations')" class="nav-btn w-full flex items-center gap-4 rounded-xl transition-all hover:text-white group">
+        <button data-perm="can_manage_mobile_locations" onclick="switchView('mobile-locations')" class="nav-btn w-full flex items-center gap-4 p-4 rounded-xl transition-all hover:text-white group">
             <i class="fa-solid fa-map-location-dot w-5"></i> <span class="font-semibold">Lieux & Sites</span>
         </button>
 
         <!-- Répertoire Prescripteurs (Admin/Manager) -->
-        <button data-perm="can_manage_config" onclick="switchView('prescripteurs-list')" class="nav-btn w-full flex items-center gap-4 rounded-xl transition-all hover:text-white group">
+        <button data-perm="can_manage_config" onclick="switchView('prescripteurs-list')" class="nav-btn w-full flex items-center gap-4 p-4 rounded-xl transition-all hover:text-white group">
             <i class="fa-solid fa-user-doctor w-5 text-purple-400"></i> 
             <span class="font-semibold text-purple-300 group-hover:text-white">Répertoire Médical</span>
         </button>
         
         <!-- Rapports : can_view_reports -->
-        <button data-perm="can_manage_schedules" onclick="switchView('mobile-planning')" class="nav-btn w-full flex items-center gap-4 rounded-xl transition-all hover:text-white group">
+        <button data-perm="can_manage_schedules" onclick="switchView('mobile-planning')" class="nav-btn w-full flex items-center gap-4 p-4 rounded-xl transition-all hover:text-white group">
             <i class="fa-solid fa-calendar-days w-5"></i> <span class="font-semibold">Plannings & Missions</span>
         </button>
 
-        <button data-perm="can_see_catalog" onclick="switchView('catalog')" class="nav-btn w-full flex items-center gap-4 rounded-xl transition-all hover:text-white group">
+        <button data-perm="can_see_catalog" onclick="switchView('catalog')" class="nav-btn w-full flex items-center gap-4 p-4 rounded-xl transition-all hover:text-white group">
             <i class="fa-solid fa-box-archive w-5 text-emerald-400"></i> 
             <span class="font-semibold">Catalogue Produits</span>
         </button>
 
         <!-- Rapports Journaliers -->
-        <button data-perm="can_view_reports" onclick="switchView('mobile-reports')" class="nav-btn w-full flex items-center gap-4 rounded-xl transition-all hover:text-white group">
+        <button data-perm="can_view_reports" onclick="switchView('mobile-reports')" class="nav-btn w-full flex items-center gap-4 p-4 rounded-xl transition-all hover:text-white group">
             <i class="fa-solid fa-clipboard-list w-5"></i> 
             <span class="font-semibold">Rapports d'Activité</span>
         </button>
@@ -256,28 +256,28 @@
     <div id="m-admin-content" class="space-y-1">
         
         <!-- Serrure : Paie -->
-        <button data-perm="can_see_payroll" onclick="switchView('accounting')" class="nav-btn w-full flex items-center gap-4 rounded-xl transition-all hover:text-white group">
+        <button data-perm="can_see_payroll" onclick="switchView('accounting')" class="nav-btn w-full flex items-center gap-4 p-4 rounded-xl transition-all hover:text-white group">
             <i class="fa-solid fa-calculator w-5 text-emerald-500"></i> 
             <span class="font-semibold text-emerald-400 group-hover:text-white">Paie & Comptabilité</span>
         </button>
         
         <!-- Serrure : Paramètres -->
-        <button data-perm="can_manage_config" onclick="switchView('settings')" class="nav-btn w-full flex items-center gap-4 rounded-xl transition-all hover:text-white group">
+        <button data-perm="can_manage_config" onclick="switchView('settings')" class="nav-btn w-full flex items-center gap-4 p-4 rounded-xl transition-all hover:text-white group">
             <i class="fa-solid fa-gears w-5 text-slate-400"></i> 
             <span class="font-semibold text-slate-400 group-hover:text-white">Paramètres Sièges</span>
         </button>
 
-        <button data-perm="can_manage_config" onclick="switchView('contract-templates')" class="nav-btn w-full flex items-center gap-4 rounded-xl transition-all hover:text-white group">
+        <button data-perm="can_manage_config" onclick="switchView('contract-templates')" class="nav-btn w-full flex items-center gap-4 p-4 rounded-xl transition-all hover:text-white group">
             <i class="fa-solid fa-file-signature w-5 text-purple-400"></i> 
             <span class="font-semibold text-purple-300 group-hover:text-white">Modèles Contrats</span>
         </button>
         
         <!-- Serrure : Audit -->
-        <button data-perm="can_see_audit" onclick="switchView('logs')" class="nav-btn w-full flex items-center gap-4 rounded-xl transition-all hover:text-white group">
+        <button data-perm="can_see_audit" onclick="switchView('logs')" class="nav-btn w-full flex items-center gap-4 p-4 rounded-xl transition-all hover:text-white group">
             <i class="fa-solid fa-list-check w-5"></i> <span class="font-semibold">Audit Sécurité</span>
         </button>
 
-        <button data-perm="can_manage_config" onclick="switchView('maintenance')" class="nav-btn w-full flex items-center gap-4 rounded-xl transition-all hover:text-white group">
+        <button data-perm="can_manage_config" onclick="switchView('maintenance')" class="nav-btn w-full flex items-center gap-4 p-4 rounded-xl transition-all hover:text-white group">
             <i class="fa-solid fa-server w-5 text-red-400"></i> 
             <span class="font-semibold text-red-300 group-hover:text-white">Maintenance Système</span>
         </button>
@@ -318,7 +318,7 @@
                     <button onclick="toggleDarkMode()" class="p-2.5 bg-slate-100 dark-toggle-btn text-slate-600 rounded-xl hover:bg-slate-200 transition-all active:scale-95 mr-2">
                     <i class="fa-solid fa-moon text-lg" id="dark-icon"></i>
                     </button>
-                    <button onclick="startScanner()" class="bg-slate-900 text-white px-5 py-2.5 rounded-xl font-bold ml-4 transition-all hover:scale-105 shadow-lg active:scale-95"><i class="fa-solid fa-qrcode mr-2"></i> SCANNER</button>
+                    <button onclick="startScanner()" class="bg-slate-900 text-white px-5 py-2.5 rounded-xl text-sm font-bold ml-4 transition-all hover:scale-105 shadow-lg active:scale-95"><i class="fa-solid fa-qrcode mr-2"></i> SCANNER</button>
                 </header>
 
     <div id="main-scroll-container" class="flex-1 overflow-y-auto p-3 md:p-5 scroll-smooth no-scrollbar">             
@@ -335,17 +335,17 @@
         <h2 class="text-2xl font-extrabold text-slate-800">Analyse de l'Effectif</h2>
         
 <div class="flex flex-wrap gap-2 w-full md:w-auto">
-    <button onclick="refreshAllData(true)" class="flex-1 md:flex-none justify-center p-2.5 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-all text-slate-600 shadow-sm flex items-center gap-2 font-bold active:scale-95">
+    <button onclick="refreshAllData(true)" class="flex-1 md:flex-none justify-center p-2.5 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-all text-slate-600 shadow-sm flex items-center gap-2 text-sm font-bold active:scale-95">
         <i class="fa-solid fa-rotate" id="refresh-icon"></i> <span class="hidden sm:inline">Actualiser</span><span class="sm:hidden">Sync</span>
     </button>
     
     <!-- Permission requise pour exporter l'effectif -->
-    <button data-perm="can_see_employees" onclick="exportToCSV()" class="flex-1 md:flex-none justify-center p-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all shadow-sm flex items-center gap-2 font-bold active:scale-95">
+    <button data-perm="can_see_employees" onclick="exportToCSV()" class="flex-1 md:flex-none justify-center p-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all shadow-sm flex items-center gap-2 text-sm font-bold active:scale-95">
         <i class="fa-solid fa-file-excel"></i> Exporter
     </button>
 
     <!-- Permission requise pour voir les rapports de présence globaux -->
-    <button data-perm="can_see_dashboard" onclick="openAttendancePicker()" class="flex-1 md:flex-none justify-center p-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all shadow-sm flex items-center gap-2 font-bold active:scale-95">
+    <button data-perm="can_see_dashboard" onclick="openAttendancePicker()" class="flex-1 md:flex-none justify-center p-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all shadow-sm flex items-center gap-2 text-sm font-bold active:scale-95">
         <i class="fa-solid fa-clipboard-list"></i> Rapport Présence
     </button>
 
@@ -802,17 +802,17 @@
                             
                             <div class="flex items-center gap-2">
                                 <!-- Bouton Partager -->
-                                <button onclick="copyFormLink()" class="flex items-center gap-2 p-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all shadow-md font-bold active:scale-95">
+                                <button onclick="copyFormLink()" class="flex items-center gap-2 p-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all shadow-md text-sm font-bold active:scale-95">
                                     <i class="fa-solid fa-share-nodes"></i> <span class="hidden sm:inline">Partager le lien</span>
                                 </button>
                                 
                                 <!-- Bouton Modifier -->
-                                <button onclick="openFormEditor()" class="flex items-center gap-2 p-2.5 bg-slate-800 text-white rounded-xl hover:bg-slate-900 transition-all shadow-md font-bold active:scale-95">
+                                <button onclick="openFormEditor()" class="flex items-center gap-2 p-2.5 bg-slate-800 text-white rounded-xl hover:bg-slate-900 transition-all shadow-md text-sm font-bold active:scale-95">
                                     <i class="fa-solid fa-pen-to-square"></i> <span class="hidden sm:inline">Modifier</span>
                                 </button>
 
                                 <!-- Votre bouton Actualiser original -->
-                                <button onclick="fetchCandidates()" class="p-2.5 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-all text-slate-600 shadow-sm font-bold active:scale-95">
+                                <button onclick="fetchCandidates()" class="p-2.5 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-all text-slate-600 shadow-sm font-bold text-sm active:scale-95">
                                     <i class="fa-solid fa-rotate"></i>
                                 </button>
                             </div>
@@ -1136,7 +1136,7 @@
                                 <div class="flex justify-between font-bold uppercase tracking-tighter"><span>Début :</span> <span id="emp-start-date" class="text-slate-800">--/--/----</span></div>
                                 <div class="flex justify-between font-bold uppercase tracking-tighter"><span>Fin :</span> <span id="emp-end-date" class="text-slate-800">--/--/----</span></div>
                             </div>
-                            <button onclick="downloadMyBadge()" class="w-full bg-slate-900 text-white py-3.5 rounded-xl font-black mt-6 shadow-xl active:scale-95 transition-all"><i class="fa-solid fa-id-card mr-2"></i> MON BADGE D'ACCÈS</button>
+                            <button onclick="downloadMyBadge()" class="w-full bg-slate-900 text-white py-3.5 rounded-xl text-sm font-black mt-6 shadow-xl active:scale-95 transition-all"><i class="fa-solid fa-id-card mr-2"></i> MON BADGE D'ACCÈS</button>
                         </div>
                     </div>
                 </div>
@@ -1529,13 +1529,13 @@
         
             <!-- 3. NAVIGATION PAR ONGLETS (VISITES / BILANS / SYNTHÈSE) -->
             <div class="flex flex-wrap gap-6 mb-6 border-b border-slate-200">
-                <button onclick="changeReportTab('visits')" id="tab-visits" class="report-tab-btn pb-4 font-bold text-blue-600 border-b-2 border-blue-600 transition-all">
+                <button onclick="changeReportTab('visits')" id="tab-visits" class="report-tab-btn pb-4 text-sm font-bold text-blue-600 border-b-2 border-blue-600 transition-all">
                     Visites de Sites (Cachets)
                 </button>
-                <button onclick="changeReportTab('daily')" id="tab-daily" class="report-tab-btn pb-4 font-bold text-slate-400 border-b-2 border-transparent transition-all">
+                <button onclick="changeReportTab('daily')" id="tab-daily" class="report-tab-btn pb-4 text-sm font-bold text-slate-400 border-b-2 border-transparent transition-all">
                     Bilans Journaliers (Cahiers)
                 </button>
-                <button onclick="changeReportTab('audit')" id="tab-audit" class="report-tab-btn pb-4 font-bold text-slate-400 border-b-2 border-transparent transition-all">
+                <button onclick="changeReportTab('audit')" id="tab-audit" class="report-tab-btn pb-4 text-sm font-bold text-slate-400 border-b-2 border-transparent transition-all">
                     📊 Synthèse d'Audit
                 </button>
             </div>
@@ -1989,7 +1989,6 @@
     </body>
 
     </html>
-
 
 
 
