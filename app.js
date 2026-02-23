@@ -83,7 +83,7 @@ let searchTimeout = null; // Sert à attendre que l'utilisateur finisse de taper
             primary: "#0f172a",   // Couleur Sidebar
             accent: "#2563eb",    // Couleur Boutons / Éléments actifs
             fontFamily: "'Plus Jakarta Sans', sans-serif", // Choix de police
-            baseFontSize: "14px" // Taille de base (14px ou 16px recommandé)
+            baseFontSize: "15px" // Taille de base (14px ou 16px recommandé)
         },
 
         // 3. PARAMÈTRES GPS MULTI-SIÈGES
@@ -7736,6 +7736,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
