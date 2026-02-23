@@ -1749,7 +1749,6 @@ async function offerRegisterLocation(gps) {
 
 
 
-
 async function refreshAllData(force = false) {
     const now = Date.now();
     const icon = document.getElementById('refresh-icon'); 
@@ -1770,18 +1769,28 @@ async function refreshAllData(force = false) {
         }
         tasks.push(fetchFlashMessage().catch(e => console.warn("Flash ignoré", e)));
 
-        // 2. TACHES ADMIN / RH (Uniquement si permission can_see_employees)
-        // On regroupe ici pour éviter les appels en double
+        // 2. TACHES LIÉES À LA LISTE DES EMPLOYÉS (RH / Admin / Comptable)
         if (perms.can_see_employees) {
             if (force || employees.length === 0 || (now - lastFetchTimes.employees > REFRESH_THRESHOLD)) {
                 tasks.push(fetchData(false, 1));
                 lastFetchTimes.employees = now;
             }
-            tasks.push(triggerRobotCheck());
+            // J'ai retiré le Robot et le LiveAttendance d'ici car le Comptable passait par là
+        }
+
+        // 3. NOUVEAU BLOC : TACHES LIÉES AU DASHBOARD (Stats & Live Tracker)
+        // Seuls ceux qui ont explicitement "can_see_dashboard" lanceront cette requête
+        if (perms.can_see_dashboard) {
             tasks.push(fetchLiveAttendance());
         }
 
-        // 3. TACHES SPECIFIQUES AUX VUES (Avec vérification des droits)
+        // 4. NOUVEAU BLOC : TÂCHE ROBOT
+        // Lié strictement au droit d'envoyer des annonces
+        if (perms.can_send_announcements) {
+            tasks.push(triggerRobotCheck());
+        }
+
+        // 5. TACHES SPECIFIQUES AUX VUES (Avec vérification des droits)
         if (currentView === 'recruitment' && perms.can_see_recruitment) {
             tasks.push(fetchCandidates());
         }
@@ -1790,17 +1799,16 @@ async function refreshAllData(force = false) {
             tasks.push(fetchLogs());
         }
         
-        // 4. ESPACE PERSONNEL (Toujours autorisé pour l'utilisateur connecté)
+        // 6. ESPACE PERSONNEL (Toujours autorisé pour l'utilisateur connecté)
         if (currentView === 'my-profile') {
             tasks.push(fetchPayrollData());    
             tasks.push(fetchLeaveRequests());  
         }
         
-        // 5. GESTION MANAGERIALE (Validation des congés de l'équipe)
-        // On ne le fait que si ce n'est pas un simple employé et qu'on n'a pas déjà chargé via le bloc Admin
+        // 7. GESTION MANAGERIALE (Validation des congés de l'équipe)
+        // On ne charge que les congés ici. Le LiveAttendance est désormais géré par le bloc 3.
         if (currentUser.role !== 'EMPLOYEE' && !perms.can_see_employees) {
             tasks.push(fetchLeaveRequests()); 
-            tasks.push(fetchLiveAttendance());
         }
 
         // On attend que toutes les requêtes autorisées soient terminées
@@ -1822,8 +1830,6 @@ async function refreshAllData(force = false) {
         if(icon) setTimeout(() => icon.classList.remove('fa-spin'), 500);
     }
 }
-
-
 
 
 
@@ -3928,8 +3934,17 @@ async function fetchContractTemplatesForSelection() {
             }
             
 
-            async function fetchLiveAttendance() {
-    if (currentUser.role === 'EMPLOYEE') return;
+        
+
+
+
+async function fetchLiveAttendance() {
+    // --- CORRECTION : SÉCURITÉ BASÉE SUR LA PERMISSION ---
+    // Au lieu de vérifier si c'est un "EMPLOYEE", on vérifie s'il a le droit de voir le Dashboard.
+    // Cela empêche le Comptable (qui n'est pas "EMPLOYEE" mais n'a pas ce droit) de déclencher l'erreur 403.
+    if (!currentUser || !currentUser.permissions || !currentUser.permissions.can_see_dashboard) {
+        return;
+    }
 
     try {
         const r = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/live-attendance`);
@@ -3940,7 +3955,7 @@ async function fetchContractTemplatesForSelection() {
         document.getElementById('live-partis-count').innerText = data.partis.length;
         document.getElementById('live-absents-count').innerText = data.absents.length;
 
-        // Fonction pour générer les petits avatars
+        // Fonction pour générer les petits avatars (INCHANGÉE)
         const renderAvatars = (list, containerId) => {
             const container = document.getElementById(containerId);
             container.innerHTML = '';
@@ -7311,8 +7326,14 @@ function setEmployeeFilter(category, value) {
 
 
 
-
 async function renderCharts() {
+    // --- GARDE-FOU DE SÉCURITÉ (NOUVEAU) ---
+    // Si l'utilisateur n'a pas le droit de voir le dashboard, on arrête tout ici.
+    // Cela empêche l'appel API inutile et l'erreur rouge dans la console.
+    if (!currentUser || !currentUser.permissions || !currentUser.permissions.can_see_dashboard) {
+        return;
+    }
+    // ----------------------------------------
 
     // --- 1. BLOC D'INTELLIGENCE VISUELLE (DÉBUT) ---
     const isSuperBoss = currentUser.permissions?.can_see_employees === true;
@@ -7414,8 +7435,6 @@ async function renderCharts() {
         if (chartContainer) chartContainer.innerHTML = '<p class="text-center text-red-500 font-bold p-6">Erreur de chargement des graphiques.</p>';
     }
 }
-
-
 
 
 
@@ -7775,6 +7794,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
