@@ -71,42 +71,41 @@ let activeFilters = {
 let searchTimeout = null; // Sert à attendre que l'utilisateur finisse de taper
 
     // ==========================================
-    // CONFIGURATION DE PERSONNALISATION (SAAS)
-    // ==========================================
+// CONFIGURATION DE PERSONNALISATION (SAAS)
 // ==========================================
-    // CONFIGURATION DE PERSONNALISATION (SAAS)
-    // ==========================================
-    const SIRH_CONFIG = {
-        company: {
-            name: "SIRH-SECURE",
-            logo: "https://cdn-icons-png.flaticon.com/128/13594/13594876.png",
-            supportEmail: "rh@entreprise.com"
-        },
-        theme: {
-            primary: "#0f172a",   // Couleur Sidebar
-            accent: "#2563eb",    // Couleur Boutons / Éléments actifs
-            fontFamily: "'Plus Jakarta Sans', sans-serif", // Choix de police
-            baseFontSize: "16px", // Taille gérée ici (ex: 16px, 18px...)
-            sidebarWidth: "300px" // NOUVEAU : Largeur gérée ici (ex: 300px, 320px...)
-        },
+const SIRH_CONFIG = {
+    company: {
+        name: "SIRH-SECURE",
+        logo: "https://cdn-icons-png.flaticon.com/128/13594/13594876.png",
+        supportEmail: "rh@entreprise.com"
+    },
+    theme: {
+        primary: "#0f172a",   // Couleur Sidebar
+        accent: "#2563eb",    // Couleur Boutons / Éléments actifs
+        fontFamily: "'Plus Jakarta Sans', sans-serif", // Choix de police
+        baseFontSize: "16px" // Taille de base (14px ou 16px recommandé)
+    },
 
-        // 3. PARAMÈTRES GPS MULTI-SIÈGES
-        gps: {
-            enabled: true,
-            strictMode: true,
-            offices: []
-        },
+    // 3. PARAMÈTRES GPS MULTI-SIÈGES
+    // Note : Cette liste pourra être remplie dynamiquement par Airtable plus tard
+    gps: {
+        enabled: true,         // Activer la vérification GPS ?
+        strictMode: true,      // Bloquer le pointage si hors zone ?
+        
+        // Liste des sièges autorisés
+        offices: []
+    },
 
-        // 4. MODULES ACTIFS
-        features: {
-            recruitment: true,
-            payroll: true,
-            auditLogs: true
-        },
+    // 4. MODULES ACTIFS
+    features: {
+        recruitment: true,
+        payroll: true,
+        auditLogs: true
+    },
 
-        // 5. SERVEUR (BASE API)
-        apiBaseUrl: "https://sirh-supabase-v2.onrender.com/api"
-    };
+    // 5. SERVEUR (BASE API)
+    apiBaseUrl: "https://sirh-supabase-v2.onrender.com/api"
+};
 
     // --- GÉNÉRATION AUTOMATIQUE DES LIENS ---
     // (On utilise SIRH_CONFIG.apiBaseUrl pour ne rien changer en bas)
@@ -5930,48 +5929,49 @@ function exportToCSV() {
         return (yiq >= 128) ? '#1e293b' : '#ffffff'; // Si clair -> texte noir, si sombre -> texte blanc
     }
 
-
+// 
 function applyBranding() {
-        const theme = SIRH_CONFIG.theme;
+    const theme = SIRH_CONFIG.theme;
 
-        // 1. Calcul des couleurs de texte intelligentes
-        const textOnPrimary = getContrastColor(theme.primary);
-        const textOnAccent = getContrastColor(theme.accent);
+    // 1. Calcul des couleurs de texte intelligentes
+    const textOnPrimary = getContrastColor(theme.primary);
+    const textOnAccent = getContrastColor(theme.accent);
 
-        // 2. Application des variables CSS
-        const root = document.documentElement;
-        root.style.setProperty('--primary', theme.primary);
-        root.style.setProperty('--accent', theme.accent);
-        root.style.setProperty('--font-main', theme.fontFamily);
-        root.style.setProperty('--base-size', theme.baseFontSize);
-        root.style.setProperty('--sidebar-width', theme.sidebarWidth); // <-- AJOUTÉ : Pour piloter la largeur via JS
-        root.style.setProperty('--text-on-primary', textOnPrimary);
-        root.style.setProperty('--text-on-accent', textOnAccent);
+    // 2. Application des variables CSS
+    const root = document.documentElement;
+    root.style.setProperty('--primary', theme.primary);
+    root.style.setProperty('--accent', theme.accent);
+    root.style.setProperty('--font-main', theme.fontFamily);
+    root.style.setProperty('--base-size', theme.baseFontSize);
+    root.style.setProperty('--text-on-primary', textOnPrimary);
+    root.style.setProperty('--text-on-accent', textOnAccent);
 
-        // 3. Sidebar : Nom et Logo
-        const nameEls = document.querySelectorAll('.company-name-display');
-        nameEls.forEach(el => {
-            el.innerText = SIRH_CONFIG.company.name;
-            el.style.color = textOnPrimary; 
-        });
+    // 3. Sidebar : Nom et Logo
+    const nameEls = document.querySelectorAll('.company-name-display');
+    nameEls.forEach(el => {
+        el.innerText = SIRH_CONFIG.company.name;
+        el.style.color = textOnPrimary; // Le nom s'adapte à la couleur de fond
+    });
 
-        const logoSidebar = document.querySelector('.app-logo-display');
-        if(logoSidebar) logoSidebar.src = SIRH_CONFIG.company.logo;
+    const logoSidebar = document.querySelector('.app-logo-display');
+    if(logoSidebar) logoSidebar.src = SIRH_CONFIG.company.logo;
 
-        // 4. Écran de Connexion
-        const loginTitle = document.querySelector('#login-screen h1');
-        if(loginTitle) loginTitle.innerText = SIRH_CONFIG.company.name;
-        
-        const loginIconContainer = document.querySelector('#login-screen .inline-flex');
-        if(loginIconContainer && SIRH_CONFIG.company.logo) {
-            loginIconContainer.innerHTML = `<img src="${SIRH_CONFIG.company.logo}" class="w-14 h-14 object-contain">`;
-        }
-
-        // 5. Titre du navigateur
-        document.title = SIRH_CONFIG.company.name + " | Portail RH";
-
-        console.log(`🎨 Branding intelligent appliqué : Taille ${theme.baseFontSize}, Sidebar ${theme.sidebarWidth}`);
+    // 4. Écran de Connexion
+    const loginTitle = document.querySelector('#login-screen h1');
+    if(loginTitle) loginTitle.innerText = SIRH_CONFIG.company.name;
+    
+    const loginIconContainer = document.querySelector('#login-screen .inline-flex');
+    if(loginIconContainer && SIRH_CONFIG.company.logo) {
+        loginIconContainer.innerHTML = `<img src="${SIRH_CONFIG.company.logo}" class="w-14 h-14 object-contain">`;
     }
+
+    // 5. Titre du navigateur
+    document.title = SIRH_CONFIG.company.name + " | Portail RH";
+
+    console.log(`🎨 Branding intelligent appliqué (${textOnAccent} sur ${theme.accent})`);
+}
+
+
 
 
 
@@ -7775,6 +7775,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
