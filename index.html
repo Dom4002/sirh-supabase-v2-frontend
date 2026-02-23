@@ -186,6 +186,12 @@
             <i class="fa-solid fa-map-location-dot w-5"></i> <span class="font-semibold">Lieux & Sites</span>
         </button>
 
+        <!-- Répertoire Prescripteurs (Admin/Manager) -->
+        <button data-perm="can_manage_config" onclick="switchView('prescripteurs-list')" class="nav-btn w-full flex items-center gap-4 p-4 rounded-xl transition-all hover:text-white group">
+            <i class="fa-solid fa-user-doctor w-5 text-purple-400"></i> 
+            <span class="font-semibold text-purple-300 group-hover:text-white">Répertoire Médical</span>
+        </button>
+        
         <!-- Rapports : can_view_reports -->
         <button data-perm="can_manage_schedules" onclick="switchView('mobile-planning')" class="nav-btn w-full flex items-center gap-4 p-4 rounded-xl transition-all hover:text-white group">
             <i class="fa-solid fa-calendar-days w-5"></i> <span class="font-semibold">Plannings & Missions</span>
@@ -1528,7 +1534,36 @@
                 <!-- Ce conteneur sera rempli dynamiquement par fetchMobileReports() ou fetchGlobalAudit() -->
             </div>
         </section>
+
+
+        <section id="view-prescripteurs-list" class="view-section">
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+        <div>
+            <h2 class="text-2xl font-black text-slate-800 tracking-tight">Répertoire Médical</h2>
+            <p class="text-sm text-slate-500 font-bold uppercase tracking-widest">Base officielle des prescripteurs</p>
+        </div>
         
+        <div class="flex flex-wrap gap-2 w-full md:w-auto items-center">
+            <!-- Barre de recherche locale -->
+            <div class="relative flex-1 md:w-64">
+                <i class="fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                <input type="text" id="search-prescripteur-input" onkeyup="filterPrescripteursLocally()" 
+                       placeholder="Filtrer..." 
+                       class="w-full pl-9 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-blue-500 shadow-sm">
+            </div>
+
+            <button onclick="openAddPrescripteurModal()" class="flex-1 md:flex-none justify-center bg-blue-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg active:scale-95 transition-all flex items-center gap-2 text-xs uppercase tracking-widest">
+                <i class="fa-solid fa-user-plus"></i> Ajouter
+            </button>
+        </div>
+    </div>
+
+    <!-- Grille des Médecins -->
+    <div id="prescripteurs-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <!-- Rempli par JS -->
+        <div class="col-span-full text-center py-10 text-slate-400 italic">Chargement...</div>
+    </div>
+</section>
 
         
                 </div>
@@ -1933,6 +1968,7 @@
     </body>
 
     </html>
+
 
 
 
