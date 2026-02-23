@@ -6,7 +6,7 @@
             --primary: #0f172a;
             --accent: #2563eb;
             --font-main: 'Plus Jakarta Sans', sans-serif;
-            --base-size: 16px;
+            --base-size: 14px;
             
             /* Échelle d'arrondis Premium */
             --radius-sm: 0.5rem;   /* 8px */
@@ -230,38 +230,4 @@ button[type="submit"],
 button[type="submit"] {
     padding: 12px 20px !important;
     font-size: 0.9rem !important;
-}
-
-
-/* Animation fluide pour la sidebar */
-#sidebar {
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s ease;
-}
-
-/* Quand la sidebar est masquée sur PC, elle ne doit pas prendre de place */
-#sidebar.-translate-x-full {
-    position: fixed; /* Elle sort du flux pour que le contenu s'élargisse */
-}
-
-/* On force les boutons du menu à écouter le JavaScript */
-.nav-btn {
-    font-size: var(--base-size) !important;
-}
-
-/* On ajuste la taille des icônes pour qu'elles suivent le texte */
-.nav-btn i {
-    font-size: calc(var(--base-size) * 1.2) !important;
-    width: calc(var(--base-size) * 1.5) !important;
-}
-
-/* On ajuste aussi les titres de rubriques (Personnel, Gestion, etc.) */
-.menu-group p {
-    font-size: calc(var(--base-size) * 0.8) !important;
-    margin-bottom: 0.5rem;
-}
-
-/* Supprime les ombres colorées qui fatiguent l'oeil sur fond sombre */
-#login-screen .bg-white, 
-#login-screen button {
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1) !important;
 }
