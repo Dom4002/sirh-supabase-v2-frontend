@@ -2476,22 +2476,34 @@ async function syncClockInterface() {
 }
 
 
+
+
 async function handleClockInOut() {
     const userId = currentUser.id;
     const today = new Date().toLocaleDateString('fr-CA');
     
+    // --- 1. INITIALISATION DES VARIABLES (Évite l'erreur 'not defined') ---
+    let outcome = null;
+    let report = null;
+    let proofBlob = null; 
+    let isLastExit = false;
+    let presentedProducts = []; 
+    let prescripteur_id = null;
+    let contact_nom_libre = null;
+    let schedule_id = null;
+    let forced_location_id = null;
+
+    // Récupération du contexte si lancé depuis l'agenda
+    const savedContext = localStorage.getItem('active_mission_context');
+    if (savedContext) {
+        const ctx = JSON.parse(savedContext);
+        schedule_id = ctx.missionId;
+        forced_location_id = ctx.locationId; // Sera utile pour le serveur
+    }
+
     const empData = employees.find(e => e.id === userId);
     const isMobile = (empData?.employee_type === 'MOBILE') || (currentUser?.employee_type === 'MOBILE');
     
-    const lastActionDate = localStorage.getItem(`clock_date_${userId}`);
-    if (lastActionDate !== today) {
-        localStorage.setItem(`clock_date_${userId}`, today);
-        localStorage.setItem(`clock_status_${userId}`, 'OUT');
-        localStorage.setItem(`clock_in_done_${userId}`, 'false');
-        localStorage.setItem(`clock_out_done_${userId}`, 'false');
-        updateClockUI(false); 
-    }
-
     const currentStatus = localStorage.getItem(`clock_status_${userId}`) || 'OUT';
     const action = (currentStatus === 'IN') ? 'CLOCK_OUT' : 'CLOCK_IN';
 
@@ -2503,19 +2515,10 @@ async function handleClockInOut() {
         if (action === 'CLOCK_IN' && inDone) return Swal.fire('Oups', 'Entrée déjà validée.', 'info');
     }
 
-    let outcome = null;
-    let report = null;
-    let proofStream = null;
-    let proofBlob = null; 
-    let isLastExit = false;
-    let presentedProducts = []; 
-
-// --- BLOC CAMÉRA LIVE & CRM POUR LA SORTIE MOBILE ---
+    // --- 2. LOGIQUE DE SORTIE MOBILE (POP-UP) ---
     if (action === 'CLOCK_OUT' && isMobile) {
-        
         Swal.fire({ title: 'Chargement...', text: 'Préparation du rapport...', didOpen: () => Swal.showLoading(), allowOutsideClick: false });
 
-        // 1. TÉLÉCHARGEMENT SIMULTANÉ : PRODUITS + PRESCRIPTEURS
         let products = [];
         let prescripteurs = [];
         try {
@@ -2527,16 +2530,12 @@ async function handleClockInOut() {
             prescripteurs = await presRes.json();
         } catch (e) { console.error("Erreur chargement CRM", e); }
 
-        Swal.close(); // On ferme le loader
+        Swal.close();
 
-        // 2. GÉNÉRATION DU HTML : MÉDECINS
-        let presOptions = `<option value="">-- Choisir un contact --</option>`;
-        prescripteurs.forEach(p => {
-            presOptions += `<option value="${p.id}">${p.nom_complet} (${p.fonction})</option>`;
-        });
-        presOptions += `<option value="autre" class="font-bold text-blue-600">➕ Autre (Nouveau Contact)</option>`;
+        let presOptions = `<option value="">-- Choisir un contact --</option>` + 
+            prescripteurs.map(p => `<option value="${p.id}">${p.nom_complet} (${p.fonction})</option>`).join('') +
+            `<option value="autre" class="font-bold text-blue-600">➕ Autre (Nouveau Contact)</option>`;
 
-        // 3. GÉNÉRATION DU HTML : PRODUITS (Design Horizontal Premium)
         let productsHtml = products.map(p => `
             <label class="cursor-pointer group flex-shrink-0">
                 <input type="checkbox" name="presented_prods" value="${p.id}" data-name="${p.name}" class="peer sr-only">
@@ -2544,28 +2543,18 @@ async function handleClockInOut() {
                     <img src="${p.photo_url || 'https://via.placeholder.com/50'}" class="w-7 h-7 object-cover rounded-full border border-slate-100">
                     <span class="text-[10px] font-black uppercase whitespace-nowrap">${p.name}</span>
                 </div>
-            </label>
-        `).join('');
+            </label>`).join('');
 
-        // 4. OUVERTURE DU POP-UP DÉLÉGUÉ
-        const { value: formValues } = await Swal.fire({
+        const { value: formResult } = await Swal.fire({
             title: 'Fin de visite',
             html: `
-                <!-- CRM : CHOIX DU PRESCRIPTEUR -->
                 <div class="text-left mb-4 bg-blue-50/50 p-3 rounded-xl border border-blue-100">
                     <label class="text-[10px] font-black text-blue-800 uppercase">👤 Personne rencontrée</label>
-                    <select id="swal-prescripteur" class="swal2-input mt-1 !text-sm font-bold text-slate-700 bg-white">
-                        ${presOptions}
-                    </select>
-                    
-                    <!-- CHAMP CACHÉ : S'affiche uniquement si "Autre" est choisi -->
+                    <select id="swal-prescripteur" class="swal2-input mt-1 !text-sm font-bold text-slate-700 bg-white">${presOptions}</select>
                     <div id="container-autre-nom" class="hidden mt-3 animate-fadeIn">
-                        <label class="text-[9px] font-black text-slate-500 uppercase">Nom du nouveau contact</label>
-                        <input id="swal-nom-libre" class="swal2-input !mt-1 !text-sm" placeholder="Ex: Dr. Diallo">
+                        <input id="swal-nom-libre" class="swal2-input !mt-1 !text-sm" placeholder="Nom du nouveau contact">
                     </div>
                 </div>
-
-                <!-- RÉSULTAT DE LA VISITE -->
                 <div class="text-left mb-2">
                     <label class="text-[10px] font-black text-slate-400 uppercase">Résultat</label>
                     <select id="swal-outcome" class="swal2-input mt-1 !text-sm font-bold">
@@ -2575,173 +2564,72 @@ async function handleClockInOut() {
                         <option value="RAS">👍 Visite de courtoisie</option>
                     </select>
                 </div>
-
-                <!-- PRODUITS (Défilement X) -->
                 <p class="text-[9px] font-black text-slate-400 uppercase mb-2 mt-4 text-left">Produits présentés</p>
-                <div class="flex flex-nowrap gap-2 mb-4 overflow-x-auto custom-scroll pb-2 w-full">
-                    ${productsHtml || '<p class="text-[10px] text-slate-400 italic">Aucun produit actif</p>'}
-                </div>
-
-                <!-- CAMÉRA CACHET -->
+                <div class="flex flex-nowrap gap-2 mb-4 overflow-x-auto custom-scroll pb-2 w-full">${productsHtml}</div>
                 <div class="bg-slate-900 rounded-xl overflow-hidden relative mb-4 border-2 border-slate-200 shadow-inner" style="height: 180px;">
                     <video id="proof-video" autoplay playsinline class="w-full h-full object-cover"></video>
                     <img id="proof-image" class="w-full h-full object-cover hidden absolute top-0 left-0">
                     <canvas id="proof-canvas" class="hidden"></canvas>
-                    <div class="absolute bottom-2 left-0 right-0 flex justify-center gap-2 z-10">
-                        <button type="button" id="btn-snap" class="bg-white text-slate-900 px-4 py-1.5 rounded-full text-[10px] font-black uppercase shadow-lg"><i class="fa-solid fa-camera mr-1"></i> CACHET</button>
-                        <button type="button" id="btn-retry" class="hidden bg-orange-500 text-white px-3 py-1.5 rounded-full text-[10px] font-black uppercase shadow-lg"><i class="fa-solid fa-rotate"></i></button>
+                    <div class="absolute bottom-2 left-0 right-0 flex justify-center gap-2">
+                        <button type="button" id="btn-snap" class="bg-white text-slate-900 px-4 py-1.5 rounded-full text-[10px] font-black uppercase">📸 CACHET</button>
                     </div>
                 </div>
-
-                <!-- DICTÉE VOCALE -->
                 <div class="relative mt-2">
-                    <textarea id="swal-report" class="swal2-textarea" style="height: 70px; margin-top:0;" placeholder="Note (Prochaine étape, objection...)"></textarea>
-                    <button type="button" onclick="toggleDictation('swal-report', this)" class="absolute bottom-3 right-3 w-8 h-8 flex items-center justify-center rounded-full bg-white border border-slate-200 text-slate-400 shadow-sm hover:text-blue-600 transition-all z-10">
-                        <i class="fa-solid fa-microphone"></i>
-                    </button>
+                    <textarea id="swal-report" class="swal2-textarea" style="height: 70px;" placeholder="Note de rapport..."></textarea>
                 </div>
-            
                 <div class="mt-4 p-3 bg-red-50 rounded-xl border border-red-100 flex items-center gap-3">
                     <input type="checkbox" id="last-exit-check" class="w-5 h-5 accent-red-600">
-                    <label for="last-exit-check" class="text-[10px] font-black text-red-700 uppercase text-left">Fin de journée (Dernière visite)</label>
+                    <label for="last-exit-check" class="text-[10px] font-black text-red-700 uppercase text-left">Dernière visite (Fin de journée)</label>
                 </div>
             `,
             confirmButtonText: 'Valider le rapport',
             confirmButtonColor: '#2563eb',
             allowOutsideClick: false,
             didOpen: () => {
-                // --- 1. LA MAGIE : On vérifie la mémoire du téléphone ---
-                const memoireMission = localStorage.getItem('active_mission_context');
-                
-                if (memoireMission) {
-                    const ctx = JSON.parse(memoireMission);
-                    
-                    // Si on avait enregistré un médecin, on le sélectionne tout de suite
-                    if (ctx.prescripteurId) {
-                        const select = document.getElementById('swal-prescripteur');
-                        if (select) {
-                            select.value = ctx.prescripteurId;
-                            // Petit effet visuel pour montrer que c'est auto-rempli
-                            select.style.border = "2px solid #2563eb"; 
-                        }
-                    }
-
-                    // Si on avait mis une note de préparation, on la met dans le rapport
-                    if (ctx.preNotes) {
-                        const textArea = document.getElementById('swal-report');
-                        if (textArea) textArea.value = `[Objectif: ${ctx.preNotes}] \nRésultat : `;
-                    }
+                const ctxMem = localStorage.getItem('active_mission_context');
+                if (ctxMem) {
+                    const c = JSON.parse(ctxMem);
+                    if (c.prescripteurId) document.getElementById('swal-prescripteur').value = c.prescripteurId;
+                    if (c.preNotes) document.getElementById('swal-report').value = `[Objectif: ${c.preNotes}] \n`;
                 }
-                
-                // --- 2. LE RESTE DU CODE (Classique) ---
-                const presSelect = document.getElementById('swal-prescripteur');
-                const autreInputContainer = document.getElementById('container-autre-nom');
-                
-                if(presSelect) {
-                    presSelect.addEventListener('change', (e) => {
-                        if (e.target.value === 'autre') {
-                            autreInputContainer.classList.remove('hidden');
-                        } else {
-                            autreInputContainer.classList.add('hidden');
-                        }
-                    });
-                }
-
-                // GESTION CAMÉRA (Reste identique)
+                document.getElementById('swal-prescripteur').addEventListener('change', (e) => {
+                    document.getElementById('container-autre-nom').classList.toggle('hidden', e.target.value !== 'autre');
+                });
                 const video = document.getElementById('proof-video');
-                const img = document.getElementById('proof-image');
-                const canvas = document.getElementById('proof-canvas');
-                const btnSnap = document.getElementById('btn-snap');
-                const btnRetry = document.getElementById('btn-retry');
-
-                // Validation photo (Reste identique)
-                const checkValidationInterval = setInterval(() => {
-                    const confirmBtn = Swal.getConfirmButton();
-                    if (!confirmBtn) return;
-                    const currentOutcome = document.getElementById('swal-outcome').value;
-                    
-                    if (currentOutcome === 'VU' && !proofBlob) {
-                        confirmBtn.disabled = true;
-                        confirmBtn.innerText = "📸 Cachet requis";
-                    } else {
-                        confirmBtn.disabled = false;
-                        confirmBtn.innerText = "Valider le rapport";
-                    }
-                }, 500);
-
-                navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
-                    .then(stream => { proofStream = stream; video.srcObject = stream; })
-                    .catch(err => Swal.showValidationMessage("Caméra bloquée"));
-
-                btnSnap.onclick = () => {
+                navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }).then(s => { proofStream = s; video.srcObject = s; });
+                document.getElementById('btn-snap').onclick = () => {
+                    const canvas = document.getElementById('proof-canvas');
                     canvas.width = video.videoWidth; canvas.height = video.videoHeight;
                     canvas.getContext('2d').drawImage(video, 0, 0);
-                    canvas.toBlob(blob => {
-                        proofBlob = blob;
-                        img.src = URL.createObjectURL(blob);
-                        video.classList.add('hidden'); img.classList.remove('hidden');
-                        btnSnap.classList.add('hidden'); btnRetry.classList.remove('hidden');
+                    canvas.toBlob(b => { 
+                        proofBlob = b; 
+                        document.getElementById('proof-image').src = URL.createObjectURL(b); 
+                        document.getElementById('proof-image').classList.remove('hidden'); 
                     }, 'image/jpeg', 0.8);
                 };
-
-                btnRetry.onclick = () => {
-                    proofBlob = null; video.classList.remove('hidden');
-                    img.classList.add('hidden'); btnSnap.classList.remove('hidden');
-                    btnRetry.classList.add('hidden');
-                };
             },
-                    
-            willClose: () => { if(proofStream) proofStream.getTracks().forEach(t => t.stop()); },
             preConfirm: () => {
-                const outcomeVal = document.getElementById('swal-outcome').value;
-                const presId = document.getElementById('swal-prescripteur').value;
-                const nomLibre = document.getElementById('swal-nom-libre').value;
-                
-                // VALIDATIONS
-                if (!presId) {
-                    Swal.showValidationMessage('👤 Veuillez choisir un prescripteur');
-                    return false;
-                }
-                if (presId === 'autre' && !nomLibre.trim()) {
-                    Swal.showValidationMessage('👤 Saisissez le nom du nouveau contact');
-                    return false;
-                }
-                if (outcomeVal === 'VU' && !proofBlob) {
-                    Swal.showValidationMessage('📸 Photo du cachet obligatoire !');
-                    return false;
-                }
-
-                // PRODUITS
-                const selected = Array.from(document.querySelectorAll('input[name="presented_prods"]:checked')).map(i => ({
-                    id: i.value,
-                    name: i.dataset.name
-                }));
-
-                return { 
-                    outcome: outcomeVal, 
+                return {
+                    outcome: document.getElementById('swal-outcome').value,
                     report: document.getElementById('swal-report').value,
                     isLastExit: document.getElementById('last-exit-check').checked,
-                    presentedProducts: selected,
-                    prescripteur_id: presId,
-                    contact_nom_libre: nomLibre
+                    prescripteur_id: document.getElementById('swal-prescripteur').value,
+                    contact_nom_libre: document.getElementById('swal-nom-libre').value,
+                    selectedProducts: Array.from(document.querySelectorAll('input[name="presented_prods"]:checked')).map(i => ({id: i.value, name: i.dataset.name}))
                 };
             }
         });
-        
-        if (!formValues) return; 
 
-        outcome = formValues.outcome;
-        report = formValues.report;
-        isLastExit = formValues.isLastExit;
-        presentedProducts = formValues.presentedProducts; 
+        if (!formResult) return; 
+        outcome = formResult.outcome;
+        report = formResult.report;
+        isLastExit = formResult.isLastExit;
+        presentedProducts = formResult.selectedProducts;
+        prescripteur_id = formResult.prescripteur_id;
+        contact_nom_libre = formResult.contact_nom_libre;
+    }
 
-        if (proofBlob) {
-            Swal.update({ text: 'Compression de la photo...' });
-            proofBlob = await compressImage(proofBlob);
-        }
-    } // <--- Fin du bloc if (action === 'CLOCK_OUT')
-    
-    // --- POINTAGE GPS & ENVOI ---
+    // --- 3. POINTAGE GPS & ENVOI ---
     Swal.fire({ title: 'Vérification...', text: 'Analyse GPS...', didOpen: () => Swal.showLoading(), allowOutsideClick: false });
 
     try {
@@ -2755,50 +2643,48 @@ async function handleClockInOut() {
         fd.append('gps', currentGps);
         fd.append('ip', ipRes.ip);
         fd.append('agent', currentUser.nom);
+        
+        // Envoi sécurisé des variables (Elles existent toutes grâce à l'initialisation en haut)
         if (outcome) fd.append('outcome', outcome);
         if (report) fd.append('report', report);
-        if (proofBlob) fd.append('proof_photo', proofBlob, 'capture.jpg');
-        if (isLastExit) fd.append('is_last_exit', 'true');
-        if (formValues && formValues.prescripteur_id) fd.append('prescripteur_id', formValues.prescripteur_id);
-        if (formValues && formValues.contact_nom_libre) fd.append('contact_nom_libre', formValues.contact_nom_libre);
-        if (presentedProducts && presentedProducts.length > 0) {
-            fd.append('presentedProducts', JSON.stringify(presentedProducts));
+        if (prescripteur_id) fd.append('prescripteur_id', prescripteur_id);
+        if (contact_nom_libre) fd.append('contact_nom_libre', contact_nom_libre);
+        if (presentedProducts && presentedProducts.length > 0) fd.append('presentedProducts', JSON.stringify(presentedProducts));
+        if (schedule_id) fd.append('schedule_id', schedule_id);
+        if (forced_location_id) fd.append('forced_location_id', forced_location_id);
+        if (proofBlob) {
+            const compressed = await compressImage(proofBlob);
+            fd.append('proof_photo', compressed, 'capture.jpg');
         }
+        if (isLastExit) fd.append('is_last_exit', 'true');
 
         const response = await secureFetch(URL_CLOCK_ACTION, { method: 'POST', body: fd });
         const resData = await response.json();
 
-          if (response.ok) {
+        if (response.ok) {
             const nowStr = new Date().toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'});
             if (typeof PremiumUI !== 'undefined') { PremiumUI.vibrate('success'); PremiumUI.play('success'); }
+            
+            // Nettoyage de la mémoire de mission
             localStorage.removeItem('active_mission_context');
             
-            // On détermine le prochain état visuel
-            let nextState = 'OUT';
-            if (action === 'CLOCK_IN') {
-                nextState = 'IN';
-                localStorage.setItem(`clock_status_${userId}`, 'IN');
-            } else {
-                localStorage.setItem(`clock_status_${userId}`, 'OUT');
-                // Est-ce que ça vient de se terminer ?
-                if (!isMobile || isLastExit) {
-                    nextState = 'DONE';
-                    localStorage.setItem(`clock_finished_${userId}`, 'true');
-                }
-            }
-            
-            
+            let nextState = (action === 'CLOCK_IN') ? 'IN' : 'OUT';
+            localStorage.setItem(`clock_status_${userId}`, nextState);
+            if (isLastExit || !isMobile) localStorage.setItem(`clock_finished_${userId}`, 'true');
+
             fetchMobileSchedules(); 
-            updateClockUI(nextState); // Mise à jour instantanée !
+            updateClockUI(nextState);
             
             document.getElementById('clock-last-action').innerText = `Validé : ${action==='CLOCK_IN'?'Entrée':'Sortie'} à ${nowStr}`;
             Swal.fire('Succès', `Pointage validé : ${resData.zone}`, 'success');
-        } 
-          
-        else {
-            throw new Error(resData.error); }
-    } catch (e) { Swal.fire('Erreur', e.message, 'error'); }
+        } else {
+            throw new Error(resData.error);
+        }
+    } catch (e) {
+        Swal.fire('Erreur', e.message, 'error');
+    }
 }
+
 
 
 
@@ -7823,6 +7709,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
