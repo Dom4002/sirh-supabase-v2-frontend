@@ -353,7 +353,6 @@ async function downloadMyBadge() {
 // MODULE MOBILE : LOGIQUE FRONTEND
 // ============================================================
 
-// --- 1. GESTION DES LIEUX ---
 async function fetchMobileLocations() {
     const grid = document.getElementById('locations-grid');
     if (!grid) return;
@@ -365,10 +364,20 @@ async function fetchMobileLocations() {
         grid.innerHTML = '';
         if (data.length === 0) grid.innerHTML = '<div class="col-span-full text-center text-slate-400 py-10">Aucun lieu configuré.</div>';
 
+        // --- NOUVEAU : Vérification de la permission de gestion des sites ---
+        const canManage = currentUser.permissions?.can_manage_mobile_locations;
+
         data.forEach(loc => {
             grid.innerHTML += `
                 <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all group relative">
-                    <button onclick="deleteMobileLocation('${loc.id}')" class="absolute top-4 right-4 text-slate-300 hover:text-red-500"><i class="fa-solid fa-trash"></i></button>
+                    
+                    <!-- BOUTON SUPPRIMER SÉCURISÉ -->
+                    ${canManage ? `
+                    <button onclick="deleteMobileLocation('${loc.id}')" class="absolute top-4 right-4 text-slate-300 hover:text-red-500 transition-colors">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                    ` : ''}
+
                     <div class="flex items-center gap-3 mb-3">
                         <div class="w-10 h-10 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center text-lg"><i class="fa-solid fa-location-dot"></i></div>
                         <div>
@@ -1396,13 +1405,17 @@ async function fetchPrescripteursManagement() {
             return;
         }
 
+        // --- NOUVEAU : Vérification de la permission de gestion ---
+        const canManage = currentUser.permissions.can_manage_prescripteurs;
+
         prescripteurs.forEach(p => {
             const lieuNom = p.location_id ? locMap[p.location_id] : 'Non assigné';
             
             container.innerHTML += `
                 <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all group relative animate-fadeIn search-item-prescripteur" data-name="${p.nom_complet.toLowerCase()}">
                     
-                    <!-- BOUTONS ACTIONS -->
+                    <!-- BOUTONS ACTIONS SÉCURISÉS -->
+                    ${canManage ? `
                     <div class="absolute top-4 right-4 flex gap-2">
                         <button onclick="openEditPrescripteurModal('${p.id}')" class="text-slate-300 hover:text-blue-600 transition-colors bg-slate-50 hover:bg-blue-50 p-2 rounded-lg" title="Modifier">
                             <i class="fa-solid fa-pen"></i>
@@ -1411,6 +1424,7 @@ async function fetchPrescripteursManagement() {
                             <i class="fa-solid fa-trash-can"></i>
                         </button>
                     </div>
+                    ` : ''}
 
                     <div class="flex items-center gap-4 mb-3">
                         <div class="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center text-lg font-bold border border-blue-100">
@@ -1438,7 +1452,6 @@ async function fetchPrescripteursManagement() {
 
     } catch (e) { console.error(e); }
 }
-
 
 async function openAddPrescripteurModal() {
     // On charge les lieux pour le menu déroulant
@@ -7856,6 +7869,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
