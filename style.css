@@ -9,10 +9,10 @@
             --base-size: 16px;
             
             /* Échelle d'arrondis Premium */
-            --radius-sm: 0.5rem;   /* 8px */
+            --radius-sm: 0.3rem;   /* 8px */
             --radius-md: 1rem;     /* 16px */
-            --radius-lg: 1.5rem;   /* 24px */
-            --radius-xl: 2.25rem;  /* 36px */
+            --radius-lg: 1.1rem;   /* 24px */
+            --radius-xl: 1.5rem;  /* 36px */
             --radius-full: 9999px;
 
             /* Ombres douces (Soft Shadows) */
@@ -267,3 +267,4 @@ input, select, textarea {
     text-align: center; /* Optionnel : centre aussi les titres */
     margin-bottom: 0.5rem;
 }
+
