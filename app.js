@@ -450,105 +450,300 @@ async function deleteMobileLocation(id) {
     }
 }
 
-// --- 2. GESTION DES PLANNINGS ---
+
+// ============================================================
+// VUE AGENDA (TIMELINE) - ADAPTATIVE (Délégué vs Manager)
+// ============================================================
+
 async function fetchMobileSchedules() {
-    const tbody = document.getElementById('planning-body');
-    if (!tbody) return;
+    const container = document.getElementById('planning-timeline-container');
+    if (!container) return;
+
+    // Loader propre
+    container.innerHTML = '<div class="flex flex-col items-center justify-center py-20 space-y-4"><div class="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div><p class="text-xs font-bold text-slate-400 uppercase tracking-widest">Synchronisation Agenda...</p></div>';
 
     try {
         const r = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/list-schedules`);
         const data = await r.json();
 
-        tbody.innerHTML = '';
-        if (data.length === 0) tbody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-slate-400">Aucune mission planifiée.</td></tr>';
+        container.innerHTML = '';
+        
+        // Message si vide
+        if (data.length === 0) {
+            container.innerHTML = `
+                <div class="flex flex-col items-center justify-center py-16 text-slate-300">
+                    <div class="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-4">
+                        <i class="fa-regular fa-calendar-check text-4xl"></i>
+                    </div>
+                    <h3 class="text-lg font-black text-slate-700">Aucune mission</h3>
+                    <p class="text-xs font-medium">Votre agenda est vide pour le moment.</p>
+                </div>`;
+            return;
+        }
 
+        // 1. GROUPEMENT PAR DATE
+        const grouped = {};
         data.forEach(s => {
-            let statusColor = 'bg-slate-100 text-slate-500';
-            if (s.status === 'CHECKED_IN') statusColor = 'bg-blue-100 text-blue-700 animate-pulse';
-            if (s.status === 'COMPLETED') statusColor = 'bg-emerald-100 text-emerald-700';
-            if (s.status === 'MISSED') statusColor = 'bg-red-100 text-red-700';
-
-            tbody.innerHTML += `
-                <tr class="border-b hover:bg-slate-50">
-                    <td class="px-6 py-4">
-                        <div class="font-bold text-sm text-slate-800">${new Date(s.schedule_date).toLocaleDateString()}</div>
-                        <div class="text-xs text-slate-500">${s.start_time.slice(0,5)} - ${s.end_time.slice(0,5)}</div>
-                    </td>
-                    <td class="px-6 py-4 text-sm font-medium">${s.employee_name}</td>
-                    <td class="px-6 py-4 text-sm text-slate-600">
-                        <i class="fa-solid fa-location-dot mr-1 text-blue-400"></i> ${s.location_name}
-                    </td>
-                    <td class="px-6 py-4 text-center">
-                        <span class="px-2 py-1 rounded-md text-[10px] font-black uppercase ${statusColor}">${s.status}</span>
-                    </td>
-                    <td class="px-6 py-4 text-right">
-                        <button onclick="deleteSchedule('${s.id}')" class="text-slate-300 hover:text-red-500"><i class="fa-solid fa-trash"></i></button>
-                    </td>
-                </tr>
-            `;
+            const dateKey = s.schedule_date.split('T')[0];
+            if (!grouped[dateKey]) grouped[dateKey] = [];
+            grouped[dateKey].push(s);
         });
-    } catch (e) { console.error(e); }
+
+        const sortedDates = Object.keys(grouped).sort(); // Trie les dates
+
+        let html = '';
+
+        sortedDates.forEach(date => {
+            const dateObj = new Date(date);
+            // Formatage pro de la date (Lundi 24 Février)
+            const dateStr = dateObj.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+            
+            const todayStr = new Date().toISOString().split('T')[0];
+            const isToday = (todayStr === date);
+            const isPast = (date < todayStr);
+
+            // Style de l'en-tête de date
+            let headerStyle = isToday ? 'text-blue-600' : (isPast ? 'text-slate-400' : 'text-slate-800');
+            let badgeToday = isToday ? `<span class="ml-2 bg-blue-600 text-white text-[9px] px-2 py-1 rounded-md uppercase font-black tracking-widest shadow-sm">Aujourd'hui</span>` : '';
+
+            html += `
+                <div class="mb-10 relative">
+                    <!-- EN-TÊTE JOUR -->
+                    <div class="sticky top-0 z-20 bg-[#f8fafc]/95 backdrop-blur-sm py-3 mb-6 border-b border-slate-200/60 flex items-center">
+                        <h3 class="text-xl font-black capitalize ${headerStyle} flex items-center">
+                            ${dateStr} ${badgeToday}
+                        </h3>
+                    </div>
+                    
+                    <!-- LIGNE DE TEMPS VERTICALE -->
+                    <div class="space-y-0 relative border-l-[3px] border-slate-200 ml-3.5 md:ml-6 pb-2">
+            `;
+
+            grouped[date].forEach(mission => {
+                // Détection : Est-ce MOI ou un autre ?
+                const isMe = (String(mission.employee_id) === String(currentUser.id));
+                const isManager = (currentUser.role !== 'EMPLOYEE');
+
+                // Couleurs dynamiques selon statut
+                let cardClass = 'bg-white border-slate-100';
+                let iconStatus = '<div class="w-4 h-4 bg-slate-300 rounded-full border-4 border-[#f8fafc]"></div>';
+                let timeClass = 'text-slate-800';
+
+                if (mission.status === 'COMPLETED') {
+                    cardClass = 'bg-emerald-50/50 border-emerald-100 opacity-80'; // Fait = un peu effacé
+                    iconStatus = '<div class="w-4 h-4 bg-emerald-500 rounded-full border-4 border-[#f8fafc] shadow-sm"></div>';
+                    timeClass = 'text-emerald-700 line-through';
+                } 
+                else if (mission.status === 'MISSED') {
+                    cardClass = 'bg-red-50/50 border-red-100';
+                    iconStatus = '<div class="w-4 h-4 bg-red-500 rounded-full border-4 border-[#f8fafc]"></div>';
+                    timeClass = 'text-red-700';
+                }
+                else if (mission.status === 'CHECKED_IN') {
+                    cardClass = 'bg-white border-blue-200 shadow-md ring-1 ring-blue-100'; // En cours = Mis en avant
+                    iconStatus = '<div class="w-4 h-4 bg-blue-600 rounded-full border-4 border-[#f8fafc] animate-pulse"></div>';
+                    timeClass = 'text-blue-600';
+                }
+
+                // Heure (ex: 09:00)
+                const timeStr = mission.start_time.slice(0, 5);
+
+
+                html += `
+                    <div class="relative pl-8 pb-8 group">
+                        
+                        <!-- POINT SUR LA LIGNE -->
+                        <div class="absolute -left-[9px] top-1 z-10">
+                            ${iconStatus}
+                        </div>
+
+                        <!-- LA CARTE -->
+                        <div class="relative p-5 rounded-2xl border ${cardClass} shadow-sm transition-all hover:shadow-md bg-white">
+                            
+                            <!-- LIGNE 1 : HEURE + STATUT -->
+                            <div class="flex items-center justify-between mb-3">
+                                <span class="font-mono font-black text-xl ${timeClass}">${timeStr}</span>
+                                ${mission.status === 'CHECKED_IN' ? '<span class="bg-blue-100 text-blue-700 text-[9px] font-black px-2 py-0.5 rounded uppercase animate-pulse">En cours</span>' : ''}
+                                ${mission.status === 'COMPLETED' ? '<span class="bg-emerald-100 text-emerald-700 text-[9px] font-black px-2 py-0.5 rounded uppercase">Terminé</span>' : ''}
+                            </div>
+
+                            <!-- LIGNE 2 : LIEU & MÉDECIN -->
+                            <div class="flex items-start gap-4 mb-3">
+                                <div class="w-12 h-12 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center text-2xl text-blue-600 shadow-sm shrink-0">
+                                    <i class="fa-solid fa-hospital"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-extrabold text-slate-800 text-base leading-tight mb-1">${mission.location_name}</h4>
+                                    
+                                    ${mission.prescripteur_nom ? `
+                                        <p class="text-xs font-black text-blue-600 uppercase tracking-tight mb-1">
+                                            <i class="fa-solid fa-user-doctor mr-1"></i> ${mission.prescripteur_nom}
+                                        </p>
+                                    ` : ''}
+
+                                    <p class="text-xs text-slate-500 font-medium flex items-center gap-1">
+                                        <i class="fa-solid fa-map-pin text-[10px] text-slate-400"></i> 
+                                        ${mission.location_address || 'Adresse standard'}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <!-- NOTES (Si présentes) -->
+                            ${mission.notes ? `
+                                <div class="bg-yellow-50 p-2 rounded-lg border border-yellow-100 mb-3">
+                                    <p class="text-[10px] text-yellow-800 italic"><i class="fa-regular fa-note-sticky mr-1"></i> ${mission.notes}</p>
+                                </div>
+                            ` : ''}
+
+                            <!-- BARRE D'ACTIONS (Le délégué est maître à bord) -->
+                            ${(isMe && mission.status !== 'COMPLETED') ? `
+                                <div class="pt-3 mt-2 border-t border-slate-100 flex items-center justify-end gap-3">
+                                    
+                                    <!-- BOUTON 1 : SUPPRIMER / ANNULER -->
+                                    <button onclick="deleteSchedule('${mission.id}')" class="text-slate-400 hover:text-red-500 px-3 py-2 rounded-lg text-[10px] font-bold uppercase transition-colors flex items-center gap-1">
+                                        <i class="fa-solid fa-trash-can"></i> Annuler
+                                    </button>
+
+                                    <!-- BOUTON 2 : LANCER LA VISITE (VALIDER) -->
+                                    <button onclick="startMissionFromAgenda('${mission.location_name}')" class="bg-slate-900 text-white px-4 py-2 rounded-xl text-[10px] font-bold uppercase shadow-lg active:scale-95 transition-transform flex items-center gap-2 hover:bg-blue-600">
+                                        🚀 Lancer la visite
+                                    </button>
+                                </div>
+                            ` : ''}
+                            
+                            <!-- POUR LE MANAGER (Si ce n'est pas moi, je vois qui c'est) -->
+                            ${(!isMe) ? `
+                                <div class="pt-3 mt-2 border-t border-slate-100 flex justify-end">
+                                    <div class="flex items-center gap-2">
+                                        <div class="w-5 h-5 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-[9px] font-bold">${mission.employee_name.charAt(0)}</div>
+                                        <span class="text-[10px] font-bold text-slate-500 uppercase">${mission.employee_name}</span>
+                                    </div>
+                                </div>
+                            ` : ''}
+
+                        </div>
+                    </div>
+                `;
+            });
+
+            html += `</div></div>`;
+        });
+
+        container.innerHTML = html;
+
+    } catch (e) {
+        console.error(e);
+        container.innerHTML = '<div class="text-center text-red-500 py-10 font-bold text-xs">Erreur connexion agenda.</div>';
+    }
 }
 
 
 
-
+function startMissionFromAgenda(lieuName) {
+    // 1. On redirige vers le Dashboard (là où est le gros bouton ENTRÉE)
+    switchView('dash');
+    
+    // 2. Petit message visuel pour dire "C'est parti"
+    const Toast = Swal.mixin({toast: true, position: 'top', showConfirmButton: false, timer: 3000});
+    Toast.fire({
+        icon: 'info',
+        title: `Prêt pour : ${lieuName}`,
+        text: 'Cliquez sur ENTRÉE pour démarrer le chronomètre.'
+    });
+}
 
 // --- FONCTION POUR CRÉER UNE MISSION (PLANNING) ---
 async function openAddScheduleModal() {
-    Swal.fire({ title: 'Chargement...', didOpen: () => Swal.showLoading() });
+    Swal.fire({ title: 'Chargement des données...', didOpen: () => Swal.showLoading() });
 
     try {
-        // 1. On récupère les employés (pour le menu déroulant) et les lieux
-        const [empsRes, locsRes] = await Promise.all([
-            secureFetch(`${SIRH_CONFIG.apiBaseUrl}/read?limit=1000&status=Actif`),
-            secureFetch(`${SIRH_CONFIG.apiBaseUrl}/list-mobile-locations`)
-        ]);
+        // 1. On charge : Employés (si manager), Lieux, ET Prescripteurs
+        const promises = [
+            secureFetch(`${SIRH_CONFIG.apiBaseUrl}/list-mobile-locations`),
+            secureFetch(`${SIRH_CONFIG.apiBaseUrl}/list-prescripteurs`)
+        ];
 
-        const emps = await empsRes.json();
-        const locs = await locsRes.json();
+        // Si je suis chef, je charge aussi la liste des employés pour leur assigner des tâches
+        const isManager = (currentUser.role !== 'EMPLOYEE');
+        if (isManager) {
+            promises.push(secureFetch(`${SIRH_CONFIG.apiBaseUrl}/read?limit=1000&status=Actif`));
+        }
 
-        // 2. On prépare les listes HTML
-        let empOptions = emps.data.map(e => `<option value="${e.id}">${e.nom} (${e.poste})</option>`).join('');
+        const responses = await Promise.all(promises);
+        const locs = await responses[0].json();
+        const pres = await responses[1].json();
+        const emps = isManager ? (await responses[2].json()).data : [];
+
+        // 2. Construction des listes déroulantes
+        
+        // Liste Lieux
         let locOptions = locs.map(l => `<option value="${l.id}">${l.name}</option>`).join('');
+        
+        // Liste Médecins (Avec recherche possible plus tard, pour l'instant simple select)
+        let presOptions = `<option value="">-- Aucun médecin précis --</option>` + 
+                          pres.map(p => `<option value="${p.id}">${p.nom_complet} (${p.fonction})</option>`).join('');
 
-        // 3. On ouvre la modale de saisie
+        // Liste Employés (Seulement si Manager, sinon c'est MOI)
+        let empFieldHtml = '';
+        if (isManager) {
+            let empOptions = emps.map(e => `<option value="${e.id}">${e.nom}</option>`).join('');
+            empFieldHtml = `
+                <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Pour qui ?</label>
+                <select id="sched-emp" class="swal2-input !mt-0">${empOptions}</select>
+            `;
+        } else {
+            // Champ caché pour l'ID de l'employé connecté
+            empFieldHtml = `<input type="hidden" id="sched-emp" value="${currentUser.id}">`;
+        }
+
+        // 3. LA MODALE DE PLANIFICATION (Style "Netreps" amélioré)
         const { value: form } = await Swal.fire({
-            title: 'Nouvelle Mission Terrain',
+            title: 'Planifier une visite',
             html: `
-                <div class="text-left">
-                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Agent affecté</label>
-                    <select id="sched-emp" class="swal2-input !mt-0">${empOptions}</select>
+                <div class="text-left space-y-4">
+                    ${empFieldHtml}
                     
-                    <label class="block text-[10px] font-black text-slate-400 uppercase mt-4 mb-1">Lieu de la mission</label>
-                    <select id="sched-loc" class="swal2-input !mt-0">${locOptions}</select>
-                    
-                    <div class="grid grid-cols-2 gap-3 mt-4">
+                    <div class="grid grid-cols-2 gap-3">
                         <div>
                             <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Date</label>
-                            <input id="sched-date" type="date" class="swal2-input !mt-0">
+                            <input id="sched-date" type="date" class="swal2-input !mt-0 !h-10 text-sm" value="${new Date().toISOString().split('T')[0]}">
                         </div>
                         <div>
-                            <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Heure de début</label>
-                            <input id="sched-start" type="time" class="swal2-input !mt-0" value="08:00">
+                            <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Heure (Matin/Soir)</label>
+                            <input id="sched-start" type="time" class="swal2-input !mt-0 !h-10 text-sm" value="09:00">
                         </div>
                     </div>
 
-                    <label class="block text-[10px] font-black text-slate-400 uppercase mt-4 mb-1">Instructions / Notes</label>
-                    <textarea id="sched-notes" class="swal2-textarea !mt-0" placeholder="Ex: Vérifier la vitrine..."></textarea>
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Lieu (Hôpital / Pharma)</label>
+                        <select id="sched-loc" class="swal2-input !mt-0 text-sm font-bold">${locOptions}</select>
+                    </div>
+
+                    <div class="bg-blue-50 p-2 rounded-xl border border-blue-100">
+                        <label class="block text-[10px] font-black text-blue-600 uppercase mb-1">Qui allez-vous voir ?</label>
+                        <select id="sched-pres" class="swal2-input !mt-0 text-sm font-bold text-blue-800 bg-white">
+                            ${presOptions}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Objectif / Note</label>
+                        <textarea id="sched-notes" class="swal2-textarea !mt-0 !h-20 text-sm" placeholder="Ex: Présentation nouveau produit..."></textarea>
+                    </div>
                 </div>
             `,
             focusConfirm: false,
             showCancelButton: true,
-            confirmButtonText: 'Enregistrer la mission',
+            confirmButtonText: 'Ajouter à mon agenda',
             confirmButtonColor: '#4f46e5',
             preConfirm: () => {
                 return {
                     employee_id: document.getElementById('sched-emp').value,
                     location_id: document.getElementById('sched-loc').value,
+                    prescripteur_id: document.getElementById('sched-pres').value || null, // On récupère le médecin
                     schedule_date: document.getElementById('sched-date').value,
                     start_time: document.getElementById('sched-start').value,
-                    end_time: '18:00', // Optionnel ou à ajouter en champ
+                    end_time: '18:00', 
                     notes: document.getElementById('sched-notes').value
                 }
             }
@@ -556,7 +751,7 @@ async function openAddScheduleModal() {
 
         // 4. Envoi au serveur
         if (form) {
-            Swal.fire({ title: 'Enregistrement...', didOpen: () => Swal.showLoading() });
+            Swal.fire({ title: 'Planification...', didOpen: () => Swal.showLoading() });
             const response = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/add-schedule`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -564,16 +759,15 @@ async function openAddScheduleModal() {
             });
 
             if (response.ok) {
-                Swal.fire('Succès', 'Mission planifiée avec succès.', 'success');
-                fetchMobileSchedules(); // Recharge le tableau
+                Swal.fire({ icon: 'success', title: 'Planifié !', timer: 1500, showConfirmButton: false });
+                fetchMobileSchedules(); // Recharge la timeline
             }
         }
     } catch (e) {
         console.error(e);
-        Swal.fire('Erreur', 'Impossible de charger les données (Vérifiez si des lieux sont créés).', 'error');
+        Swal.fire('Erreur', 'Impossible de charger les données.', 'error');
     }
 }
-
 
 
 
@@ -7542,6 +7736,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
