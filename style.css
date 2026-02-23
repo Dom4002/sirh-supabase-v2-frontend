@@ -242,3 +242,20 @@ button[type="submit"] {
 #sidebar.-translate-x-full {
     position: fixed; /* Elle sort du flux pour que le contenu s'élargisse */
 }
+
+/* On force les boutons du menu à écouter le JavaScript */
+.nav-btn {
+    font-size: var(--base-size) !important;
+}
+
+/* On ajuste la taille des icônes pour qu'elles suivent le texte */
+.nav-btn i {
+    font-size: calc(var(--base-size) * 1.2) !important;
+    width: calc(var(--base-size) * 1.5) !important;
+}
+
+/* On ajuste aussi les titres de rubriques (Personnel, Gestion, etc.) */
+.menu-group p {
+    font-size: calc(var(--base-size) * 0.8) !important;
+    margin-bottom: 0.5rem;
+}
