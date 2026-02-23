@@ -9,10 +9,10 @@
             --base-size: 16px;
             
             /* Échelle d'arrondis Premium */
-            --radius-sm: 0.3rem;   /* 8px */
+            --radius-sm: 0.5rem;   /* 8px */
             --radius-md: 1rem;     /* 16px */
-            --radius-lg: 1.1rem;   /* 24px */
-            --radius-xl: 1.5rem;  /* 36px */
+            --radius-lg: 1.5rem;   /* 24px */
+            --radius-xl: 2.25rem;  /* 36px */
             --radius-full: 9999px;
 
             /* Ombres douces (Soft Shadows) */
@@ -233,38 +233,29 @@ button[type="submit"] {
 }
 
 
+/* Animation fluide pour la sidebar */
+#sidebar {
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s ease;
+}
+
 /* Quand la sidebar est masquée sur PC, elle ne doit pas prendre de place */
 #sidebar.-translate-x-full {
     position: fixed; /* Elle sort du flux pour que le contenu s'élargisse */
 }
 
-/* Centrage des champs de saisie */
-input, select, textarea {
-    text-align: center;
-}
-
-/* Contrôle JS de la Sidebar */
-#sidebar {
-    width: var(--sidebar-width) !important;
-    transition: width 0.3s ease, transform 0.3s ease;
-}
-
-/* Contrôle JS des boutons du menu */
+/* On force les boutons du menu à écouter le JavaScript */
 .nav-btn {
     font-size: var(--base-size) !important;
-    padding: 1.2rem !important; /* Plus d'espace */
-    gap: 1rem !important;
 }
 
+/* On ajuste la taille des icônes pour qu'elles suivent le texte */
 .nav-btn i {
     font-size: calc(var(--base-size) * 1.2) !important;
-    width: 1.5rem;
+    width: calc(var(--base-size) * 1.5) !important;
 }
 
-/* Titres de rubriques (Personnel, Gestion...) */
+/* On ajuste aussi les titres de rubriques (Personnel, Gestion, etc.) */
 .menu-group p {
     font-size: calc(var(--base-size) * 0.8) !important;
-    text-align: center; /* Optionnel : centre aussi les titres */
     margin-bottom: 0.5rem;
 }
-
