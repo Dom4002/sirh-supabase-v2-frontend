@@ -4327,48 +4327,76 @@ async function handlePayrollImport(event) {
     const file = event.target.files[0];
     if (!file) return;
 
-    Swal.fire({ title: 'Traitement Excel...', didOpen: () => Swal.showLoading() });
+    Swal.fire({ title: 'Analyse du fichier...', text: 'Mise à jour des salaires en cours', didOpen: () => Swal.showLoading() });
 
     const reader = new FileReader();
     reader.onload = function(e) {
         const text = e.target.result;
-        const lines = text.split('\n');
-        let count = 0;
+        // On sépare les lignes (gère Windows et Mac)
+        const lines = text.split(/\r?\n/).filter(l => l.trim() !== "");
+        
+        if (lines.length < 2) {
+            Swal.fire('Erreur', 'Le fichier semble vide.', 'error');
+            return;
+        }
+
+        // 1. DÉTECTION DU DÉLIMITEUR (Auto-détection ; ou ,)
+        const firstLine = lines[0];
+        const delimiter = firstLine.includes(';') ? ';' : ',';
+        
+        let updateCount = 0;
 
         for (let i = 1; i < lines.length; i++) {
-            const cols = lines[i].split(';');
+            // Nettoyage de la ligne (vire les guillemets d'Excel)
+            const cols = lines[i].split(delimiter).map(c => c.replace(/"/g, '').trim());
+            
             if (cols.length < 6) continue;
 
-            const matricule = cols[0].trim();
-            const nom = cols[1].trim();
-            const totalPrimes = cols[4].trim(); // Colonne E
-            const totalRetenues = cols[5].trim(); // Colonne F
+            // 2. RÉCUPÉRATION DES DONNÉES (On nettoie le matricule des caractères Excel)
+            const matricule = cols[0].replace(/\t/g, ''); 
+            const totalPrimes = parseInt(cols[4]) || 0;
+            const totalRetenues = parseInt(cols[5]) || 0;
 
-            // On cherche l'employé dans le tableau HTML via son matricule
-            // On a besoin de l'ID technique (UUID) pour trouver la bonne ligne
+            // 3. RECHERCHE DE L'EMPLOYÉ DANS VOTRE LISTE CHARGÉE
             const emp = employees.find(x => x.matricule === matricule);
 
-            if (emp && emp.nom.trim() === nom) {
-                // On trouve l'index de la ligne dans le tableau de compta
-                // On utilise le sélecteur d'attribut sur le div du NET
-                const netDiv = document.querySelector(`div[data-id="${emp.id}"]`);
-                if (netDiv) {
-                    const index = netDiv.id.split('-')[1];
+            if (emp) {
+                // 4. RECHERCHE DE LA LIGNE DANS LE TABLEAU HTML
+                // On cherche l'élément du NET qui porte le data-id
+                const netDisplay = document.querySelector(`div[data-id="${emp.id}"]`);
+                
+                if (netDisplay) {
+                    // On récupère l'index (ex: net-5 -> index = 5)
+                    const index = netDisplay.id.split('-')[1];
                     
-                    // ON INJECTE LES VALEURS D'EXCEL
-                    document.getElementById(`prime-${index}`).value = totalPrimes;
-                    document.getElementById(`tax-${index}`).value = totalRetenues;
-                    
-                    // ON RECALCULE LE NET IMMÉDIATEMENT
-                    calculateRow(index);
-                    count++;
+                    // ON INJECTE LES VALEURS DANS LES INPUTS
+                    const inputPrime = document.getElementById(`prime-${index}`);
+                    const inputTax = document.getElementById(`tax-${index}`);
+
+                    if (inputPrime && inputTax) {
+                        inputPrime.value = totalPrimes;
+                        inputTax.value = totalRetenues;
+                        
+                        // ON DÉCLENCHE LE CALCUL VISUEL DU NET
+                        calculateRow(index);
+                        updateCount++;
+                    }
                 }
             }
         }
-        Swal.fire('Succès', `${count} lignes mises à jour depuis Excel.`, 'success');
+
+        if (updateCount > 0) {
+            Swal.fire('Succès', `${updateCount} fiches de paie ont été mises à jour avec succès.`, 'success');
+        } else {
+            Swal.fire('Oups', 'Aucun matricule correspondant trouvé dans le tableau actuel. Vérifiez que vous avez bien chargé les bons employés.', 'warning');
+        }
     };
+
     reader.readAsText(file);
+    // On reset l'input pour pouvoir ré-importer le même fichier
+    event.target.value = "";
 }
+
 
 async function submitSignedContract() { 
     if (!signaturePad || signaturePad.isEmpty()) { 
@@ -7708,6 +7736,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
