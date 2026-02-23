@@ -6,7 +6,7 @@
             --primary: #0f172a;
             --accent: #2563eb;
             --font-main: 'Plus Jakarta Sans', sans-serif;
-            --base-size: 14px;
+            --base-size: 16px;
             
             /* Échelle d'arrondis Premium */
             --radius-sm: 0.5rem;   /* 8px */
@@ -231,3 +231,4 @@ button[type="submit"] {
     padding: 12px 20px !important;
     font-size: 0.9rem !important;
 }
+
