@@ -265,3 +265,20 @@ button[type="submit"] {
 #login-screen button {
     box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1) !important;
 }
+
+
+
+
+
+
+
+
+/* Par défaut, tout ce qui est protégé est invisible */
+[data-perm], .menu-group, .view-section {
+    display: none;
+}
+
+/* Seule la classe active peut forcer l'affichage */
+.view-section.active {
+    display: block !important;
+}
