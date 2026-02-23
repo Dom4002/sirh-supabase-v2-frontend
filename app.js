@@ -927,7 +927,8 @@ async function secureFetch(url, options = {}) {
             } catch (e) { }
 
             // --- CORRECTION : DÉTECTION ET TRAITEMENT DE L'EXPIRATION ---
-            if (response.status === 401 || response.status === 403) {
+// --- CORRECTION : DÉTECTION ET TRAITEMENT DE L'EXPIRATION ---
+            if (response.status === 401) { // 🛑 ON A RETIRÉ LE 403 ICI
                 // 1. On informe l'utilisateur
                 Swal.fire({
                     title: 'Session expirée',
@@ -936,15 +937,17 @@ async function secureFetch(url, options = {}) {
                     confirmButtonColor: '#0f172a'
                 });
 
-                // 2. On lance la déconnexion (nettoyage mémoire + redirection)
+                // 2. On lance la déconnexion
                 if (typeof handleLogout === 'function') {
                     handleLogout(); 
                 }
-
-                if (specificMessage) {
-                    throw new Error(`AUTH_ERROR_SPECIFIC:${specificMessage}`);
-                }
                 throw new Error("Session expirée. Veuillez vous reconnecter.");
+            }
+
+            // NOUVEAU BLOC POUR LE 403 (On bloque l'action, mais on ne déconnecte pas !)
+            if (response.status === 403) {
+                console.warn("Accès refusé : L'utilisateur n'a pas la permission requise.");
+                throw new Error(specificMessage || "Accès refusé. Vous n'avez pas les droits nécessaires.");
             }
             
             throw new Error(errorMessage);
@@ -1322,7 +1325,10 @@ async function setSession(n, r, id, perms) {
 
         const savedView = localStorage.getItem('sirh_last_view');
         
-        if (savedView && document.getElementById('view-' + savedView)) {
+        // === CORRECTION ICI : ON EMPÊCHE LE CHARGEMENT D'UNE PAGE NON AUTORISÉE ===
+        if (savedView === 'dash' && !perms?.can_see_dashboard) {
+            switchView('my-profile');
+        } else if (savedView && document.getElementById('view-' + savedView)) {
             switchView(savedView);
         } else {
             if (perms?.can_see_dashboard) {
@@ -1341,6 +1347,7 @@ async function setSession(n, r, id, perms) {
         Swal.fire('Erreur', 'Impossible de démarrer l\'application. Réessayez.', 'error');
     }
 }
+
 
 
 
@@ -6632,42 +6639,37 @@ function initChatRealtime() {
 
 function applyPermissionsUI(perms) {
     const safePerms = perms || {}; 
-    console.log("🛠️ Application des permissions UI (Correction Indépendance)...", safePerms);
+    console.log("🛠️ Application des permissions UI (Mode Suppression Absolue)...", safePerms);
 
-    // ÉTAPE 1 : Gérer la visibilité de CHAQUE ÉLÉMENT individuellement
-    // On ne se limite plus aux "buttons", on prend tout ce qui a [data-perm]
+    // ÉTAPE 1 : Supprimer physiquement les éléments non autorisés du DOM
+    // On ne se contente plus de cacher, on détruit l'élément HTML.
     document.querySelectorAll('[data-perm]').forEach(el => {
         const key = el.getAttribute('data-perm');
         
         if (safePerms[key] === true) {
-            // On réinitialise le display pour laisser le CSS (Flex/Block) reprendre le dessus
+            // L'utilisateur a le droit : on s'assure que c'est visible
             el.style.display = ''; 
             el.classList.remove('hidden'); 
         } else {
-            // On force la disparition sans affecter les voisins
-            el.style.display = 'none';
+            // L'utilisateur n'a pas le droit : ON DÉTRUIT TOTALEMENT L'ÉLÉMENT !
+            el.remove(); 
         }
     });
 
-    // ÉTAPE 2 : Gérer la visibilité des GROUPES DE MENUS ( menu-group )
-    // On vérifie s'il reste au moins un élément visible (public ou autorisé)
+    // ÉTAPE 2 : Nettoyer les groupes de menus (menu-group) qui sont devenus vides
     document.querySelectorAll('.menu-group').forEach(group => {
         // On cible la zone qui contient les boutons (ex: m-perso-content)
         const contentArea = group.querySelector('[id$="-content"]');
         
         if (contentArea) {
-            // On regarde TOUS les enfants directs de la zone de contenu
-            const children = Array.from(contentArea.children);
+            // Comme on a fait "el.remove()" plus haut, il suffit de compter les boutons restants
+            // On cherche tous les éléments cliquables restants dans ce groupe
+            const remainingItems = contentArea.querySelectorAll('.nav-btn, button, a');
             
-            // Le groupe reste visible si au moins un de ses enfants n'est pas en "display: none"
-            const hasVisibleContent = children.some(child => {
-                return window.getComputedStyle(child).display !== 'none';
-            });
-
-            if (hasVisibleContent) {
-                group.style.display = ''; // On laisse le groupe (titre + boutons) visible
+            if (remainingItems.length > 0) {
+                group.style.display = ''; // Il reste des autorisations, on laisse le titre du groupe
             } else {
-                group.style.display = 'none'; // On cache tout si le groupe est devenu vide
+                group.remove(); // Le groupe est totalement vide, ON LE DÉTRUIT AUSSI !
             }
         }
     });
@@ -6685,17 +6687,11 @@ document.addEventListener('touchend', e => {
 });
 
 
-
-
-
 // --- IMPORT DE MASSE (CSV) ---
 
 function triggerCSVImport() {
     document.getElementById('csv-file-input').click();
 }
-
-
-
 
 
 
@@ -7768,6 +7764,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
