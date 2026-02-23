@@ -1251,8 +1251,12 @@ async function openAddTemplateModal() {
 
 async function setSession(n, r, id, perms) {
     currentUser = { nom: n, role: r, id: id, permissions: perms };
+    
+    // --- NETTOYAGE PRÉVENTIF IMMÉDIAT ---
+    // On cache tout ce qui est sensible avant d'afficher quoi que ce soit
     document.querySelectorAll('[data-perm]').forEach(el => el.style.display = 'none');
     document.querySelectorAll('.menu-group').forEach(group => group.style.display = 'none');
+    
     applyBranding();
     
     // 1. Cacher le login IMMÉDIATEMENT, mais GARDER le loader (pour le style)
@@ -1261,25 +1265,25 @@ async function setSession(n, r, id, perms) {
     const appLayout = document.getElementById('app-layout');
     
     if (loader) {
-        loader.classList.remove('hidden'); // S'assure qu'il est visible
+        loader.classList.remove('hidden'); 
         loader.style.opacity = '1';
     }
 
-    // 2. Préparer l'identité visuelle de base (arrière-plan)
+    // 2. Préparer l'identité visuelle de base
     document.getElementById('name-display').innerText = n; 
     document.getElementById('role-display').innerText = r; 
     document.getElementById('avatar-display').innerText = n[0]; 
 
     document.body.className = "text-slate-900 overflow-hidden h-screen w-screen role-" + r.toLowerCase(); 
 
-    // 3. Injecter les SKELETONS dans les tableaux
+    // 3. Injecter les SKELETONS
     const skeletonRow = `<tr class="border-b"><td class="p-4 flex gap-3 items-center"><div class="w-10 h-10 rounded-full skeleton"></div><div class="space-y-2"><div class="h-3 w-24 rounded skeleton"></div></div></td><td class="p-4"><div class="h-3 w-32 rounded skeleton"></div></td><td class="p-4"><div class="h-6 w-16 rounded-lg skeleton"></div></td><td class="p-4"></td></tr>`;
     ['full-body', 'dashboard-body'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.innerHTML = skeletonRow.repeat(6);
     });
 
-    // 4. RÉVÉLATION DE L'INTERFACE DÈS QUE POSSIBLE
+    // 4. RÉVÉLATION DE L'INTERFACE
     appLayout.classList.remove('hidden'); 
     appLayout.classList.add('ready');     
     
@@ -1293,35 +1297,28 @@ async function setSession(n, r, id, perms) {
         }
     }, 100); 
 
-
-    // 5. CHARGEMENT DES DONNÉES EN ARRIÈRE-PLAN (NON BLOQUANT POUR L'UI)
+    // 5. CONFIGURATION DES DROITS ET DE LA VUE (ORDRE CRITIQUE)
     try {
-        refreshAllData(false); 
-        syncClockInterface(); 
-        fetchAndPopulateDepartments();
-        syncAllRoleSelects();
-        fetchContractTemplatesForSelection(); 
-
-        // --- NOUVEAU : Écouteur pour le type d'employé (si le select existe) ---
-        // Il est important de s'assurer que l'élément est dans le DOM avant d'ajouter l'écouteur
-        const fTypeSelect = document.getElementById('f-type');
-        if (fTypeSelect) {
-            fTypeSelect.removeEventListener('change', toggleContractFieldsVisibility); // Évite les écouteurs dupliqués
-            fTypeSelect.addEventListener('change', toggleContractFieldsVisibility);
-            toggleContractFieldsVisibility(); // Appel initial pour masquer/afficher les champs
-        }
-
+        // A. On applique d'abord les permissions à l'UI
         await applyModulesUI(); 
         applyPermissionsUI(perms);
 
-        // 6. LOGIQUE DE NAVIGATION VERS LA VUE PAR DÉFAUT (ou sauvegardée)
+        // B. On sécurise la recherche globale
         const searchContainer = document.getElementById('global-search-container');
         if (searchContainer) {
             searchContainer.style.display = perms?.can_see_employees ? 'block' : 'none';
         }
 
-        const savedView = localStorage.getItem('sirh_last_view');
+        // C. LOGIQUE DE NAVIGATION SÉCURISÉE (On vérifie les droits AVANT de switcher)
+        let savedView = localStorage.getItem('sirh_last_view');
         
+        // --- VÉRIFICATION DE SÉCURITÉ SUR LA VUE ---
+        // Si la vue sauvegardée est interdite pour ce rôle, on reset
+        if (savedView === 'dash' && !perms?.can_see_dashboard) savedView = 'my-profile';
+        if (savedView === 'employees' && !perms?.can_see_employees) savedView = 'my-profile';
+        if (savedView === 'logs' && !perms?.can_see_audit) savedView = 'my-profile';
+        if (savedView === 'accounting' && !perms?.can_see_payroll) savedView = 'my-profile';
+
         if (savedView && document.getElementById('view-' + savedView)) {
             switchView(savedView);
         } else {
@@ -1330,6 +1327,20 @@ async function setSession(n, r, id, perms) {
             } else {
                 switchView('my-profile'); 
             }
+        }
+
+        // D. MAINTENANT SEULEMENT ON CHARGE LES DONNÉES (refreshAllData utilisera la vue correcte)
+        refreshAllData(false); 
+        syncClockInterface(); 
+        fetchAndPopulateDepartments();
+        syncAllRoleSelects();
+        fetchContractTemplatesForSelection(); 
+
+        const fTypeSelect = document.getElementById('f-type');
+        if (fTypeSelect) {
+            fTypeSelect.removeEventListener('change', toggleContractFieldsVisibility);
+            fTypeSelect.addEventListener('change', toggleContractFieldsVisibility);
+            toggleContractFieldsVisibility(); 
         }
 
         applyWidgetPreferences(); 
@@ -1341,7 +1352,6 @@ async function setSession(n, r, id, perms) {
         Swal.fire('Erreur', 'Impossible de démarrer l\'application. Réessayez.', 'error');
     }
 }
-
 
 
 // ============================================================
@@ -1731,82 +1741,70 @@ async function offerRegisterLocation(gps) {
 
 
 
-
-
 async function refreshAllData(force = false) {
     const now = Date.now();
     const icon = document.getElementById('refresh-icon'); 
     if(icon) icon.classList.add('fa-spin');
 
-    if(force) {
-        const Toast = Swal.mixin({toast: true, position: 'top-end', showConfirmButton: false});
-        Toast.fire({icon: 'info', title: 'Actualisation...'});
-    }
+    // Sécurité : si pas de permissions chargées, on ne fait rien
+    const perms = currentUser?.permissions || {};
 
     try {
         const tasks = [];
-        const perms = currentUser.permissions || {}; // Sécurité si perms est null
 
-        // 1. TACHES PUBLIQUES (Toujours autorisées)
+        // --- 1. DONNÉES PUBLIQUES (Toujours autorisées) ---
+        tasks.push(fetchFlashMessage().catch(e => console.warn("Flash ignoré")));
         if (force || (now - lastFetchTimes.global > 3600000)) {
-            tasks.push(fetchCompanyConfig().catch(e => console.warn("GPS ignoré", e)));
+            tasks.push(fetchCompanyConfig().catch(e => console.warn("GPS ignoré")));
         }
-        tasks.push(fetchFlashMessage().catch(e => console.warn("Flash ignoré", e)));
 
-        // 2. TACHES ADMIN / RH (Uniquement si permission can_see_employees)
-        // On regroupe ici pour éviter les appels en double
-        if (perms.can_see_employees) {
+        // --- 2. DONNÉES SOUS PERMISSIONS (VÉRIFICATION STRICTE) ---
+        
+        // Liste des collaborateurs (Bouton Collaborateurs)
+        if (perms.can_see_employees || perms.can_view_team) {
             if (force || employees.length === 0 || (now - lastFetchTimes.employees > REFRESH_THRESHOLD)) {
                 tasks.push(fetchData(false, 1));
                 lastFetchTimes.employees = now;
             }
-            tasks.push(triggerRobotCheck());
-            tasks.push(fetchLiveAttendance());
         }
 
-        // 3. TACHES SPECIFIQUES AUX VUES (Avec vérification des droits)
-        if (currentView === 'recruitment' && perms.can_see_recruitment) {
-            tasks.push(fetchCandidates());
+        // Dashboard et Live Tracker
+        if (perms.can_see_dashboard) {
+            tasks.push(fetchLiveAttendance().catch(e => console.log("Live tracker non autorisé")));
         }
-        
+
+        // Audit Sécurité (Logs)
         if (currentView === 'logs' && perms.can_see_audit) {
             tasks.push(fetchLogs());
         }
-        
-        // 4. ESPACE PERSONNEL (Toujours autorisé pour l'utilisateur connecté)
-        if (currentView === 'my-profile') {
-            tasks.push(fetchPayrollData());    
-            tasks.push(fetchLeaveRequests());  
-        }
-        
-        // 5. GESTION MANAGERIALE (Validation des congés de l'équipe)
-        // On ne le fait que si ce n'est pas un simple employé et qu'on n'a pas déjà chargé via le bloc Admin
-        if (currentUser.role !== 'EMPLOYEE' && !perms.can_see_employees) {
-            tasks.push(fetchLeaveRequests()); 
-            tasks.push(fetchLiveAttendance());
+
+        // Recrutement
+        if (currentView === 'recruitment' && perms.can_see_recruitment) {
+            tasks.push(fetchCandidates());
         }
 
-        // On attend que toutes les requêtes autorisées soient terminées
+        // --- 3. ESPACE PERSONNEL (Toujours autorisé) ---
+        if (currentView === 'my-profile') {
+            tasks.push(fetchPayrollData());
+            tasks.push(fetchLeaveRequests());
+            if (typeof fetchMyActivityRecap === 'function') tasks.push(fetchMyActivityRecap());
+        }
+        
+        // Robot de surveillance (Seulement pour ceux qui gèrent les employés)
+        if (perms.can_see_employees) {
+            tasks.push(triggerRobotCheck().catch(e => {}));
+        }
+
         await Promise.all(tasks);
         
-        // Mise à jour finale de l'interface du Dashboard si on est dessus
-        if (currentView === 'dash' && perms.can_see_dashboard) {
-            renderCharts();
-        }
-
-        if(force) {
-            const Toast = Swal.mixin({toast: true, position: 'top-end', showConfirmButton: false, timer: 2000});
-            Toast.fire({icon: 'success', title: 'Données à jour !'});
-        }
+        if (currentView === 'dash' && perms.can_see_dashboard) renderCharts();
 
     } catch (error) {
-        console.error("Erreur Sync:", error);
+        console.error("Erreur de synchronisation :", error);
     } finally {
         if(icon) setTimeout(() => icon.classList.remove('fa-spin'), 500);
     }
 }
-
-
 
 
 
@@ -7768,6 +7766,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
