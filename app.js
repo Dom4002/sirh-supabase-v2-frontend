@@ -73,6 +73,9 @@ let searchTimeout = null; // Sert à attendre que l'utilisateur finisse de taper
     // ==========================================
     // CONFIGURATION DE PERSONNALISATION (SAAS)
     // ==========================================
+// ==========================================
+    // CONFIGURATION DE PERSONNALISATION (SAAS)
+    // ==========================================
     const SIRH_CONFIG = {
         company: {
             name: "SIRH-SECURE",
@@ -83,16 +86,14 @@ let searchTimeout = null; // Sert à attendre que l'utilisateur finisse de taper
             primary: "#0f172a",   // Couleur Sidebar
             accent: "#2563eb",    // Couleur Boutons / Éléments actifs
             fontFamily: "'Plus Jakarta Sans', sans-serif", // Choix de police
-            baseFontSize: "16px" // Taille de base (14px ou 16px recommandé)
+            baseFontSize: "16px", // Taille gérée ici (ex: 16px, 18px...)
+            sidebarWidth: "300px" // NOUVEAU : Largeur gérée ici (ex: 300px, 320px...)
         },
 
         // 3. PARAMÈTRES GPS MULTI-SIÈGES
-        // Note : Cette liste pourra être remplie dynamiquement par Airtable plus tard
         gps: {
-            enabled: true,         // Activer la vérification GPS ?
-            strictMode: true,      // Bloquer le pointage si hors zone ?
-            
-            // Liste des sièges autorisés
+            enabled: true,
+            strictMode: true,
             offices: []
         },
 
@@ -5901,7 +5902,7 @@ function exportToCSV() {
     }
 
 
-    function applyBranding() {
+function applyBranding() {
         const theme = SIRH_CONFIG.theme;
 
         // 1. Calcul des couleurs de texte intelligentes
@@ -5914,6 +5915,7 @@ function exportToCSV() {
         root.style.setProperty('--accent', theme.accent);
         root.style.setProperty('--font-main', theme.fontFamily);
         root.style.setProperty('--base-size', theme.baseFontSize);
+        root.style.setProperty('--sidebar-width', theme.sidebarWidth); // <-- AJOUTÉ : Pour piloter la largeur via JS
         root.style.setProperty('--text-on-primary', textOnPrimary);
         root.style.setProperty('--text-on-accent', textOnAccent);
 
@@ -5921,7 +5923,7 @@ function exportToCSV() {
         const nameEls = document.querySelectorAll('.company-name-display');
         nameEls.forEach(el => {
             el.innerText = SIRH_CONFIG.company.name;
-            el.style.color = textOnPrimary; // Le nom s'adapte à la couleur de fond
+            el.style.color = textOnPrimary; 
         });
 
         const logoSidebar = document.querySelector('.app-logo-display');
@@ -5939,40 +5941,48 @@ function exportToCSV() {
         // 5. Titre du navigateur
         document.title = SIRH_CONFIG.company.name + " | Portail RH";
 
-        console.log(`🎨 Branding intelligent appliqué (${textOnAccent} sur ${theme.accent})`);
+        console.log(`🎨 Branding intelligent appliqué : Taille ${theme.baseFontSize}, Sidebar ${theme.sidebarWidth}`);
     }
 
 
-    let deferredPrompt;
+
+let deferredPrompt; // Correction : retrait du "/" parasite
     const installBtn = document.getElementById('install-button');
 
-    window.addEventListener('beforeinstallprompt', (e) => {
-        // Empêche Chrome d'afficher le pop-up automatique
-        e.preventDefault();
-        // Garde l'événement pour plus tard
-        deferredPrompt = e;
-        // Affiche notre bouton personnalisé
-        installBtn.classList.remove('hidden');
+    // On vérifie si le bouton existe dans le DOM avant d'ajouter les écouteurs
+    if (installBtn) {
+        window.addEventListener('beforeinstallprompt', (e) => {
+            // Empêche le navigateur d'afficher la bannière automatique par défaut
+            e.preventDefault();
+            // On sauvegarde l'événement pour le déclencher plus tard au clic
+            deferredPrompt = e;
+            // On révèle le bouton d'installation personnalisé
+            installBtn.classList.remove('hidden');
 
-        installBtn.addEventListener('click', async () => {
-            // Affiche le vrai pop-up d'installation
-            deferredPrompt.prompt();
-            // Attend la réponse de l'utilisateur
-            const { outcome } = await deferredPrompt.userChoice;
-            if (outcome === 'accepted') {
-                console.log('L\'utilisateur a installé l\'app');
-            }
-            // On cache le bouton car l'installation est faite ou demandée
+            // On vide les anciens événements pour éviter les doublons si l'event se déclenche plusieurs fois
+            installBtn.onclick = async () => {
+                if (deferredPrompt) {
+                    // Affiche le pop-up système d'installation
+                    deferredPrompt.prompt();
+                    // Attend le choix de l'utilisateur
+                    const { outcome } = await deferredPrompt.userChoice;
+                    console.log(`Réponse de l'utilisateur à l'installation : ${outcome}`);
+                    
+                    // On cache le bouton peu importe le choix (accepté ou refusé)
+                    installBtn.classList.add('hidden');
+                    // On nettoie la variable pour ne pas réutiliser un prompt expiré
+                    deferredPrompt = null;
+                }
+            };
+        });
+
+        // Si l'application est déjà installée ou vient d'être installée
+        window.addEventListener('appinstalled', (evt) => {
+            console.log('Application installée avec succès !');
             installBtn.classList.add('hidden');
             deferredPrompt = null;
         });
-    });
-
-    // Cache le bouton si l'app est déjà installée
-    window.addEventListener('appinstalled', () => {
-        installBtn.classList.add('hidden');
-        deferredPrompt = null;
-    });
+    }
 
 
 
@@ -7747,6 +7757,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
