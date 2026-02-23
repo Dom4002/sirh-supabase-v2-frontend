@@ -7240,11 +7240,6 @@ function toggleTextFixed(el) {
 
 
 
-
-
-
-
-
 function setEmployeeFilter(category, value) {
     // 1. On met à jour la mémoire
     activeFilters[category] = value;
@@ -7736,6 +7731,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
