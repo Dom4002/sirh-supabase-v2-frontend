@@ -1412,39 +1412,22 @@
     </div>
 </section>
 
-
-        <section id="view-mobile-planning" class="view-section">
-    <div class="flex justify-between items-center mb-8">
+<section id="view-mobile-planning" class="view-section">
+    <div class="flex justify-between items-center mb-6">
         <div>
-            <h2 class="text-2xl font-black text-slate-800">Plannings & Missions</h2>
-            <p class="text-sm text-slate-500 font-bold uppercase tracking-widest">Affectation des agents sur le terrain</p>
+            <h2 class="text-2xl font-black text-slate-800">Mon Agenda</h2>
+            <p class="text-sm text-slate-500 font-bold uppercase tracking-widest">Planning des missions</p>
         </div>
-        <button data-perm="can_manage_schedules" onclick="openAddScheduleModal()" class="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg active:scale-95 transition-all flex items-center gap-2">
-            <i class="fa-solid fa-calendar-plus"></i> Créer une Mission
+        <button data-perm="can_manage_schedules" onclick="openAddScheduleModal()" class="bg-indigo-600 text-white px-4 py-3 rounded-xl font-bold shadow-lg active:scale-95 transition-all flex items-center gap-2 text-xs uppercase tracking-widest">
+            <i class="fa-solid fa-plus"></i> Mission
         </button>
     </div>
 
-    <!-- Tableau des missions -->
-    <div class="bg-white rounded-[2rem] shadow-xl border border-slate-200 overflow-hidden">
-        <div class="overflow-x-auto">
-            <table class="w-full text-left whitespace-nowrap">
-                <thead class="bg-slate-50 text-[10px] uppercase font-black text-slate-400">
-                    <tr>
-                        <th class="px-6 py-4">Date / Heure</th>
-                        <th class="px-6 py-4">Agent</th>
-                        <th class="px-6 py-4">Lieu de Mission</th>
-                        <th class="px-6 py-4 text-center">Statut</th>
-                        <th class="px-6 py-4 text-right">Actions</th>
-                    </tr>
-                </thead>
-                <tbody id="planning-body" class="divide-y divide-slate-100">
-                    <!-- Rempli par JS -->
-                </tbody>
-            </table>
-        </div>
+    <!-- C'EST ICI QUE LA TIMELINE VA S'AFFICHER -->
+    <div id="planning-timeline-container" class="max-w-3xl mx-auto pb-20">
+        <div class="text-center py-10 text-slate-400 italic">Chargement de l'agenda...</div>
     </div>
 </section>
-
 
 
 
@@ -1968,6 +1951,7 @@
     </body>
 
     </html>
+
 
 
 
