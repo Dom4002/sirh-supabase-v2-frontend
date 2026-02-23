@@ -2166,6 +2166,12 @@ function renderData() {
             actionCell += `<button onclick="openEditModal('${safeId}')" class="text-slate-400 hover:text-slate-800 transition-all"><i class="fa-solid fa-pen"></i></button>`;
         }
 
+
+        if (perms.can_delete_employees) {
+             actionCell += `<button onclick="deleteEmployee('${safeId}')" class="p-2 text-red-200 hover:text-red-600 transition-colors ml-1" title="Supprimer"><i class="fa-solid fa-trash-can"></i></button>`;
+         }
+
+                
         // On ferme les balises
         actionCell += `</div></td>`;
         // --- FIN DU BLOC CORRIGÉ ---
@@ -4587,32 +4593,45 @@ function showLeaveDetail(btn) {
 
     let documentHtml = '';
     const driveId = typeof getDriveId === 'function' ? getDriveId(docLink) : null;
+    
+    // --- STRATÉGIE DE CONFIDENTIALITÉ ---
+    const canViewFiles = currentUser.permissions?.can_view_employee_files;
 
-    // Gestion du document (Preview ou Image)
-    if (driveId) {
-        const previewUrl = `https://drive.google.com/file/d/${driveId}/preview`;
+    if (!canViewFiles) {
+        // Si l'utilisateur n'a pas le droit de voir les fichiers, on affiche un bloc verrouillé
         documentHtml = `
-            <div class="mt-4 rounded-xl overflow-hidden border border-slate-200 shadow-sm bg-slate-100 h-[200px]">
-                <iframe src="${previewUrl}" width="100%" height="100%" style="border:none;"></iframe>
-            </div>`;
-    } else if (docLink && docLink.length > 5 && docLink !== 'null') {
-        documentHtml = `
-            <div class="mt-4 text-center">
-                <p class="text-[10px] font-black text-slate-400 uppercase mb-2 text-left">Pièce Jointe</p>
-                <img src="${docLink}" class="max-h-[200px] w-full object-cover rounded-xl border shadow-sm cursor-pointer hover:scale-[1.02] transition-transform" 
-                    onclick="window.open('${docLink}', '_blank')">
+            <div class="mt-4 p-6 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 text-center">
+                <i class="fa-solid fa-lock text-slate-300 text-3xl mb-2"></i>
+                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Accès restreint aux pièces jointes</p>
+                <p class="text-[9px] text-slate-400 mt-1 italic">Contactez un administrateur pour consulter le justificatif.</p>
             </div>`;
     } else {
-        documentHtml = `
-            <div class="mt-4 p-4 rounded-xl border border-dashed border-slate-200 text-center text-slate-400">
-                <i class="fa-solid fa-file-circle-xmark mb-1"></i>
-                <p class="text-[10px] font-bold uppercase">Aucun justificatif</p>
-            </div>`;
+        // Logique originale de gestion du document
+        if (driveId) {
+            const previewUrl = `https://drive.google.com/file/d/${driveId}/preview`;
+            documentHtml = `
+                <div class="mt-4 rounded-xl overflow-hidden border border-slate-200 shadow-sm bg-slate-100 h-[200px]">
+                    <iframe src="${previewUrl}" width="100%" height="100%" style="border:none;"></iframe>
+                </div>`;
+        } else if (docLink && docLink.length > 5 && docLink !== 'null') {
+            documentHtml = `
+                <div class="mt-4 text-center">
+                    <p class="text-[10px] font-black text-slate-400 uppercase mb-2 text-left">Pièce Jointe</p>
+                    <img src="${docLink}" class="max-h-[200px] w-full object-cover rounded-xl border shadow-sm cursor-pointer hover:scale-[1.02] transition-transform" 
+                        onclick="window.open('${docLink}', '_blank')">
+                </div>`;
+        } else {
+            documentHtml = `
+                <div class="mt-4 p-4 rounded-xl border border-dashed border-slate-200 text-center text-slate-400">
+                    <i class="fa-solid fa-file-circle-xmark mb-1"></i>
+                    <p class="text-[10px] font-bold uppercase">Aucun justificatif</p>
+                </div>`;
+        }
     }
 
-    // 2. AFFICHAGE DU POP-UP HORIZONTAL
+    // 2. AFFICHAGE DU POP-UP HORIZONTAL (Inchangé)
     Swal.fire({
-        width: '850px', // Plus large pour le mode horizontal
+        width: '850px',
         padding: '0',
         showConfirmButton: true,
         confirmButtonText: 'Fermer la fiche',
@@ -4620,12 +4639,9 @@ function showLeaveDetail(btn) {
         customClass: { popup: 'rounded-[2rem] overflow-hidden' },
         html: `
             <div class="flex flex-col md:flex-row text-left bg-white">
-                
-                <!-- COLONNE GAUCHE : INFOS (35%) -->
                 <div class="w-full md:w-[35%] bg-slate-50 p-8 border-r border-slate-100">
                     <p class="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em] mb-2">Détails Demande</p>
                     <h3 class="text-2xl font-black text-slate-800 leading-tight mb-6">${nom}</h3>
-                    
                     <div class="space-y-6">
                         <div>
                             <label class="block text-[9px] font-black text-slate-400 uppercase mb-1">Nature de l'absence</label>
@@ -4633,7 +4649,6 @@ function showLeaveDetail(btn) {
                                 ${type}
                             </span>
                         </div>
-
                         <div class="grid grid-cols-1 gap-4">
                             <div class="p-3 bg-white rounded-xl border border-slate-200">
                                 <p class="text-[9px] font-black text-slate-400 uppercase">Début (Matin)</p>
@@ -4646,26 +4661,19 @@ function showLeaveDetail(btn) {
                         </div>
                     </div>
                 </div>
-
-                <!-- COLONNE DROITE : MOTIF & DOC (65%) -->
                 <div class="w-full md:w-[65%] p-8 flex flex-col justify-between">
                     <div>
                         <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Argumentaire / Motif</p>
-                        
-                        <!-- ZONE DE TEXTE AVEC SCROLL INTERNE -->
                         <div class="bg-slate-50 p-5 rounded-2xl border border-slate-100 text-slate-600 text-sm leading-relaxed italic shadow-inner max-h-[150px] overflow-y-auto custom-scroll">
                             "${motif}"
                         </div>
-
                         ${documentHtml}
                     </div>
                 </div>
-
             </div>
         `
     });
 }
-
 
 function handleLogout() {
     // 1. Arrêter les flux caméra s'ils tournent
@@ -4750,23 +4758,19 @@ function handleLogout() {
 
 
 
-
 async function fetchLeaveRequests() {
-    // CORRECTION 1 : On ne bloque plus les employés ici !
     if (!currentUser) return; 
 
-    const body = document.getElementById('leave-requests-body');       // Tableau Manager
-    const section = document.getElementById('manager-leave-section');  // Section Manager
-    const myBody = document.getElementById('my-leave-requests-body');  // Tableau Personnel
+    const body = document.getElementById('leave-requests-body');       
+    const section = document.getElementById('manager-leave-section');  
+    const myBody = document.getElementById('my-leave-requests-body');  
 
-    // Fonction de nettoyage interne
     const normalize = (s) => String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 
     try {
         const r = await secureFetch(`${URL_READ_LEAVES}?agent=${encodeURIComponent(currentUser.nom)}`);
         const rawLeaves = await r.json();
 
-        // Mapping des données
         allLeaves = rawLeaves.map(l => {
             const clean = (v) => Array.isArray(v) ? v[0] : v;
             const rawNom = clean(l.Employees_nom || l.nom || l['Employé']);
@@ -4781,21 +4785,22 @@ async function fetchLeaveRequests() {
                 fin: clean(l['Date Fin'] || l['Date de fin'] || l.fin) ? parseDateSmart(clean(l['Date Fin'] || l['Date de fin'] || l.fin)) : null,
                 motif: clean(l.motif || l.Motif || "Aucun motif"),
                 doc: clean(l.justificatif_link || l.Justificatif || l.doc || null),
-                // RÉCUPÉRATION DU SOLDE (Vient de la jointure serveur)
                 solde: l.solde_actuel || 0 
             };
         });
 
-// ============================================================
+        // ============================================================
         // PARTIE 1 : TABLEAU DE VALIDATION (POUR MANAGER / ADMIN / RH)
         // ============================================================
         if (currentUser.role !== 'EMPLOYEE') {
             const pending = allLeaves.filter(l => l.statut === 'en attente');
 
             if (body && section) {
-                // FORCE LE BLOC À RESTER VISIBLE
                 section.classList.remove('hidden'); 
                 body.innerHTML = '';
+
+                // --- STRATÉGIE DE DÉCISION ---
+                const canValidate = currentUser.permissions?.can_validate_leaves;
 
                 if (pending.length > 0) {
                     pending.forEach(l => {
@@ -4810,14 +4815,12 @@ async function fetchLeaveRequests() {
                         const diffTime = l.fin && l.debut ? Math.abs(l.fin.getTime() - l.debut.getTime()) : 0;
                         const daysDifference = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
 
-                        // Logique de couleur pour le solde
                         const soldeColor = l.solde <= 5 ? 'text-orange-600' : 'text-emerald-600';
 
                         body.innerHTML += `
                             <tr class="border-b hover:bg-slate-50 transition-colors">
                                 <td class="px-8 py-4">
                                     <div class="font-bold text-sm text-slate-700">${l.nom || 'Inconnu'}</div>
-                                    <!-- AJOUT DU SOLDE ICI -->
                                     <div class="text-[9px] font-black uppercase ${soldeColor} mb-1">
                                         Solde actuel : ${l.solde} JOURS
                                     </div>
@@ -4835,8 +4838,14 @@ async function fetchLeaveRequests() {
                                             class="p-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-600 hover:text-white transition-all shadow-sm mr-2">
                                         <i class="fa-solid fa-eye"></i>
                                     </button>
-                                    <button onclick="processLeave('${l.id}', 'Validé', ${daysDifference})" class="bg-emerald-500 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase shadow-md shadow-emerald-200">OUI</button>
-                                    <button onclick="processLeave('${l.id}', 'Refusé', 0)" class="bg-white text-red-500 border border-red-100 px-4 py-2 rounded-xl text-[10px] font-black uppercase">NON</button>
+                                    
+                                    <!-- BOUTONS D'ACTION CONDITIONNELS -->
+                                    ${canValidate ? `
+                                        <button onclick="processLeave('${l.id}', 'Validé', ${daysDifference})" class="bg-emerald-500 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase shadow-md shadow-emerald-200">OUI</button>
+                                        <button onclick="processLeave('${l.id}', 'Refusé', 0)" class="bg-white text-red-500 border border-red-100 px-4 py-2 rounded-xl text-[10px] font-black uppercase">NON</button>
+                                    ` : `
+                                        <div class="px-3 py-1.5 bg-slate-100 text-slate-400 rounded-lg text-[9px] font-black uppercase tracking-tighter">Lecture seule</div>
+                                    `}
                                 </td>
                             </tr>`;
                     });
@@ -4853,9 +4862,8 @@ async function fetchLeaveRequests() {
                 }
             }
         }
-        // ============================================================
-        // PARTIE 2 : HISTORIQUE PERSONNEL (POUR TOUT LE MONDE)
-        // ============================================================
+        
+        // PARTIE 2 : HISTORIQUE PERSONNEL (Inchangé)
         if (myBody) {
             myBody.innerHTML = '';
             const myNameNormalized = normalize(currentUser.nom);
@@ -4903,8 +4911,6 @@ async function fetchLeaveRequests() {
         if(myBody) myBody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-red-400">Erreur de chargement des congés.</td></tr>';
     }
 }
-
-
 
 
 async function fetchFlashMessage() {
@@ -7869,6 +7875,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
