@@ -3365,8 +3365,24 @@ async function openBulkManagerModal() {
 
 
 
-            function toggleSidebar(){const sb=document.getElementById('sidebar'), o=document.getElementById('sidebar-overlay'); if(sb.classList.contains('-translate-x-full')){sb.classList.remove('-translate-x-full');o.classList.remove('hidden');}else{sb.classList.add('-translate-x-full');o.classList.add('hidden');}}
-        
+function toggleSidebar() {
+    const sb = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebar-overlay');
+    const isMobile = window.innerWidth < 768;
+
+    // 1. On bascule la classe de translation (Cacher/Afficher)
+    // On retire md:translate-x-0 du HTML pour laisser le JS piloter
+    sb.classList.toggle('-translate-x-full');
+
+    if (isMobile) {
+        // Sur mobile, on gère l'overlay sombre
+        overlay.classList.toggle('hidden');
+    } else {
+        // Sur ordinateur, on peut ajouter une petite animation de transition
+        // Si la sidebar est cachée, on s'assure que l'overlay est caché
+        overlay.classList.add('hidden');
+    }
+}        
 
 
           
@@ -7731,6 +7747,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
