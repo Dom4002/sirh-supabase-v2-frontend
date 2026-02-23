@@ -1251,11 +1251,13 @@ async function openAddTemplateModal() {
 
 
 
-
 async function setSession(n, r, id, perms) {
     currentUser = { nom: n, role: r, id: id, permissions: perms };
+    
+    // On cache tout par défaut avant le traitement intelligent
     document.querySelectorAll('[data-perm]').forEach(el => el.style.display = 'none');
     document.querySelectorAll('.menu-group').forEach(group => group.style.display = 'none');
+    
     applyBranding();
     
     // 1. Cacher le login IMMÉDIATEMENT, mais GARDER le loader (pour le style)
@@ -1297,7 +1299,7 @@ async function setSession(n, r, id, perms) {
     }, 100); 
 
 
-    // 5. CHARGEMENT DES DONNÉES EN ARRIÈRE-PLAN (NON BLOQUANT POUR L'UI)
+    // 5. CHARGEMENT DES DONNÉES EN ARRIÈRE-PLAN
     try {
         refreshAllData(false); 
         syncClockInterface(); 
@@ -1305,36 +1307,46 @@ async function setSession(n, r, id, perms) {
         syncAllRoleSelects();
         fetchContractTemplatesForSelection(); 
 
-        // --- NOUVEAU : Écouteur pour le type d'employé (si le select existe) ---
-        // Il est important de s'assurer que l'élément est dans le DOM avant d'ajouter l'écouteur
         const fTypeSelect = document.getElementById('f-type');
         if (fTypeSelect) {
-            fTypeSelect.removeEventListener('change', toggleContractFieldsVisibility); // Évite les écouteurs dupliqués
+            fTypeSelect.removeEventListener('change', toggleContractFieldsVisibility); 
             fTypeSelect.addEventListener('change', toggleContractFieldsVisibility);
-            toggleContractFieldsVisibility(); // Appel initial pour masquer/afficher les champs
+            toggleContractFieldsVisibility(); 
         }
 
         await applyModulesUI(); 
+        
+        // IMPORTANT : Cette fonction supprime (ou cache) les boutons interdits
         applyPermissionsUI(perms);
 
-        // 6. LOGIQUE DE NAVIGATION VERS LA VUE PAR DÉFAUT (ou sauvegardée)
+        // 6. LOGIQUE DE NAVIGATION UNIVERSELLE (Correction Finale)
         const searchContainer = document.getElementById('global-search-container');
         if (searchContainer) {
+            // Seuls ceux qui ont le droit de voir la liste ont la recherche
             searchContainer.style.display = perms?.can_see_employees ? 'block' : 'none';
         }
 
         const savedView = localStorage.getItem('sirh_last_view');
         
-        // === CORRECTION ICI : ON EMPÊCHE LE CHARGEMENT D'UNE PAGE NON AUTORISÉE ===
-        if (savedView === 'dash' && !perms?.can_see_dashboard) {
-            switchView('my-profile');
-        } else if (savedView && document.getElementById('view-' + savedView)) {
+        // --- DÉTECTION INTELLIGENTE ---
+        // On vérifie si le bouton correspondant à la vue sauvegardée existe physiquement dans le DOM
+        // (S'il a été supprimé par applyPermissionsUI, buttonExists sera false/null)
+        const buttonSelector = `button[onclick="switchView('${savedView}')"]`;
+        const buttonExists = savedView ? document.querySelector(buttonSelector) : null;
+
+        if (savedView && buttonExists && document.getElementById('view-' + savedView)) {
+            // L'utilisateur a le bouton, donc il a le droit : on restaure sa vue
             switchView(savedView);
         } else {
-            if (perms?.can_see_dashboard) {
+            // Pas le droit ou pas de vue sauvegardée : Redirection par défaut
+            
+            // On vérifie si l'utilisateur a le droit au Dashboard (si le bouton existe)
+            const hasDashAccess = document.querySelector(`button[onclick="switchView('dash')"]`);
+            
+            if (hasDashAccess) {
                 switchView('dash');
             } else {
-                switchView('my-profile'); 
+                switchView('my-profile'); // Repli de sécurité pour tout le monde
             }
         }
 
@@ -1347,7 +1359,6 @@ async function setSession(n, r, id, perms) {
         Swal.fire('Erreur', 'Impossible de démarrer l\'application. Réessayez.', 'error');
     }
 }
-
 
 
 
@@ -7764,6 +7775,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
