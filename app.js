@@ -1251,6 +1251,8 @@ async function openAddTemplateModal() {
 
 async function setSession(n, r, id, perms) {
     currentUser = { nom: n, role: r, id: id, permissions: perms };
+    document.querySelectorAll('[data-perm]').forEach(el => el.style.display = 'none');
+    document.querySelectorAll('.menu-group').forEach(group => group.style.display = 'none');
     applyBranding();
     
     // 1. Cacher le login IMMÉDIATEMENT, mais GARDER le loader (pour le style)
@@ -1731,7 +1733,6 @@ async function offerRegisterLocation(gps) {
 
 
 
-
 async function refreshAllData(force = false) {
     const now = Date.now();
     const icon = document.getElementById('refresh-icon'); 
@@ -1744,49 +1745,54 @@ async function refreshAllData(force = false) {
 
     try {
         const tasks = [];
+        const perms = currentUser.permissions || {}; // Sécurité si perms est null
 
-        // 1. GPS & Flash (inchangé)
+        // 1. TACHES PUBLIQUES (Toujours autorisées)
         if (force || (now - lastFetchTimes.global > 3600000)) {
             tasks.push(fetchCompanyConfig().catch(e => console.warn("GPS ignoré", e)));
         }
         tasks.push(fetchFlashMessage().catch(e => console.warn("Flash ignoré", e)));
 
-        // --- GESTION OPTIMISÉE DU CHARGEMENT DES EMPLOYÉS ---
-        // On appelle fetchData (pour la liste paginée des collaborateurs)
-        // UNIQUEMENT si on n'est PAS sur la vue 'my-profile'
-        // et si la liste est vide ou si un rafraîchissement forcé est demandé.
-        if (currentView !== 'my-profile' && (force || employees.length === 0 || (now - lastFetchTimes.employees > REFRESH_THRESHOLD))) {
-            await fetchData(false, 1); // Toujours charger la page 1 par défaut pour la liste des collaborateurs
-            lastFetchTimes.employees = now;
+        // 2. TACHES ADMIN / RH (Uniquement si permission can_see_employees)
+        // On regroupe ici pour éviter les appels en double
+        if (perms.can_see_employees) {
+            if (force || employees.length === 0 || (now - lastFetchTimes.employees > REFRESH_THRESHOLD)) {
+                tasks.push(fetchData(false, 1));
+                lastFetchTimes.employees = now;
+            }
+            tasks.push(triggerRobotCheck());
+            tasks.push(fetchLiveAttendance());
         }
 
-        // 3. Autres chargements spécifiques (pour les modules actifs)
-        if (currentView === 'recruitment') tasks.push(fetchCandidates());
-        if (currentView === 'logs') tasks.push(fetchLogs());
+        // 3. TACHES SPECIFIQUES AUX VUES (Avec vérification des droits)
+        if (currentView === 'recruitment' && perms.can_see_recruitment) {
+            tasks.push(fetchCandidates());
+        }
         
-        // Pour la vue 'Mon Profil' : on déclenche spécifiquement les données qui s'y trouvent
-        // (loadMyProfile() est déclenché par switchView('my-profile'))
+        if (currentView === 'logs' && perms.can_see_audit) {
+            tasks.push(fetchLogs());
+        }
+        
+        // 4. ESPACE PERSONNEL (Toujours autorisé pour l'utilisateur connecté)
         if (currentView === 'my-profile') {
-            // loadMyProfile(); // <-- Cette ligne est bien commentée/retirée, car switchView() le fait
-            tasks.push(fetchPayrollData());    // On va chercher les bulletins de paie de l'utilisateur
-            tasks.push(fetchLeaveRequests());  // On va chercher les demandes de congés de l'utilisateur
+            tasks.push(fetchPayrollData());    
+            tasks.push(fetchLeaveRequests());  
         }
         
-        // Pour les managers/admin (ceux qui ne sont pas 'EMPLOYEE'),
-        // on charge leurs demandes de congés à valider et le tracker en direct.
-        // Ce bloc est séparé du 'my-profile' pour éviter les confusions de rôle.
-        if (currentUser.role !== 'EMPLOYEE') {
-            tasks.push(fetchLeaveRequests()); // Pour les demandes en attente du manager
-            tasks.push(triggerRobotCheck());  // Robot de surveillance des retours de congés
-            tasks.push(fetchLiveAttendance()); // Tracker de présence en direct
+        // 5. GESTION MANAGERIALE (Validation des congés de l'équipe)
+        // On ne le fait que si ce n'est pas un simple employé et qu'on n'a pas déjà chargé via le bloc Admin
+        if (currentUser.role !== 'EMPLOYEE' && !perms.can_see_employees) {
+            tasks.push(fetchLeaveRequests()); 
+            tasks.push(fetchLiveAttendance());
         }
-        // Il n'y a plus de `else` ici car toutes les conditions sont gérées par les `if` précédents.
 
-        // On attend que toutes les requêtes asynchrones soient terminées
+        // On attend que toutes les requêtes autorisées soient terminées
         await Promise.all(tasks);
         
         // Mise à jour finale de l'interface du Dashboard si on est dessus
-        if (currentView === 'dash') renderCharts();
+        if (currentView === 'dash' && perms.can_see_dashboard) {
+            renderCharts();
+        }
 
         if(force) {
             const Toast = Swal.mixin({toast: true, position: 'top-end', showConfirmButton: false, timer: 2000});
@@ -1794,14 +1800,11 @@ async function refreshAllData(force = false) {
         }
 
     } catch (error) {
-        console.error("Erreur Sync:", error); // Log l'erreur pour le débogage
+        console.error("Erreur Sync:", error);
     } finally {
-        // Enlève l'icône de chargement après un petit délai
         if(icon) setTimeout(() => icon.classList.remove('fa-spin'), 500);
     }
 }
-
-
 
 
 
@@ -4557,18 +4560,26 @@ function showLeaveDetail(btn) {
 }
 
 
-    function handleLogout() {
-                if(videoStream) videoStream.getTracks().forEach(t => t.stop());
-                if(contractStream) contractStream.getTracks().forEach(t => t.stop());
+function handleLogout() {
+    // 1. Arrêter les flux caméra s'ils tournent
+    if(videoStream) videoStream.getTracks().forEach(t => t.stop());
+    if(contractStream) contractStream.getTracks().forEach(t => t.stop());
 
+    // 2. VIDER TOTALEMENT LE CACHE ET LA MÉMOIRE
+    localStorage.removeItem('sirh_token');
+    localStorage.removeItem('sirh_user_session');
+    localStorage.removeItem('sirh_last_view');
+    // Optionnel : vider les préférences de widgets pour repartir à zéro
+    const keys = Object.keys(localStorage);
+    keys.forEach(k => { if(k.startsWith('pref_')) localStorage.removeItem(k); });
 
-                localStorage.removeItem('sirh_last_view');
-                // NETTOYAGE COMPLET
-                localStorage.removeItem('sirh_token');
-                localStorage.removeItem('sirh_user_session'); // Supprime l'identité sauvegardée
-                location.reload();
-            }
-
+    // 3. CACHER L'INTERFACE IMMÉDIATEMENT (évite le flash au prochain login)
+    const appLayout = document.getElementById('app-layout');
+    if(appLayout) appLayout.classList.add('hidden');
+    
+    // 4. REDIRECTION PROPRE
+    window.location.reload(); 
+}
 
 
             async function syncOfflineData() {
@@ -7757,6 +7768,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
