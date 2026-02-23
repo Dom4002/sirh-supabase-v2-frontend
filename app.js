@@ -1092,7 +1092,249 @@ async function setSession(n, r, id, perms) {
 
 
 
+// ============================================================
+// MODULE : GESTION DU RÉPERTOIRE MÉDICAL
+// ============================================================
 
+// Variable globale pour stocker la liste (pour pouvoir modifier facilement)
+window.allPrescripteurs = [];
+
+async function fetchPrescripteursManagement() {
+    const container = document.getElementById('prescripteurs-grid');
+    if (!container) return;
+
+    container.innerHTML = '<div class="col-span-full text-center p-10"><i class="fa-solid fa-circle-notch fa-spin text-blue-500 text-2xl"></i></div>';
+
+    try {
+        const [presRes, locRes] = await Promise.all([
+            secureFetch(`${SIRH_CONFIG.apiBaseUrl}/list-prescripteurs`),
+            secureFetch(`${SIRH_CONFIG.apiBaseUrl}/list-mobile-locations`)
+        ]);
+
+        const prescripteurs = await presRes.json();
+        const locations = await locRes.json();
+        
+        // On sauvegarde la liste en mémoire pour l'édition
+        window.allPrescripteurs = prescripteurs;
+
+        const locMap = {};
+        locations.forEach(l => locMap[l.id] = l.name);
+
+        container.innerHTML = '';
+        
+        if (prescripteurs.length === 0) {
+            container.innerHTML = '<div class="col-span-full text-center text-slate-400 py-10 italic border-2 border-dashed rounded-xl">Répertoire vide. Ajoutez votre premier contact.</div>';
+            return;
+        }
+
+        prescripteurs.forEach(p => {
+            const lieuNom = p.location_id ? locMap[p.location_id] : 'Non assigné';
+            
+            container.innerHTML += `
+                <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all group relative animate-fadeIn search-item-prescripteur" data-name="${p.nom_complet.toLowerCase()}">
+                    
+                    <!-- BOUTONS ACTIONS -->
+                    <div class="absolute top-4 right-4 flex gap-2">
+                        <button onclick="openEditPrescripteurModal('${p.id}')" class="text-slate-300 hover:text-blue-600 transition-colors bg-slate-50 hover:bg-blue-50 p-2 rounded-lg" title="Modifier">
+                            <i class="fa-solid fa-pen"></i>
+                        </button>
+                        <button onclick="deletePrescripteur('${p.id}')" class="text-slate-300 hover:text-red-500 transition-colors bg-slate-50 hover:bg-red-50 p-2 rounded-lg" title="Supprimer">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </div>
+
+                    <div class="flex items-center gap-4 mb-3">
+                        <div class="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center text-lg font-bold border border-blue-100">
+                            ${p.nom_complet.charAt(0)}
+                        </div>
+                        <div>
+                            <h3 class="font-black text-slate-800 uppercase text-sm leading-tight max-w-[150px] truncate">${p.nom_complet}</h3>
+                            <p class="text-[10px] font-bold text-blue-500 uppercase tracking-wide mt-0.5">${p.fonction || 'Santé'}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="space-y-2 mt-4">
+                        <div class="flex items-center gap-2 text-xs text-slate-500 bg-slate-50 p-2 rounded-lg">
+                            <i class="fa-solid fa-hospital text-slate-400"></i>
+                            <span class="font-medium truncate">${lieuNom}</span>
+                        </div>
+                        <div class="flex items-center gap-2 text-xs text-slate-500 bg-slate-50 p-2 rounded-lg">
+                            <i class="fa-solid fa-phone text-slate-400"></i>
+                            <span class="font-mono font-bold">${p.telephone || '---'}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+
+    } catch (e) { console.error(e); }
+}
+
+
+async function openAddPrescripteurModal() {
+    // On charge les lieux pour le menu déroulant
+    let locOptions = '<option value="">-- Aucun / Cabinet Privé --</option>';
+    try {
+        const r = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/list-mobile-locations`);
+        const locs = await r.json();
+        locs.forEach(l => {
+            locOptions += `<option value="${l.id}">${l.name}</option>`;
+        });
+    } catch(e) {}
+
+    const { value: form } = await Swal.fire({
+        title: 'Nouveau Prescripteur',
+        html: `
+            <div class="text-left">
+                <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Nom Complet (Ex: Dr. Zossougbo)</label>
+                <input id="pres-nom" class="swal2-input !mt-0" placeholder="Nom...">
+
+                <label class="block text-[10px] font-black text-slate-400 uppercase mt-3 mb-1">Fonction / Spécialité</label>
+                <select id="pres-role" class="swal2-input !mt-0">
+                    <option value="Médecin Généraliste">Médecin Généraliste</option>
+                    <option value="Médecin Spécialiste">Médecin Spécialiste</option>
+                    <option value="Pharmacien">Pharmacien</option>
+                    <option value="Sage-femme">Sage-femme</option>
+                    <option value="Infirmier Major">Infirmier Major</option>
+                </select>
+
+                <label class="block text-[10px] font-black text-slate-400 uppercase mt-3 mb-1">Lieu d'exercice principal</label>
+                <select id="pres-loc" class="swal2-input !mt-0">
+                    ${locOptions}
+                </select>
+
+                <label class="block text-[10px] font-black text-slate-400 uppercase mt-3 mb-1">Téléphone</label>
+                <input id="pres-tel" type="tel" class="swal2-input !mt-0" placeholder="+229...">
+            </div>
+        `,
+        focusConfirm: false,
+        showCancelButton: true,
+        confirmButtonText: 'Enregistrer',
+        confirmButtonColor: '#2563eb',
+        preConfirm: () => {
+            const nom = document.getElementById('pres-nom').value;
+            if(!nom) return Swal.showValidationMessage("Le nom est obligatoire");
+            return {
+                nom_complet: nom,
+                fonction: document.getElementById('pres-role').value,
+                location_id: document.getElementById('pres-loc').value,
+                telephone: document.getElementById('pres-tel').value
+            }
+        }
+    });
+
+    if (form) {
+        Swal.fire({ title: 'Enregistrement...', didOpen: () => Swal.showLoading() });
+        const res = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/add-prescripteur`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(form)
+        });
+        
+        const data = await res.json();
+        if (data.error) Swal.fire('Erreur', data.error, 'error');
+        else {
+            Swal.fire('Succès', 'Contact ajouté au répertoire.', 'success');
+            fetchPrescripteursManagement();
+        }
+    }
+}
+
+
+async function openEditPrescripteurModal(id) {
+    // 1. On retrouve les infos du médecin grâce à l'ID (depuis la mémoire locale)
+    const p = window.allPrescripteurs.find(item => item.id === id);
+    if (!p) return;
+
+    // 2. On charge la liste des lieux pour le select
+    let locOptions = '<option value="">-- Aucun / Cabinet Privé --</option>';
+    try {
+        const r = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/list-mobile-locations`);
+        const locs = await r.json();
+        locs.forEach(l => {
+            const selected = (l.id === p.location_id) ? 'selected' : '';
+            locOptions += `<option value="${l.id}" ${selected}>${l.name}</option>`;
+        });
+    } catch(e) {}
+
+    // 3. On ouvre la modale PRÉ-REMPLIE
+    const { value: form } = await Swal.fire({
+        title: 'Modifier le contact',
+        html: `
+            <div class="text-left">
+                <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Nom Complet</label>
+                <input id="edit-pres-nom" class="swal2-input !mt-0" value="${p.nom_complet}">
+
+                <label class="block text-[10px] font-black text-slate-400 uppercase mt-3 mb-1">Fonction</label>
+                <select id="edit-pres-role" class="swal2-input !mt-0">
+                    <option value="Médecin Généraliste" ${p.fonction === 'Médecin Généraliste' ? 'selected' : ''}>Médecin Généraliste</option>
+                    <option value="Médecin Spécialiste" ${p.fonction === 'Médecin Spécialiste' ? 'selected' : ''}>Médecin Spécialiste</option>
+                    <option value="Pharmacien" ${p.fonction === 'Pharmacien' ? 'selected' : ''}>Pharmacien</option>
+                    <option value="Sage-femme" ${p.fonction === 'Sage-femme' ? 'selected' : ''}>Sage-femme</option>
+                    <option value="Infirmier Major" ${p.fonction === 'Infirmier Major' ? 'selected' : ''}>Infirmier Major</option>
+                </select>
+
+                <label class="block text-[10px] font-black text-slate-400 uppercase mt-3 mb-1">Lieu d'exercice</label>
+                <select id="edit-pres-loc" class="swal2-input !mt-0">
+                    ${locOptions}
+                </select>
+
+                <label class="block text-[10px] font-black text-slate-400 uppercase mt-3 mb-1">Téléphone</label>
+                <input id="edit-pres-tel" type="tel" class="swal2-input !mt-0" value="${p.telephone || ''}">
+            </div>
+        `,
+        focusConfirm: false,
+        showCancelButton: true,
+        confirmButtonText: 'Sauvegarder',
+        confirmButtonColor: '#2563eb',
+        preConfirm: () => {
+            return {
+                id: id, // On garde l'ID pour savoir qui modifier
+                nom_complet: document.getElementById('edit-pres-nom').value,
+                fonction: document.getElementById('edit-pres-role').value,
+                location_id: document.getElementById('edit-pres-loc').value,
+                telephone: document.getElementById('edit-pres-tel').value
+            }
+        }
+    });
+
+    if (form) {
+        Swal.fire({ title: 'Mise à jour...', didOpen: () => Swal.showLoading() });
+        
+        const res = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/update-prescripteur`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(form)
+        });
+        
+        if (res.ok) {
+            Swal.fire('Succès', 'Fiche mise à jour.', 'success');
+            fetchPrescripteursManagement(); // On rafraîchit la grille
+        } else {
+            Swal.fire('Erreur', 'Impossible de modifier.', 'error');
+        }
+    }
+}
+
+async function deletePrescripteur(id) {
+    const conf = await Swal.fire({ title: 'Supprimer ?', text: "Il ne sera plus proposé aux délégués.", icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444' });
+    if(conf.isConfirmed) {
+        await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/delete-prescripteur`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({id})
+        });
+        fetchPrescripteursManagement();
+    }
+}
+
+// Fonction de recherche rapide dans la grille (sans recharger le serveur)
+function filterPrescripteursLocally() {
+    const term = document.getElementById('search-prescripteur-input').value.toLowerCase();
+    document.querySelectorAll('.search-item-prescripteur').forEach(el => {
+        el.style.display = el.dataset.name.includes(term) ? '' : 'none';
+    });
+}
 
 
 async function fetchCompanyConfig() {
@@ -2790,9 +3032,7 @@ function switchView(v) {
         searchContainer.style.opacity = '0'; 
     }
     
-    // --- CHARGEMENTS AUTOMATIQUES CORRIGÉS ---
     
-    // 1. Dashboard (Statistiques et Live Tracker)
     if (v === 'dash') {
         renderCharts();
         fetchLiveAttendance();
@@ -2803,10 +3043,9 @@ function switchView(v) {
         renderData();
     }
 
-                        // Dans app.js, modifie switchView
-            if (v === 'catalog') {
-                fetchProducts(); // <--- C'est ça qui recharge la liste quand on clique
-            }
+    if (v === 'catalog') {
+        fetchProducts(); 
+    }
 
     if (v === 'maintenance') {
         // Pas de chargement automatique nécessaire pour l'instant
@@ -2814,6 +3053,8 @@ function switchView(v) {
     }
             
     if (v === 'accounting') loadAccountingView();
+    
+            if (v === 'prescripteurs-list') fetchPrescripteursManagement();
 
     if(v === 'add-new') { 
         const form = document.getElementById('form-onboarding');
@@ -7301,6 +7542,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
