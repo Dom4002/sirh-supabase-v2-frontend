@@ -2017,92 +2017,140 @@ async function handleClockInOut() {
     let proofStream = null;
     let proofBlob = null; 
     let isLastExit = false;
-    let presentedProducts = []; // --- AJOUT PRODUITS : Variable pour stocker la sélection ---
+    let presentedProducts = []; 
 
-    // --- BLOC CAMÉRA LIVE POUR LA SORTIE MOBILE ---
+// --- BLOC CAMÉRA LIVE & CRM POUR LA SORTIE MOBILE ---
     if (action === 'CLOCK_OUT' && isMobile) {
         
-        // --- AJOUT PRODUITS : Récupération de la liste des produits avant d'ouvrir le pop-up ---
-        let products = [];
-        try {
-            const prodRes = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/list-products`);
-            products = await prodRes.json();
-        } catch (e) { console.error("Erreur chargement produits", e); }
+        Swal.fire({ title: 'Chargement...', text: 'Préparation du rapport...', didOpen: () => Swal.showLoading(), allowOutsideClick: false });
 
-        // --- AJOUT PRODUITS : Génération du HTML des miniatures ---
+        // 1. TÉLÉCHARGEMENT SIMULTANÉ : PRODUITS + PRESCRIPTEURS
+        let products = [];
+        let prescripteurs = [];
+        try {
+            const [prodRes, presRes] = await Promise.all([
+                secureFetch(`${SIRH_CONFIG.apiBaseUrl}/list-products`),
+                secureFetch(`${SIRH_CONFIG.apiBaseUrl}/list-prescripteurs`)
+            ]);
+            products = await prodRes.json();
+            prescripteurs = await presRes.json();
+        } catch (e) { console.error("Erreur chargement CRM", e); }
+
+        Swal.close(); // On ferme le loader
+
+        // 2. GÉNÉRATION DU HTML : MÉDECINS
+        let presOptions = `<option value="">-- Choisir un contact --</option>`;
+        prescripteurs.forEach(p => {
+            presOptions += `<option value="${p.id}">${p.nom_complet} (${p.fonction})</option>`;
+        });
+        presOptions += `<option value="autre" class="font-bold text-blue-600">➕ Autre (Nouveau Contact)</option>`;
+
+        // 3. GÉNÉRATION DU HTML : PRODUITS (Design Horizontal Premium)
         let productsHtml = products.map(p => `
-            <label class="cursor-pointer group">
+            <label class="cursor-pointer group flex-shrink-0">
                 <input type="checkbox" name="presented_prods" value="${p.id}" data-name="${p.name}" class="peer sr-only">
-                <div class="p-2 border border-slate-200 rounded-xl flex flex-col items-center gap-1 peer-checked:border-blue-500 peer-checked:bg-blue-50 transition-all hover:border-blue-200">
-                    <img src="${p.photo_url || 'https://via.placeholder.com/50'}" class="w-10 h-10 object-cover rounded-lg">
-                    <span class="text-[7px] font-black uppercase text-slate-500 text-center leading-tight">${p.name}</span>
+                <div class="flex items-center gap-2 p-1.5 pr-3 border border-slate-200 rounded-full peer-checked:border-blue-500 peer-checked:bg-blue-50 peer-checked:text-blue-700 transition-all bg-white shadow-sm hover:border-blue-300">
+                    <img src="${p.photo_url || 'https://via.placeholder.com/50'}" class="w-7 h-7 object-cover rounded-full border border-slate-100">
+                    <span class="text-[10px] font-black uppercase whitespace-nowrap">${p.name}</span>
                 </div>
             </label>
         `).join('');
 
+        // 4. OUVERTURE DU POP-UP DÉLÉGUÉ
         const { value: formValues } = await Swal.fire({
             title: 'Fin de visite',
             html: `
+                <!-- CRM : CHOIX DU PRESCRIPTEUR -->
+                <div class="text-left mb-4 bg-blue-50/50 p-3 rounded-xl border border-blue-100">
+                    <label class="text-[10px] font-black text-blue-800 uppercase">👤 Personne rencontrée</label>
+                    <select id="swal-prescripteur" class="swal2-input mt-1 !text-sm font-bold text-slate-700 bg-white">
+                        ${presOptions}
+                    </select>
+                    
+                    <!-- CHAMP CACHÉ : S'affiche uniquement si "Autre" est choisi -->
+                    <div id="container-autre-nom" class="hidden mt-3 animate-fadeIn">
+                        <label class="text-[9px] font-black text-slate-500 uppercase">Nom du nouveau contact</label>
+                        <input id="swal-nom-libre" class="swal2-input !mt-1 !text-sm" placeholder="Ex: Dr. Diallo">
+                    </div>
+                </div>
+
+                <!-- RÉSULTAT DE LA VISITE -->
                 <div class="text-left mb-2">
-                    <label class="text-[10px] font-black text-slate-400 uppercase">Résultat de la visite</label>
-                    <select id="swal-outcome" class="swal2-input mt-1">
-                        <option value="VU">✅ Visite effectuée</option>
+                    <label class="text-[10px] font-black text-slate-400 uppercase">Résultat</label>
+                    <select id="swal-outcome" class="swal2-input mt-1 !text-sm font-bold">
+                        <option value="VU">✅ Présentation effectuée</option>
                         <option value="ABSENT">❌ Médecin Absent</option>
                         <option value="COMMANDE">💰 Commande prise</option>
-                        <option value="RAS">👍 Passage simple</option>
+                        <option value="RAS">👍 Visite de courtoisie</option>
                     </select>
                 </div>
 
-                <!-- --- AJOUT PRODUITS : Zone de sélection --- -->
-                <p class="text-[9px] font-black text-slate-400 uppercase mb-2 mt-4 text-left">Produits présentés (Cochez)</p>
-                <div class="grid grid-cols-4 gap-2 mb-4 max-h-40 overflow-y-auto p-1 custom-scroll">
-                    ${productsHtml || '<p class="text-[10px] text-slate-400 col-span-4 italic text-center">Aucun produit actif dans le catalogue</p>'}
+                <!-- PRODUITS (Défilement X) -->
+                <p class="text-[9px] font-black text-slate-400 uppercase mb-2 mt-4 text-left">Produits présentés</p>
+                <div class="flex flex-nowrap gap-2 mb-4 overflow-x-auto custom-scroll pb-2 w-full">
+                    ${productsHtml || '<p class="text-[10px] text-slate-400 italic">Aucun produit actif</p>'}
                 </div>
 
-                <div class="bg-slate-900 rounded-xl overflow-hidden relative mb-4 border-2 border-slate-200" style="height: 220px;">
+                <!-- CAMÉRA CACHET -->
+                <div class="bg-slate-900 rounded-xl overflow-hidden relative mb-4 border-2 border-slate-200 shadow-inner" style="height: 180px;">
                     <video id="proof-video" autoplay playsinline class="w-full h-full object-cover"></video>
                     <img id="proof-image" class="w-full h-full object-cover hidden absolute top-0 left-0">
                     <canvas id="proof-canvas" class="hidden"></canvas>
                     <div class="absolute bottom-2 left-0 right-0 flex justify-center gap-2 z-10">
-                        <button type="button" id="btn-snap" class="bg-white text-slate-900 px-4 py-1 rounded-full text-xs font-bold shadow-lg">CAPTURER LE CACHET</button>
-                        <button type="button" id="btn-retry" class="hidden bg-orange-500 text-white px-3 py-1 rounded-full text-xs font-bold shadow-lg">REFAIRE</button>
+                        <button type="button" id="btn-snap" class="bg-white text-slate-900 px-4 py-1.5 rounded-full text-[10px] font-black uppercase shadow-lg"><i class="fa-solid fa-camera mr-1"></i> CACHET</button>
+                        <button type="button" id="btn-retry" class="hidden bg-orange-500 text-white px-3 py-1.5 rounded-full text-[10px] font-black uppercase shadow-lg"><i class="fa-solid fa-rotate"></i></button>
                     </div>
                 </div>
 
+                <!-- DICTÉE VOCALE -->
                 <div class="relative mt-2">
-                    <textarea id="swal-report" class="swal2-textarea" style="height: 80px; margin-top:0;" placeholder="Écrivez vos notes ici..."></textarea>
-                    <button type="button" onclick="toggleDictation('swal-report', this)" 
-                        class="absolute bottom-3 right-3 p-2 rounded-full bg-white border border-slate-200 text-slate-400 shadow-sm hover:text-blue-600 transition-all z-10">
+                    <textarea id="swal-report" class="swal2-textarea" style="height: 70px; margin-top:0;" placeholder="Note (Prochaine étape, objection...)"></textarea>
+                    <button type="button" onclick="toggleDictation('swal-report', this)" class="absolute bottom-3 right-3 w-8 h-8 flex items-center justify-center rounded-full bg-white border border-slate-200 text-slate-400 shadow-sm hover:text-blue-600 transition-all z-10">
                         <i class="fa-solid fa-microphone"></i>
                     </button>
                 </div>
             
                 <div class="mt-4 p-3 bg-red-50 rounded-xl border border-red-100 flex items-center gap-3">
                     <input type="checkbox" id="last-exit-check" class="w-5 h-5 accent-red-600">
-                    <label for="last-exit-check" class="text-[10px] font-black text-red-700 uppercase text-left">C'est ma dernière sortie (Fin de journée)</label>
+                    <label for="last-exit-check" class="text-[10px] font-black text-red-700 uppercase text-left">Fin de journée (Dernière visite)</label>
                 </div>
             `,
-            confirmButtonText: 'Valider & Sortir',
-            confirmButtonColor: '#ef4444',
+            confirmButtonText: 'Valider le rapport',
+            confirmButtonColor: '#2563eb',
             allowOutsideClick: false,
             didOpen: () => {
+                // LOGIQUE D'AFFICHAGE INTELLIGENT DU CHAMP "AUTRE"
+                const presSelect = document.getElementById('swal-prescripteur');
+                const autreInputContainer = document.getElementById('container-autre-nom');
+                
+                presSelect.addEventListener('change', (e) => {
+                    if (e.target.value === 'autre') {
+                        autreInputContainer.classList.remove('hidden');
+                    } else {
+                        autreInputContainer.classList.add('hidden');
+                    }
+                });
+
+                // GESTION CAMÉRA (Inchangée)
                 const video = document.getElementById('proof-video');
                 const img = document.getElementById('proof-image');
                 const canvas = document.getElementById('proof-canvas');
                 const btnSnap = document.getElementById('btn-snap');
                 const btnRetry = document.getElementById('btn-retry');
+
                 const checkValidationInterval = setInterval(() => {
-                const confirmBtn = Swal.getConfirmButton();
-                const currentOutcome = document.getElementById('swal-outcome').value;
-                            
-                            if (currentOutcome === 'VU' && !proofBlob) {
-                                confirmBtn.disabled = true;
-                                confirmBtn.innerText = "📸 Prenez la photo";
-                            } else {
-                                confirmBtn.disabled = false;
-                                confirmBtn.innerText = "Valider & Sortir";
-                            }
-                        }, 500); // Vérifie toutes les demi-secondes
+                    const confirmBtn = Swal.getConfirmButton();
+                    if (!confirmBtn) return;
+                    const currentOutcome = document.getElementById('swal-outcome').value;
+                    
+                    if (currentOutcome === 'VU' && !proofBlob) {
+                        confirmBtn.disabled = true;
+                        confirmBtn.innerText = "📸 Cachet requis";
+                    } else {
+                        confirmBtn.disabled = false;
+                        confirmBtn.innerText = "Valider le rapport";
+                    }
+                }, 500);
 
                 navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
                     .then(stream => { proofStream = stream; video.srcObject = stream; })
@@ -2126,32 +2174,43 @@ async function handleClockInOut() {
                 };
             },
             willClose: () => { if(proofStream) proofStream.getTracks().forEach(t => t.stop()); },
-preConfirm: () => {
+            preConfirm: () => {
                 const outcomeVal = document.getElementById('swal-outcome').value;
+                const presId = document.getElementById('swal-prescripteur').value;
+                const nomLibre = document.getElementById('swal-nom-libre').value;
                 
-                // 1. Vérification de la photo (Obligatoire si VU)
+                // VALIDATIONS
+                if (!presId) {
+                    Swal.showValidationMessage('👤 Veuillez choisir un prescripteur');
+                    return false;
+                }
+                if (presId === 'autre' && !nomLibre.trim()) {
+                    Swal.showValidationMessage('👤 Saisissez le nom du nouveau contact');
+                    return false;
+                }
                 if (outcomeVal === 'VU' && !proofBlob) {
                     Swal.showValidationMessage('📸 Photo du cachet obligatoire !');
                     return false;
                 }
 
-                // 2. --- AJOUT PRODUITS : Collecte des cases cochées ---
-                // On transforme la NodeList en Array pour utiliser .map
+                // PRODUITS
                 const selected = Array.from(document.querySelectorAll('input[name="presented_prods"]:checked')).map(i => ({
                     id: i.value,
-                    name: i.dataset.name || "Produit" // Sécurité si le nom manque
+                    name: i.dataset.name
                 }));
 
-                // 3. Retour de l'objet complet
                 return { 
                     outcome: outcomeVal, 
                     report: document.getElementById('swal-report').value,
                     isLastExit: document.getElementById('last-exit-check').checked,
-                    presentedProducts: selected // <-- On retourne bien le tableau
+                    presentedProducts: selected,
+                    prescripteur_id: presId,
+                    contact_nom_libre: nomLibre
                 };
             }
         });
-if (!formValues) return; 
+        
+        if (!formValues) return; 
 
         outcome = formValues.outcome;
         report = formValues.report;
@@ -2159,10 +2218,10 @@ if (!formValues) return;
         presentedProducts = formValues.presentedProducts; 
 
         if (proofBlob) {
-            Swal.update({ text: 'Compression de la photo en cours...' });
+            Swal.update({ text: 'Compression de la photo...' });
             proofBlob = await compressImage(proofBlob);
         }
-    } // <--- Fermeture du bloc if (action === 'CLOCK_OUT')
+    } // <--- Fin du bloc if (action === 'CLOCK_OUT')
     
     // --- POINTAGE GPS & ENVOI ---
     Swal.fire({ title: 'Vérification...', text: 'Analyse GPS...', didOpen: () => Swal.showLoading(), allowOutsideClick: false });
@@ -2178,13 +2237,12 @@ if (!formValues) return;
         fd.append('gps', currentGps);
         fd.append('ip', ipRes.ip);
         fd.append('agent', currentUser.nom);
-        
         if (outcome) fd.append('outcome', outcome);
         if (report) fd.append('report', report);
         if (proofBlob) fd.append('proof_photo', proofBlob, 'capture.jpg');
         if (isLastExit) fd.append('is_last_exit', 'true');
-        
-        // --- CORRECTION ICI : Le nom doit être 'presentedProducts' pour matcher le serveur ---
+        if (formValues && formValues.prescripteur_id) fd.append('prescripteur_id', formValues.prescripteur_id);
+        if (formValues && formValues.contact_nom_libre) fd.append('contact_nom_libre', formValues.contact_nom_libre);
         if (presentedProducts && presentedProducts.length > 0) {
             fd.append('presentedProducts', JSON.stringify(presentedProducts));
         }
@@ -6517,12 +6575,11 @@ async function fetchMobileReports(page = 1) {
                             <div id="${accordionId}" class="hidden bg-slate-50/50">
                                 <table class="w-full text-left border-collapse">
                                     <thead class="bg-slate-100 border-b">
-                                        <tr class="text-[9px] font-black text-slate-400 uppercase">
-                                            <th class="p-4 w-1/4">Lieu visité</th>
-                                            <th class="p-4">Arrivée</th>
-                                            <th class="p-4">Durée</th>
-                                            <th class="p-4 text-center">Preuve</th>
-                                            <th class="p-4 text-right">Note</th>
+                                        <tr class="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                                            <th class="p-4 w-1/3">👤 Contact & Lieu</th>
+                                            <th class="p-4 w-1/3">📦 Détails de la visite</th>
+                                            <th class="p-4 text-center">📸 Preuve</th>
+                                            <th class="p-4 text-right">📝 Notes</th>
                                             ${isChef ? '<th class="p-4 text-center">Action</th>' : ''}
                                         </tr>
                                     </thead>
@@ -6530,35 +6587,73 @@ async function fetchMobileReports(page = 1) {
                
             visits.forEach(v => {
                     let durationText = "---";
-                    if (v.duration) {
-                        durationText = v.duration >= 60 ? `${Math.floor(v.duration / 60)}h ${v.duration % 60}min` : `${v.duration} min`;
+                    if (v.duration) durationText = v.duration >= 60 ? `${Math.floor(v.duration / 60)}h ${v.duration % 60}m` : `${v.duration} min`;
+
+                    // GESTION DES PRODUITS (Affichage propre en tags)
+                    let prodsHtml = "";
+                    let prods = [];
+                    try {
+                        if (typeof v.presented_products === 'string') prods = JSON.parse(v.presented_products);
+                        else if (Array.isArray(v.presented_products)) prods = v.presented_products;
+                    } catch(e) {}
+                    
+                    if (prods.length > 0) {
+                        prodsHtml = `<div class="flex flex-wrap gap-1 mt-2">` + 
+                            prods.map(p => `<span class="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded text-[8px] font-black uppercase border border-indigo-100 shadow-sm">${p.name || p}</span>`).join('') + 
+                            `</div>`;
                     }
 
+                    // GESTION DU RÉSULTAT VISUEL
+                    let outcomeBadge = "";
+                    if(v.outcome === 'COMMANDE') outcomeBadge = '<span class="text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded font-black text-[9px] uppercase border border-emerald-200">💰 Commande</span>';
+                    else if(v.outcome === 'ABSENT') outcomeBadge = '<span class="text-red-700 bg-red-100 px-2 py-0.5 rounded font-black text-[9px] uppercase border border-red-200">❌ Absent</span>';
+                    else if(v.outcome === 'VU') outcomeBadge = '<span class="text-blue-700 bg-blue-100 px-2 py-0.5 rounded font-black text-[9px] uppercase border border-blue-200">✅ Vu</span>';
+                    else outcomeBadge = `<span class="text-slate-600 bg-slate-200 px-2 py-0.5 rounded font-black text-[9px] uppercase">👍 ${v.outcome || 'RAS'}</span>`;
+
                     html += `
-                    <tr id="row-vis-${v.id}" class="hover:bg-white transition-colors group">
-                        <td class="p-4">
-                            <div class="text-xs font-bold text-blue-600 uppercase">${v.lieu_nom || 'Inconnu'}</div>
-                        </td>
-                        <td class="p-4 text-[10px] font-mono text-slate-500">
-                            ${v.check_in ? new Date(v.check_in).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '--:--'}
-                        </td>
-                        <td class="p-4">
-                            <span class="px-2 py-1 bg-slate-200 text-slate-700 rounded text-[10px] font-black">
-                                <i class="fa-solid fa-hourglass-half mr-1 opacity-50"></i> ${durationText}
-                            </span>
-                        </td>
-                        <td class="p-4 text-center">
-                            ${v.proof_url ? `<button onclick="viewDocument('${v.proof_url}', 'Preuve')" class="text-emerald-500"><i class="fa-solid fa-camera-retro text-lg"></i></button>` : '<i class="fa-solid fa-ban text-slate-200"></i>'}
-                        </td>
-                        <td class="p-4 text-right">
-                            <div class="text-[10px] text-slate-400 italic line-clamp-1 cursor-pointer" onclick="toggleTextFixed(this)">
-                                ${v.notes || 'R.A.S'}
+                    <tr id="row-vis-${v.id}" class="hover:bg-blue-50/30 transition-colors group">
+                        
+                        <!-- COLONNE 1 : CONTACT ET LIEU -->
+                        <td class="p-4 align-top">
+                            <div class="flex items-start gap-3">
+                                <div class="w-8 h-8 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center text-xs font-bold shrink-0 border border-slate-200 shadow-sm group-hover:bg-blue-500 group-hover:text-white transition-colors">
+                                    <i class="fa-solid fa-user-doctor"></i>
+                                </div>
+                                <div>
+                                    <div class="text-sm font-black text-slate-800 uppercase tracking-tighter">${v.contact_nom}</div>
+                                    <div class="text-[9px] text-blue-600 font-bold uppercase tracking-widest mb-1">${v.contact_role}</div>
+                                    <div class="text-[10px] text-slate-500 font-medium"><i class="fa-solid fa-location-dot mr-1 text-slate-300"></i>${v.lieu_nom}</div>
+                                </div>
                             </div>
                         </td>
+
+                        <!-- COLONNE 2 : RÉSULTAT ET PRODUITS -->
+                        <td class="p-4 align-top">
+                            <div class="flex items-center gap-2 mb-1">
+                                ${outcomeBadge}
+                                <span class="text-[9px] font-mono text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded"><i class="fa-regular fa-clock mr-1"></i>${v.check_in ? new Date(v.check_in).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '--:--'} (${durationText})</span>
+                            </div>
+                            ${prodsHtml}
+                        </td>
+
+                        <!-- COLONNE 3 : PREUVE -->
+                        <td class="p-4 text-center align-top">
+                            ${v.proof_url ? `<button onclick="viewDocument('${v.proof_url}', 'Preuve Cachet')" class="text-emerald-500 hover:scale-125 transition-transform bg-emerald-50 p-2 rounded-lg"><i class="fa-solid fa-camera-retro text-lg"></i></button>` : '<div class="p-2 text-slate-200"><i class="fa-solid fa-ban"></i></div>'}
+                        </td>
+
+                        <!-- COLONNE 4 : NOTES -->
+                        <td class="p-4 text-right align-top relative">
+                            <div class="text-[11px] text-slate-600 italic line-clamp-2 cursor-pointer hover:text-blue-600 transition-colors" 
+                                 onclick="toggleTextFixed(this)" title="Cliquez pour lire en entier" data-fixed="false">
+                                "${v.notes || 'Aucun commentaire'}"
+                            </div>
+                        </td>
+
+                        <!-- COLONNE 5 : ACTION (Si Chef) -->
                         ${isChef ? `
-                        <td class="p-4 text-center">
-                            <button onclick="deleteVisitReport('${v.id}')" class="p-2 text-slate-300 hover:text-red-500 transition-all" title="Marquer comme traité">
-                                <i class="fa-solid fa-check-double"></i>
+                        <td class="p-4 text-center align-top">
+                            <button onclick="deleteVisitReport('${v.id}')" class="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all" title="Marquer comme traité">
+                                <i class="fa-solid fa-check-double text-lg"></i>
                             </button>
                         </td>` : ''}
                     </tr>`;
@@ -7206,6 +7301,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
