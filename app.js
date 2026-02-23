@@ -1262,58 +1262,43 @@ async function openAddTemplateModal() {
 async function setSession(n, r, id, perms) {
     currentUser = { nom: n, role: r, id: id, permissions: perms };
     
-    // On cache tout par défaut avant le traitement intelligent
+    // On cache les éléments par défaut
     document.querySelectorAll('[data-perm]').forEach(el => el.style.display = 'none');
     document.querySelectorAll('.menu-group').forEach(group => group.style.display = 'none');
     
     applyBranding();
     
-    // 1. Cacher le login IMMÉDIATEMENT, mais GARDER le loader (pour le style)
+    // 1. Cacher le login et préparer l'identité (Le loader reste à opacity: 1)
     document.getElementById('login-screen').classList.add('hidden');
     const loader = document.getElementById('initial-loader');
     const appLayout = document.getElementById('app-layout');
     
-    if (loader) {
-        loader.classList.remove('hidden'); // S'assure qu'il est visible
-        loader.style.opacity = '1';
-    }
-
-    // 2. Préparer l'identité visuelle de base (arrière-plan)
     document.getElementById('name-display').innerText = n; 
     document.getElementById('role-display').innerText = r; 
     document.getElementById('avatar-display').innerText = n[0]; 
-
     document.body.className = "text-slate-900 overflow-hidden h-screen w-screen role-" + r.toLowerCase(); 
 
-    // 3. Injecter les SKELETONS dans les tableaux
+    // 2. Injecter les SKELETONS
     const skeletonRow = `<tr class="border-b"><td class="p-4 flex gap-3 items-center"><div class="w-10 h-10 rounded-full skeleton"></div><div class="space-y-2"><div class="h-3 w-24 rounded skeleton"></div></div></td><td class="p-4"><div class="h-3 w-32 rounded skeleton"></div></td><td class="p-4"><div class="h-6 w-16 rounded-lg skeleton"></div></td><td class="p-4"></td></tr>`;
     ['full-body', 'dashboard-body'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.innerHTML = skeletonRow.repeat(6);
     });
 
-    // 4. RÉVÉLATION DE L'INTERFACE DÈS QUE POSSIBLE
+    // On affiche le layout de l'app en arrière-plan (toujours sous le loader)
     appLayout.classList.remove('hidden'); 
     appLayout.classList.add('ready');     
-    
-    setTimeout(() => {
-        if (loader) {
-            loader.style.opacity = '0';
-            setTimeout(() => {
-                loader.classList.add('hidden');
-                document.body.style.backgroundColor = "#f1f5f9"; 
-            }, 800); 
-        }
-    }, 100); 
 
-
-    // 5. CHARGEMENT DES DONNÉES EN ARRIÈRE-PLAN
+    // 3. CHARGEMENT DES DONNÉES (On attend que tout soit fini)
     try {
-        refreshAllData(false); 
-        syncClockInterface(); 
-        fetchAndPopulateDepartments();
-        syncAllRoleSelects();
-        fetchContractTemplatesForSelection(); 
+        // Le mot clé 'await' est crucial ici : il bloque la suite tant que c'est pas chargé
+        await Promise.all([
+            refreshAllData(false), 
+            syncClockInterface(), 
+            fetchAndPopulateDepartments(),
+            syncAllRoleSelects(),
+            fetchContractTemplatesForSelection()
+        ]);
 
         const fTypeSelect = document.getElementById('f-type');
         if (fTypeSelect) {
@@ -1323,39 +1308,36 @@ async function setSession(n, r, id, perms) {
         }
 
         await applyModulesUI(); 
-        
-        // IMPORTANT : Cette fonction supprime (ou cache) les boutons interdits
         applyPermissionsUI(perms);
 
-        // 6. LOGIQUE DE NAVIGATION UNIVERSELLE (Correction Finale)
+        // 4. LOGIQUE DE NAVIGATION (On change de vue AVANT d'enlever le loader)
         const searchContainer = document.getElementById('global-search-container');
         if (searchContainer) {
-            // Seuls ceux qui ont le droit de voir la liste ont la recherche
             searchContainer.style.display = perms?.can_see_employees ? 'block' : 'none';
         }
 
         const savedView = localStorage.getItem('sirh_last_view');
-        
-        // --- DÉTECTION INTELLIGENTE ---
-        // On vérifie si le bouton correspondant à la vue sauvegardée existe physiquement dans le DOM
-        // (S'il a été supprimé par applyPermissionsUI, buttonExists sera false/null)
         const buttonSelector = `button[onclick="switchView('${savedView}')"]`;
         const buttonExists = savedView ? document.querySelector(buttonSelector) : null;
 
         if (savedView && buttonExists && document.getElementById('view-' + savedView)) {
-            // L'utilisateur a le bouton, donc il a le droit : on restaure sa vue
             switchView(savedView);
         } else {
-            // Pas le droit ou pas de vue sauvegardée : Redirection par défaut
-            
-            // On vérifie si l'utilisateur a le droit au Dashboard (si le bouton existe)
             const hasDashAccess = document.querySelector(`button[onclick="switchView('dash')"]`);
-            
             if (hasDashAccess) {
                 switchView('dash');
             } else {
-                switchView('my-profile'); // Repli de sécurité pour tout le monde
+                switchView('my-profile'); 
             }
+        }
+
+        // 5. ENFIN, ON ENLÈVE LE LOADER (Maintenant que tout est dessiné)
+        if (loader) {
+            loader.style.opacity = '0';
+            setTimeout(() => {
+                loader.classList.add('hidden');
+                document.body.style.backgroundColor = "#f1f5f9"; 
+            }, 800); 
         }
 
         applyWidgetPreferences(); 
@@ -1364,9 +1346,12 @@ async function setSession(n, r, id, perms) {
         
     } catch (e) {
         console.error("Erreur critique au démarrage de l'app:", e);
-        Swal.fire('Erreur', 'Impossible de démarrer l\'application. Réessayez.', 'error');
+        if(loader) loader.classList.add('hidden'); // On libère quand même l'écran en cas de bug
+        Swal.fire('Erreur', 'Impossible de charger toutes les données en temps réel.', 'warning');
     }
 }
+
+
 
 
 
@@ -7923,6 +7908,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
