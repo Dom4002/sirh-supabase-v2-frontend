@@ -209,26 +209,26 @@
 
 
 
-                    <!-- SECTION : OPÉRATIONS TERRAIN (Module Mobile) -->
-<div class="menu-group" data-module="MOD_MOBILE_WORKFORCE">
+<!-- SECTION : OPÉRATIONS TERRAIN -->
+<div class="menu-group" data-module="MOD_MOBILE_WORKFORCE" data-perm="can_see_mobile_module">
     <div class="flex justify-between items-center px-4 mb-2 cursor-pointer group" onclick="toggleWidget('m-ops')">
         <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Opérations Terrain</p>
         <i id="m-ops-icon" class="fa-solid fa-chevron-up text-[8px] text-slate-600 group-hover:text-blue-500 transition-colors"></i>
     </div>
     <div id="m-ops-content" class="space-y-1">
         
-        <!-- Lieux & Sites : can_manage_mobile -->
+        <!-- Lieux & Sites : Seuls ceux qui gèrent voient ce bouton -->
         <button data-perm="can_manage_mobile_locations" onclick="switchView('mobile-locations')" class="nav-btn w-full flex items-center gap-4 p-4 rounded-xl transition-all hover:text-white group">
             <i class="fa-solid fa-map-location-dot w-5"></i> <span class="font-semibold">Lieux & Sites</span>
         </button>
 
-        <!-- Répertoire Prescripteurs (Admin/Manager) -->
-        <button data-perm="can_manage_config" onclick="switchView('prescripteurs-list')" class="nav-btn w-full flex items-center gap-4 p-4 rounded-xl transition-all hover:text-white group">
+        <!-- Répertoire Médical : Pour Délégués et Managers -->
+        <button data-perm="can_view_prescripteurs" onclick="switchView('prescripteurs-list')" class="nav-btn w-full flex items-center gap-4 p-4 rounded-xl transition-all hover:text-white group">
             <i class="fa-solid fa-user-doctor w-5 text-purple-400"></i> 
             <span class="font-semibold text-purple-300 group-hover:text-white">Répertoire Médical</span>
         </button>
         
-        <!-- Rapports : can_view_reports -->
+        <!-- Plannings : Garde can_manage_schedules qui existait déjà -->
         <button data-perm="can_manage_schedules" onclick="switchView('mobile-planning')" class="nav-btn w-full flex items-center gap-4 p-4 rounded-xl transition-all hover:text-white group">
             <i class="fa-solid fa-calendar-days w-5"></i> <span class="font-semibold">Plannings & Missions</span>
         </button>
@@ -238,14 +238,12 @@
             <span class="font-semibold">Catalogue Produits</span>
         </button>
 
-        <!-- Rapports Journaliers -->
         <button data-perm="can_view_reports" onclick="switchView('mobile-reports')" class="nav-btn w-full flex items-center gap-4 p-4 rounded-xl transition-all hover:text-white group">
             <i class="fa-solid fa-clipboard-list w-5"></i> 
             <span class="font-semibold">Rapports d'Activité</span>
         </button>
     </div>
 </div>
-
                     
 <!-- SECTION 3 : FINANCE & SYSTÈME -->
 <div class="menu-group">
@@ -1420,7 +1418,8 @@
     </div>
 </section>
 
-        <section id="view-mobile-locations" class="view-section">
+<!-- VUE : LIEUX & SITES -->
+<section id="view-mobile-locations" class="view-section">
     <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
             <h2 class="text-2xl font-black text-slate-800">Lieux & Sites</h2>
@@ -1428,13 +1427,13 @@
         </div>
         
         <div class="flex flex-wrap gap-2 w-full md:w-auto">
-            <!-- Bouton Import CSV -->
-            <button data-perm="can_manage_config" onclick="triggerCSVImport()" class="flex-1 md:flex-none justify-center bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg active:scale-95 transition-all flex items-center gap-2">
+            <!-- CORRECTION : Utilise can_manage_mobile_locations au lieu de can_manage_config -->
+            <button data-perm="can_manage_mobile_locations" onclick="triggerCSVImport()" class="flex-1 md:flex-none justify-center bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg active:scale-95 transition-all flex items-center gap-2">
                 <i class="fa-solid fa-file-import"></i> Importer CSV
             </button>
             
-            <!-- Bouton Ajout Manuel -->
-            <button data-perm="can_manage_config" onclick="openAddLocationModal()" class="flex-1 md:flex-none justify-center bg-blue-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg active:scale-95 transition-all flex items-center gap-2">
+            <!-- CORRECTION : Utilise can_manage_mobile_locations au lieu de can_manage_config -->
+            <button data-perm="can_manage_mobile_locations" onclick="openAddLocationModal()" class="flex-1 md:flex-none justify-center bg-blue-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg active:scale-95 transition-all flex items-center gap-2">
                 <i class="fa-solid fa-map-pin"></i> Ajouter un Lieu
             </button>
 
@@ -1450,12 +1449,15 @@
     </div>
 </section>
 
+<!-- VUE : MON AGENDA -->
 <section id="view-mobile-planning" class="view-section">
     <div class="flex justify-between items-center mb-6">
         <div>
             <h2 class="text-2xl font-black text-slate-800">Mon Agenda</h2>
             <p class="text-sm text-slate-500 font-bold uppercase tracking-widest">Planning des missions</p>
         </div>
+        <!-- On garde can_manage_schedules : Assure-toi que cette case est bien COCHÉE (TRUE) 
+             pour les Délégués dans Supabase afin qu'ils puissent planifier leur propre journée -->
         <button data-perm="can_manage_schedules" onclick="openAddScheduleModal()" class="bg-indigo-600 text-white px-4 py-3 rounded-xl font-bold shadow-lg active:scale-95 transition-all flex items-center gap-2 text-xs uppercase tracking-widest">
             <i class="fa-solid fa-plus"></i> Mission
         </button>
@@ -1466,8 +1468,6 @@
         <div class="text-center py-10 text-slate-400 italic">Chargement de l'agenda...</div>
     </div>
 </section>
-
-
 
 
 
@@ -1573,7 +1573,7 @@
                        class="w-full pl-9 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-blue-500 shadow-sm">
             </div>
 
-            <button onclick="openAddPrescripteurModal()" class="flex-1 md:flex-none justify-center bg-blue-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg active:scale-95 transition-all flex items-center gap-2 text-xs uppercase tracking-widest">
+            <button data-perm="can_manage_prescripteurs" onclick="openAddPrescripteurModal()" class="flex-1 md:flex-none justify-center bg-blue-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg active:scale-95 transition-all flex items-center gap-2 text-xs uppercase tracking-widest">
                 <i class="fa-solid fa-user-plus"></i> Ajouter
             </button>
         </div>
@@ -1671,95 +1671,115 @@
 
 
 
-        <!-- MODAL ADMINISTRATION (VERSION PREMIUM UX) -->
-    <div id="edit-modal" class="fixed inset-0 bg-slate-900/60 hidden flex items-center justify-center z-[200] p-4 backdrop-blur-md transition-all duration-300">
-        
-        <!-- Boite principale avec arrondi XL et ombre profonde -->
-        <div class="bg-white w-full max-w-lg rounded-[2.5rem] p-6 shadow-2xl overflow-y-auto max-h-[90vh] border border-white/20 animate-fadeIn">
-            
-            <!-- En-tête de la modale -->
-            <div class="flex justify-between items-center mb-10">
-                <div>
-                    <h3 class="font-black text-2xl uppercase text-slate-800 tracking-tighter">Administration</h3>
-                    <p class="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em]">Mise à jour du collaborateur</p>
-                </div>
-                <button onclick="closeEditModal()" class="w-12 h-12 flex items-center justify-center rounded-2xl bg-slate-100 text-slate-400 hover:bg-red-50 hover:text-red-500 transition-all active:scale-90">
-                    <i class="fa-solid fa-xmark text-lg"></i>
-                </button>
-            </div>
-            
-            <input type="hidden" id="edit-id-hidden">
-            
-            <form onsubmit="submitUpdate(event)" class="space-y-8">
+                <!-- MODAL ADMINISTRATION (VERSION PREMIUM UX) -->
+            <div id="edit-modal" class="fixed inset-0 bg-slate-900/60 hidden flex items-center justify-center z-[200] p-4 backdrop-blur-md transition-all duration-300">
                 
-                <!-- 1. BLOC : STATUT & ACCÈS -->
-                <div class="space-y-4">
-                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Statut & Habilitations</p>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div class="bg-slate-50 p-1.5 rounded-2xl border border-slate-100">
-                            <label class="block text-[9px] font-black text-slate-400 uppercase mb-1 ml-2">État Civil</label>
-                            <select id="edit-statut" class="w-full p-3 bg-transparent font-bold text-slate-700 outline-none cursor-pointer">
-                                <option value="Actif">🟢 Actif</option>
-                                <option value="Congé">🟡 En Congé</option>
-                                <option value="Sortie">🔴 Sortie Définitive</option>
-                            </select>
-                        </div>
-                        <div class="bg-blue-50/50 p-1.5 rounded-2xl border border-blue-100">
-                            <label class="block text-[9px] font-black text-blue-400 uppercase mb-1 ml-2">Rôle Système</label>
-                            <select id="edit-role" class="w-full p-3 bg-transparent font-black text-blue-700 outline-none cursor-pointer">
-                                <!-- Rempli par JS -->
-                            </select>
-                        </div>
-                    </div>
-
-                    <div class="bg-indigo-50/50 p-1.5 rounded-2xl border border-indigo-100">
-                        <label class="block text-[9px] font-black text-indigo-400 uppercase mb-1 ml-2">Type d'Activité (Règle GPS)</label>
-                        <select id="edit-type" class="w-full p-3 bg-transparent font-black text-indigo-700 outline-none cursor-pointer">
-                            <option value="OFFICE">🏢 Bureau (Fixe)</option>
-                            <option value="FIXED">🏠 Agent Site (Fixe)</option>
-                            <option value="MOBILE">🚗 Délégué (Nomade)</option>
-                        </select>
-                    </div>
-
-                    <div class="bg-slate-50 p-1.5 rounded-2xl border border-slate-100">
-                        <label class="block text-[9px] font-black text-slate-400 uppercase mb-1 ml-2">Département / Service</label>
-                        <select id="edit-dept" class="w-full p-3 bg-transparent font-bold text-slate-700 outline-none cursor-pointer">
-                            <!-- Rempli par JS -->
-                        </select>
-                    </div>
-                </div>
-
-                <!-- 2. BLOC : GESTION CONTRAT (Design Orange soft) -->
-                <div class="p-6 bg-orange-50/50 rounded-xl border border-orange-100 space-y-4">
-                    <p class="text-[10px] font-black text-orange-600 uppercase tracking-widest flex items-center gap-2">
-                        <i class="fa-solid fa-file-contract"></i> Cycle de vie du Contrat
-                    </p>
-                    <div class="grid grid-cols-2 gap-4">
+                <!-- Boite principale avec arrondi XL et ombre profonde -->
+                <div class="bg-white w-full max-w-lg rounded-[2.5rem] p-6 shadow-2xl overflow-y-auto max-h-[90vh] border border-white/20 animate-fadeIn">
+                    
+                    <!-- En-tête de la modale -->
+                    <div class="flex justify-between items-center mb-10">
                         <div>
-                            <label class="block text-[9px] font-black text-slate-400 uppercase mb-2 ml-1">Durée / Type</label>
-                            <select id="edit-type-contrat" class="w-full p-3 bg-white border border-orange-100 rounded-xl text-xs font-bold text-slate-700 shadow-sm outline-none focus:ring-2 focus:ring-orange-200">
-                                <option value="365">CDI (1 an)</option>
-                                <option value="180">CDD (6 mois)</option>
-                                <option value="90">Essai (3 mois)</option>
-                                <option value="30">Stage</option>
-                                <option value="0">Freelance / Prestation</option>
-                            </select>
+                            <h3 class="font-black text-2xl uppercase text-slate-800 tracking-tighter">Administration</h3>
+                            <p class="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em]">Mise à jour du collaborateur</p>
                         </div>
-                        <div>
-                            <label class="block text-[9px] font-black text-slate-400 uppercase mb-2 ml-1">Date d'effet</label>
-                            <input type="date" id="edit-start-date" class="w-full p-3 bg-white border border-orange-100 rounded-xl text-xs font-bold text-slate-700 shadow-sm outline-none">
+                        <button onclick="closeEditModal()" class="w-12 h-12 flex items-center justify-center rounded-2xl bg-slate-100 text-slate-400 hover:bg-red-50 hover:text-red-500 transition-all active:scale-90">
+                            <i class="fa-solid fa-xmark text-lg"></i>
+                        </button>
+                    </div>
+                    
+                    <input type="hidden" id="edit-id-hidden">
+                    
+                    <form onsubmit="submitUpdate(event)" class="space-y-8">
+                        
+                        <!-- 1. BLOC : STATUT & ACCÈS -->
+                        <div id="edit-block-status" class="space-y-4">
+                            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Statut & Habilitations</p>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div class="bg-slate-50 p-1.5 rounded-2xl border border-slate-100">
+                                    <label class="block text-[9px] font-black text-slate-400 uppercase mb-1 ml-2">État Civil</label>
+                                    <select id="edit-statut" class="w-full p-3 bg-transparent font-bold text-slate-700 outline-none cursor-pointer">
+                                        <option value="Actif">🟢 Actif</option>
+                                        <option value="Congé">🟡 En Congé</option>
+                                        <option value="Sortie">🔴 Sortie Définitive</option>
+                                    </select>
+                                </div>
+                                <div class="bg-blue-50/50 p-1.5 rounded-2xl border border-blue-100">
+                                    <label class="block text-[9px] font-black text-blue-400 uppercase mb-1 ml-2">Rôle Système</label>
+                                    <select id="edit-role" class="w-full p-3 bg-transparent font-black text-blue-700 outline-none cursor-pointer">
+                                        <!-- Rempli par JS -->
+                                    </select>
+                                </div>
+                            </div>
+        
+                            <div class="bg-indigo-50/50 p-1.5 rounded-2xl border border-indigo-100">
+                                <label class="block text-[9px] font-black text-indigo-400 uppercase mb-1 ml-2">Type d'Activité (Règle GPS)</label>
+                                <select id="edit-type" class="w-full p-3 bg-transparent font-black text-indigo-700 outline-none cursor-pointer">
+                                    <option value="OFFICE">🏢 Bureau (Fixe)</option>
+                                    <option value="FIXED">🏠 Agent Site (Fixe)</option>
+                                    <option value="MOBILE">🚗 Délégué (Nomade)</option>
+                                </select>
+                            </div>
+        
+                            <div class="bg-slate-50 p-1.5 rounded-2xl border border-slate-100">
+                                <label class="block text-[9px] font-black text-slate-400 uppercase mb-1 ml-2">Département / Service</label>
+                                <select id="edit-dept" class="w-full p-3 bg-transparent font-bold text-slate-700 outline-none cursor-pointer">
+                                    <!-- Rempli par JS -->
+                                </select>
+                            </div>
                         </div>
-                    </div>
-                    <div class="mt-3 flex items-start gap-3 bg-white/60 p-3 rounded-xl border border-orange-100">
-                        <input type="checkbox" id="edit-init-check" class="mt-1 w-5 h-5 text-orange-600 rounded-lg border-orange-200 focus:ring-orange-500 cursor-pointer">
-                        <label for="edit-init-check" class="text-[10px] text-orange-800 leading-tight font-medium">
-                            <b>Forcer l'initialisation :</b> Réinitialise le contrat à la date choisie (Embauche ou Renouvellement).
-                        </label>
-                    </div>
+        
+                        <!-- 2. BLOC : GESTION CONTRAT (Design Orange soft) -->
+                       <div id="edit-block-contract" class="p-6 bg-orange-50/50 rounded-xl border border-orange-100 space-y-4">
+            <p class="text-[10px] font-black text-orange-600 uppercase tracking-widest flex items-center gap-2">
+                <i class="fa-solid fa-file-contract"></i> Cycle de vie du Contrat
+            </p>
+        
+            <!-- Ligne 1 : Type et Date (Inchangée) -->
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-[9px] font-black text-slate-400 uppercase mb-2 ml-1">Durée / Type</label>
+                    <select id="edit-type-contrat" class="w-full p-3 bg-white border border-orange-100 rounded-xl text-xs font-bold text-slate-700 shadow-sm outline-none focus:ring-2 focus:ring-orange-200">
+                        <option value="365">CDI (1 an)</option>
+                        <option value="180">CDD (6 mois)</option>
+                        <option value="90">Essai (3 mois)</option>
+                        <option value="30">Stage</option>
+                        <option value="0">Freelance / Prestation</option>
+                    </select>
                 </div>
+                <div>
+                    <label class="block text-[9px] font-black text-slate-400 uppercase mb-2 ml-1">Date d'effet</label>
+                    <input type="date" id="edit-start-date" class="w-full p-3 bg-white border border-orange-100 rounded-xl text-xs font-bold text-slate-700 shadow-sm outline-none">
+                </div>
+            </div>
+        
+            <!-- NOUVELLE LIGNE : SALAIRE ET INDEMNITÉS (Ajoutée) -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2 border-t border-orange-100/50">
+                <div>
+                    <label class="block text-[9px] font-black text-slate-400 uppercase mb-2 ml-1">Salaire Base (CFA)</label>
+                    <input type="number" id="edit-salaire-fixe" class="w-full p-3 bg-white border border-orange-100 rounded-xl text-xs font-bold text-blue-600 shadow-sm outline-none" placeholder="0">
+                </div>
+                <div>
+                    <label class="block text-[9px] font-black text-slate-400 uppercase mb-2 ml-1">Indem. Transport</label>
+                    <input type="number" id="edit-indemnite-transport" class="w-full p-3 bg-white border border-orange-100 rounded-xl text-xs font-bold text-slate-700 shadow-sm outline-none" placeholder="0">
+                </div>
+                <div>
+                    <label class="block text-[9px] font-black text-slate-400 uppercase mb-2 ml-1">Indem. Logement</label>
+                    <input type="number" id="edit-indemnite-logement" class="w-full p-3 bg-white border border-orange-100 rounded-xl text-xs font-bold text-slate-700 shadow-sm outline-none" placeholder="0">
+                </div>
+            </div>
+        
+            <!-- Checkbox d'initialisation (Inchangée) -->
+            <div class="mt-3 flex items-start gap-3 bg-white/60 p-3 rounded-xl border border-orange-100">
+                <input type="checkbox" id="edit-init-check" class="mt-1 w-5 h-5 text-orange-600 rounded-lg border-orange-200 focus:ring-orange-500 cursor-pointer">
+                <label for="edit-init-check" class="text-[10px] text-orange-800 leading-tight font-medium">
+                    <b>Forcer l'initialisation :</b> Réinitialise le contrat à la date choisie (Embauche ou Renouvellement).
+                </label>
+            </div>
+        </div>
 
                 <!-- 3. BLOC : HIÉRARCHIE (Design Indigo soft) -->
-                <div class="p-6 bg-indigo-50/50 rounded-xl border border-indigo-100 space-y-4">
+                <div id="edit-block-hierarchy" class="p-6 bg-indigo-50/50 rounded-xl border border-indigo-100 space-y-4">
                     <p class="text-[10px] font-black text-indigo-600 uppercase tracking-widest flex items-center gap-2">
                         <i class="fa-solid fa-sitemap"></i> Management & Hiérarchie
                     </p>
@@ -1989,6 +2009,7 @@
     </body>
 
     </html>
+
 
 
 
