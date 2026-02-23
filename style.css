@@ -259,3 +259,9 @@ button[type="submit"] {
     font-size: calc(var(--base-size) * 0.8) !important;
     margin-bottom: 0.5rem;
 }
+
+/* Supprime les ombres colorées qui fatiguent l'oeil sur fond sombre */
+#login-screen .bg-white, 
+#login-screen button {
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1) !important;
+}
