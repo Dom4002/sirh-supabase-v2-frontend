@@ -4413,23 +4413,26 @@ function exportPayrollTemplate() {
         return Swal.fire('Oups', 'Aucun collaborateur affiché dans le tableau à exporter.', 'warning');
     }
 
-    let csvContent = "\ufeffMATRICULE;NOM;POSTE;SALAIRE_BASE;TOTAL_PRIMES;TOTAL_RETENUES\n";
-
+    let csvContent = "\ufeffMATRICULE;NOM;POSTE;SALAIRE_BASE;INDEMNITES_FIXES;TOTAL_PRIMES;TOTAL_RETENUES\n";
+            
     rows.forEach(row => {
         // On récupère le div du "NET" qui contient les datasets (matricule, nom, poste)
         const netDisplay = row.querySelector('[id^="net-"]');
         if (!netDisplay) return;
 
+        const index = netDisplay.id.split('-')[1];
         const matricule = netDisplay.dataset.matricule || "";
         const nom = netDisplay.dataset.nom || "";
         const poste = netDisplay.dataset.poste || "";
         
-        // On récupère la valeur actuelle de la BASE directement depuis l'input du tableau
-        const index = netDisplay.id.split('-')[1];
+        // On récupère la valeur actuelle de la BASE
         const baseCurrent = document.getElementById(`base-${index}`).value || 0;
 
-        // On génère la ligne CSV
-        csvContent += `\t${matricule};${nom};${poste};${baseCurrent};0;0\n`;
+        // --- NOUVEAU : On récupère la valeur des INDEMNITÉS affichée dans le tableau ---
+        const indemCurrent = document.getElementById(`indem-constante-${index}`).innerText || 0;
+
+        // On génère la ligne CSV avec les données réelles
+        csvContent += `\t${matricule};${nom};${poste};${baseCurrent};${indemCurrent};0;0\n`;
     });
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -4438,14 +4441,6 @@ function exportPayrollTemplate() {
     link.download = `Saisie_Paie_${document.getElementById('pay-month').value}.csv`;
     link.click();
 }
-
-
-
-
-
-
-
-
 
 
 
@@ -4487,64 +4482,67 @@ async function handlePayrollImport(event) {
         const headers = firstLine.split(delimiter).map(h => h.trim().toUpperCase());
 
         // 2. RECHERCHE DES POSITIONS DES COLONNES PAR NOM (Mapping)
-        // On cherche l'index de chaque colonne qui nous intéresse
         const map = {
             matricule: headers.indexOf("MATRICULE"),
             base: headers.indexOf("SALAIRE_BASE"),
+            indem: headers.indexOf("INDEMNITES_FIXES"), // NOUVELLE COLONNE
             primes: headers.indexOf("TOTAL_PRIMES"),
             retenues: headers.indexOf("TOTAL_RETENUES")
         };
 
-        // Vérification : La colonne MATRICULE est obligatoire pour savoir qui on met à jour
+        // Vérification : La colonne MATRICULE est obligatoire
         if (map.matricule === -1) {
-            Swal.fire('Format Incorrect', 'La colonne "MATRICULE" est introuvable dans votre fichier.', 'error');
+            Swal.fire('Format Incorrect', 'La colonne "MATRICULE" est introuvable.', 'error');
             return;
         }
 
         let updateCount = 0;
 
-        // 3. TRAITEMENT DES DONNÉES (Ligne par ligne)
+        // 3. TRAITEMENT DES DONNÉES
         for (let i = 1; i < lines.length; i++) {
             const cols = lines[i].split(delimiter).map(c => c.replace(/"/g, '').trim());
             
-            // On récupère le matricule (toujours nécessaire)
             const matricule = cols[map.matricule] ? cols[map.matricule].replace(/\t/g, '') : null;
             if (!matricule) continue;
 
-            // On cherche la ligne correspondante dans le tableau HTML
             const netDisplay = document.querySelector(`div[data-matricule="${matricule}"]`);
             
             if (netDisplay) {
                 const index = netDisplay.id.split('-')[1];
                 
-                // On récupère les inputs de la ligne
                 const inputBase = document.getElementById(`base-${index}`);
+                const displayIndem = document.getElementById(`indem-constante-${index}`); // Zone indemnités
                 const inputPrime = document.getElementById(`prime-${index}`);
                 const inputTax = document.getElementById(`tax-${index}`);
 
                 let hasChanged = false;
 
-                // ON RÉCUPÈRE LES DONNÉES SEULEMENT SI L'ENTÊTE EXISTE DANS LE FICHIER
-                
-                // Mise à jour du Salaire de Base (si colonne présente)
+                // Mise à jour du Salaire de Base
                 if (map.base !== -1 && inputBase && cols[map.base] !== undefined) {
                     inputBase.value = parseInt(cols[map.base]) || 0;
                     hasChanged = true;
                 }
 
-                // Mise à jour des Primes (si colonne présente)
+                // --- NOUVEAU : Mise à jour des Indemnités Fixes ---
+                if (map.indem !== -1 && displayIndem && cols[map.indem] !== undefined) {
+                    displayIndem.innerText = parseInt(cols[map.indem]) || 0;
+                    hasChanged = true;
+                }
+
+                // Mise à jour des Primes
                 if (map.primes !== -1 && inputPrime && cols[map.primes] !== undefined) {
                     inputPrime.value = parseInt(cols[map.primes]) || 0;
                     hasChanged = true;
                 }
 
-                // Mise à jour des Retenues (si colonne présente)
+                // Mise à jour des Retenues
                 if (map.retenues !== -1 && inputTax && cols[map.retenues] !== undefined) {
                     inputTax.value = parseInt(cols[map.retenues]) || 0;
+                    inputTax.dataset.auto = "false"; // On désactive le calcul auto car la valeur vient de l'Excel
                     hasChanged = true;
                 }
 
-                // 4. RECALCUL DU NET SI ON A MODIFIÉ QUELQUE CHOSE
+                // 4. RECALCUL DU NET
                 if (hasChanged) {
                     calculateRow(index);
                     updateCount++;
@@ -4552,17 +4550,20 @@ async function handlePayrollImport(event) {
             }
         }
 
-        // 5. FEEDBACK FINAL
         if (updateCount > 0) {
-            Swal.fire('Succès', `${updateCount} collaborateur(s) mis à jour avec succès via mapping intelligent.`, 'success');
+            Swal.fire('Succès', `${updateCount} collaborateur(s) mis à jour (Base, Indemnités, Primes, Taxes).`, 'success');
         } else {
-            Swal.fire('Oups', 'Aucun matricule correspondant trouvé dans le tableau actuel.', 'warning');
+            Swal.fire('Oups', 'Aucun matricule correspondant trouvé.', 'warning');
         }
     };
 
     reader.readAsText(file);
     event.target.value = "";
 }
+
+
+
+
 
 async function submitSignedContract() { 
     if (!signaturePad || signaturePad.isEmpty()) { 
@@ -6358,6 +6359,8 @@ async function loadAccountingView() {
 
         // 3. Rendu du tableau (Même logique que précédemment)
         employeesToPay.forEach((emp, index) => {
+        const totalIndemnites = (emp.indemnite_transport || 0) + (emp.indemnite_logement || 0);
+
             body.innerHTML += `
                 <tr class="hover:bg-blue-50/50 transition-all accounting-row animate-fadeIn" 
                     data-search="${emp.nom.toLowerCase()} ${emp.matricule.toLowerCase()}">
@@ -6373,6 +6376,14 @@ async function loadAccountingView() {
                     <td class="px-4 py-5 text-center">
                         <input type="number" oninput="calculateRow(${index})" id="base-${index}" class="w-full p-2 bg-slate-50 border-none rounded-xl text-center font-black text-xs focus:bg-white focus:ring-2 focus:ring-blue-500" value="${emp.salaire_brut_fixe || 0}">
                     </td>
+                            <!-- NOUVELLE COLONNE : INDEMNITÉS (Automatique) -->
+                    <td class="px-4 py-5 text-center">
+                        <div class="text-[11px] font-bold text-slate-500 bg-slate-100 rounded-lg py-2">
+                            <span id="indem-constante-${index}">${totalIndemnites}</span>
+                            <p class="text-[8px] opacity-50 uppercase">Transport + Log.</p>
+                        </div>
+                    </td>
+                    
                     <td class="px-4 py-5 text-center">
                         <input type="number" oninput="calculateRow(${index})" id="prime-${index}" class="w-full p-2 bg-emerald-50 border-none rounded-xl text-center font-black text-xs text-emerald-600 focus:bg-white focus:ring-2 focus:ring-emerald-500" value="0">
                     </td>
@@ -6418,18 +6429,66 @@ function filterAccountingTableLocally() {
 
 // Fonction de calcul en temps réel
 function calculateRow(index) {
+    // 1. Récupération des valeurs de base
     const base = parseInt(document.getElementById(`base-${index}`).value) || 0;
-    const prime = parseInt(document.getElementById(`prime-${index}`).value) || 0;
-    const tax = parseInt(document.getElementById(`tax-${index}`).value) || 0;
     
-    const net = base + prime - tax;
+    // 2. Récupération des indemnités fixes (Somme transport + logement affichée dans le tableau)
+    const indemnitesFixes = parseInt(document.getElementById(`indem-constante-${index}`).innerText) || 0;
+    
+    // 3. AUTOMATISATION DES RETENUES (Stratégie Étape 4)
+    // On récupère les taux chargés depuis la table 'salaries_config'
+    const rateCNSS = payrollConstants['CNSS_EMPLOYEE_RATE'] || 0;
+    const rateIRPP = payrollConstants['IRPP_BASE_RATE'] || 0;
+    const totalTaxRate = rateCNSS + rateIRPP;
+
+    const inputTax = document.getElementById(`tax-${index}`);
+
+    // On calcule automatiquement la retenue seulement si le champ est à 0 
+    // ou s'il est marqué comme étant en mode "auto"
+    if (inputTax && (inputTax.value === "0" || inputTax.dataset.auto === "true")) {
+        const estimationRetenues = Math.round(base * (totalTaxRate / 100));
+        inputTax.value = estimationRetenues;
+        inputTax.dataset.auto = "true"; // On garde la trace que c'est un calcul auto
+    }
+
+    // 4. Calcul final avec les primes variables saisies
+    const primeVariable = parseInt(document.getElementById(`prime-${index}`).value) || 0;
+    const retenues = parseInt(inputTax.value) || 0;
+    
+    const net = base + indemnitesFixes + primeVariable - retenues;
+    
+    // 5. Mise à jour visuelle (Format Premium)
     const display = document.getElementById(`net-${index}`);
     display.innerText = new Intl.NumberFormat('fr-FR').format(net) + " CFA";
+    
+    // 6. Stockage des données pour l'envoi final au serveur (Publish)
     display.dataset.net = net;
     display.dataset.base = base;
-    display.dataset.prime = prime;
-    display.dataset.tax = tax;
+    display.dataset.prime = primeVariable;
+    display.dataset.tax = retenues;
 }
+
+
+
+
+// Tout en haut de app.js
+let payrollConstants = {};
+
+// Fonction pour charger les taux
+async function fetchPayrollConstants() {
+    try {
+        const r = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/read-config-salaries`); // On va créer cette route
+        const data = await r.json();
+        
+        // On transforme le tableau en objet facile à lire : { "CNSS_EMPLOYEE_RATE": 3.6, ... }
+        data.forEach(item => {
+            payrollConstants[item.key_code] = item.value_number;
+        });
+        console.log("📊 Constantes de paie chargées :", payrollConstants);
+    } catch (e) { console.error("Erreur constantes paie", e); }
+}
+
+
 
 async function generateAllPay() {
     const mois = document.getElementById('pay-month').value;
@@ -6437,18 +6496,30 @@ async function generateAllPay() {
     const records = [];
 
     document.querySelectorAll('[id^="net-"]').forEach(el => {
+        const index = el.id.split('-')[1]; // On récupère l'index de la ligne
         const netValue = parseInt(el.dataset.net) || 0;
+
         if (netValue > 0) {
+            // On récupère les valeurs directement depuis les champs du tableau
+            const baseVal = parseInt(document.getElementById(`base-${index}`).value) || 0;
+            const indemVal = parseInt(document.getElementById(`indem-constante-${index}`).innerText) || 0;
+            const primeVal = parseInt(document.getElementById(`prime-${index}`).value) || 0;
+            const taxVal = parseInt(document.getElementById(`tax-${index}`).value) || 0;
+
             records.push({
                 id: el.dataset.id,
-                matricule: el.dataset.matricule, // AJOUTE CETTE LIGNE
+                matricule: el.dataset.matricule,
                 nom: el.dataset.nom,
                 poste: el.dataset.poste,
-                mois: mois, annee: annee,
-                salaire_base: el.dataset.base,
-                primes: el.dataset.prime,
-                retenues: el.dataset.tax,
-                salaire_net: netValue
+                mois: mois, 
+                annee: annee,
+                salaire_base: baseVal,
+                indemnites_fixes: indemVal, // AJOUTÉ : Somme Transport + Logement
+                primes: primeVal,
+                retenues: taxVal,
+                salaire_net: netValue,
+                taux_cnss: payrollConstants['CNSS_EMPLOYEE_RATE'] || 0,
+                taux_irpp: payrollConstants['IRPP_BASE_RATE'] || 0
             });
         }
     });
@@ -6468,8 +6539,6 @@ async function generateAllPay() {
         switchView('dash');
     }
 }
-
-
 
 
 
@@ -7908,6 +7977,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
