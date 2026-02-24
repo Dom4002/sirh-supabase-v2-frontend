@@ -1270,12 +1270,12 @@ async function handleForgotPassword() {
         showCancelButton: true,
         confirmButtonText: 'Envoyer le code',
         confirmButtonColor: '#2563eb',
-        cancelButtonText: 'Annuler'
+        cancelButtonText: 'Annuler',
+        customClass: { popup: 'rounded-2xl' }
     });
 
-    if (!email) return; // L'utilisateur a annulé
+    if (!email) return;
 
-    // Affichage d'un chargement
     Swal.fire({ title: 'Vérification...', didOpen: () => Swal.showLoading(), allowOutsideClick: false });
 
     try {
@@ -1291,7 +1291,7 @@ async function handleForgotPassword() {
             // ÉTAPE 2 : Demander le code et le nouveau mot de passe
             const { value: formValues } = await Swal.fire({
                 title: 'Code envoyé !',
-                text: 'Consultez votre boîte mail (et vos spams).',
+                text: 'Consultez votre boîte mail.',
                 html: `
                     <input id="swal-code" class="swal2-input" placeholder="Code à 6 chiffres" maxlength="6">
                     <input id="swal-newpass" type="password" class="swal2-input" placeholder="Nouveau mot de passe">
@@ -1299,15 +1299,12 @@ async function handleForgotPassword() {
                 focusConfirm: false,
                 confirmButtonText: 'Changer le mot de passe',
                 confirmButtonColor: '#10b981',
+                showCancelButton: true,
                 preConfirm: () => {
                     const code = document.getElementById('swal-code').value;
                     const pass = document.getElementById('swal-newpass').value;
                     if (!code || !pass) {
                         Swal.showValidationMessage(`Veuillez remplir les deux champs`);
-                        return false;
-                    }
-                    if (pass.length < 6) {
-                        Swal.showValidationMessage(`Le mot de passe doit faire au moins 6 caractères`);
                         return false;
                     }
                     return { code: code, newPassword: pass };
@@ -1328,15 +1325,14 @@ async function handleForgotPassword() {
                 });
 
                 if (resReset.ok) {
-                    Swal.fire('Succès !', 'Votre mot de passe a été modifié. Vous pouvez vous connecter.', 'success');
+                    Swal.fire('Succès !', 'Mot de passe modifié.', 'success');
                 } else {
                     const err = await resReset.json();
-                    throw new Error(err.error || "Code invalide ou expiré");
+                    throw new Error(err.error || "Code invalide");
                 }
             }
-
         } else {
-            throw new Error(data.error || "Une erreur est survenue");
+            throw new Error(data.error || "Email inconnu");
         }
     } catch (e) {
         Swal.fire('Échec', e.message, 'error');
@@ -8354,6 +8350,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
