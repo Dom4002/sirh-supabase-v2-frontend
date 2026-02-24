@@ -399,3 +399,21 @@ button[type="submit"] {
     background: #cbd5e1;
     border-radius: 10px;
 }
+
+/* Empêche le chevauchement lors de l'agrandissement des notes */
+[data-fixed="true"], .whitespace-normal {
+    position: relative;
+    z-index: 10;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    max-width: 300px; /* Limite la largeur pour éviter de casser tout le tableau */
+    word-break: break-word; /* Force le retour à la ligne */
+}
+
+/* On s'assure que le wrapper de tableau fonctionne bien */
+.table-container {
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    display: block;
+    -webkit-overflow-scrolling: touch;
+}
