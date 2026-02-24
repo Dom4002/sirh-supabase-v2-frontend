@@ -424,18 +424,20 @@ button[type="submit"] {
 /* ============================================================
    5. COMPOSANTS (MODALS VS TOASTS)
 ============================================================ */
-/* 1. CONFIGURATION GÉNÉRALE DES MODALES */
+/* 1. Règle de base (Priorité Mobile) */
 .swal2-popup:not(.swal2-toast) {
     border-radius: 1rem !important;
     padding: 1.5rem !important;
     box-sizing: border-box !important;
+    width: 95% !important;
+    max-width: 500px !important; 
 }
 
-/* 2. SUR MOBILE (Écrans < 768px) : On force une petite taille */
-@media (max-width: 768px) {
+/* 2. Règle Ordinateur (Écrans plus larges que 768px) */
+@media (min-width: 768px) {
     .swal2-popup:not(.swal2-toast) {
-        width: 95% !important;
-        max-width: 500px !important;
+        max-width: 95vw !important; 
+        width: auto !important; 
     }
 }
 
@@ -477,4 +479,5 @@ button.flex-1, button.md\:flex-none {
 button i {
     font-size: 0.9rem !important;
 }
+
 
