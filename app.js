@@ -2729,19 +2729,29 @@ async function handleClockInOut() {
         fd.append('ip', ipRes.ip);
         fd.append('agent', currentUser.nom);
         
-        // Envoi sécurisé des variables (Elles existent toutes grâce à l'initialisation en haut)
-        if (outcome) fd.append('outcome', outcome);
-        if (report) fd.append('report', report);
+        // --- DEBUT DES CORRECTIONS : Envoi forcé des données ---
+        // On force l'envoi même si c'est vide, pour ne pas que le serveur reçoive "undefined"
+        fd.append('outcome', outcome || 'VU');
+        fd.append('report', report || '');
+        
         if (prescripteur_id) fd.append('prescripteur_id', prescripteur_id);
         if (contact_nom_libre) fd.append('contact_nom_libre', contact_nom_libre);
-        if (presentedProducts && presentedProducts.length > 0) fd.append('presentedProducts', JSON.stringify(presentedProducts));
+        
+        // On envoie toujours les produits (même si c'est un tableau vide [])
+        if (presentedProducts) {
+            fd.append('presentedProducts', JSON.stringify(presentedProducts));
+        }
+
         if (schedule_id) fd.append('schedule_id', schedule_id);
         if (forced_location_id) fd.append('forced_location_id', forced_location_id);
+        
         if (proofBlob) {
             const compressed = await compressImage(proofBlob);
             fd.append('proof_photo', compressed, 'capture.jpg');
         }
+        
         if (isLastExit) fd.append('is_last_exit', 'true');
+        // --- FIN DES CORRECTIONS ---
 
         const response = await secureFetch(URL_CLOCK_ACTION, { method: 'POST', body: fd });
         const resData = await response.json();
@@ -2769,7 +2779,6 @@ async function handleClockInOut() {
         Swal.fire('Erreur', e.message, 'error');
     }
 }
-
 
 
 
@@ -8148,6 +8157,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
