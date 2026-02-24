@@ -337,3 +337,17 @@ button[type="submit"] {
 
 
 
+/* ============================================================
+   8. ADAPTATION DES MODALES SUR PC (LARGEUR ÉTENDUE)
+============================================================ */
+@media (min-width: 1024px) {
+    .swal2-popup {
+        max-width: 850px !important; /* Plus large sur PC */
+        width: auto !important;
+    }
+    
+    /* Si la modale contient une grille, on s'assure qu'elle prend toute la place */
+    .swal2-html-container {
+        max-width: 100% !important;
+    }
+}
