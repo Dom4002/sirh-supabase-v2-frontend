@@ -186,35 +186,35 @@ let chatSubscription = null;
             const ITEMS_PER_PAGE = 10; // Nombre d'employés par page
 
 
-window.addEventListener('DOMContentLoaded', () => {
-    applyBranding(); 
-    const session = localStorage.getItem('sirh_user_session');
-    const loader = document.getElementById('initial-loader');
-
-    if(session) {
-        try {
-            const u = JSON.parse(session);
-            if(u && u.nom) {
-                console.log("Restauration session : " + u.nom);
-                
-                // On lance la session (qui va attendre la fin du chargement des données avant de cacher le loader)
-                setSession(u.nom, u.role, u.id, u.permissions);
-                
-                // ❌ LE SETTIMEOUT QUI CACHAIT LE LOADER TROP TÔT A ÉTÉ SUPPRIMÉ ICI
-                
-            } else {
-                throw new Error("Session invalide");
-            }
-        } catch(e) { 
-            // Si erreur de lecture, on nettoie et on montre le login
-            localStorage.removeItem('sirh_user_session');
-            loader.classList.add('hidden');
-        }
-    } else {
-        // Pas de session, on montre immédiatement le login
-        loader.classList.add('hidden');
-    }
-});
+            window.addEventListener('DOMContentLoaded', () => {
+                applyBranding(); 
+                const session = localStorage.getItem('sirh_user_session');
+                const loader = document.getElementById('initial-loader');
+            
+                if(session) {
+                    try {
+                        const u = JSON.parse(session);
+                        if(u && u.nom) {
+                            console.log("Restauration session : " + u.nom);
+                            
+                            // On lance la session (qui va attendre la fin du chargement des données avant de cacher le loader)
+                            setSession(u.nom, u.role, u.id, u.permissions, u.employee_type);
+                            
+                            // ❌ LE SETTIMEOUT QUI CACHAIT LE LOADER TROP TÔT A ÉTÉ SUPPRIMÉ ICI
+                            
+                        } else {
+                            throw new Error("Session invalide");
+                        }
+                    } catch(e) { 
+                        // Si erreur de lecture, on nettoie et on montre le login
+                        localStorage.removeItem('sirh_user_session');
+                        loader.classList.add('hidden');
+                    }
+                } else {
+                    // Pas de session, on montre immédiatement le login
+                    loader.classList.add('hidden');
+                }
+            });
 
 
             document.getElementById('current-date').innerText = new Date().toLocaleDateString('fr-FR');
@@ -1015,7 +1015,7 @@ if(d.status === "success") {
     Toast.fire({icon: 'success', title: 'Bienvenue ' + userData.nom});
     
     // 3. ON APPELLE setSession
-    await setSession(userData.nom, userData.role, userData.id, d.permissions); 
+    await setSession(userData.nom, userData.role, userData.id, d.permissions, userData.employee_type); 
 }
                     
                     else { 
@@ -1130,8 +1130,9 @@ async function refreshAllData(force = false) {
 
 
 
-async function setSession(n, r, id, perms) {
-    currentUser = { nom: n, role: r, id: id, permissions: perms };
+async function setSession(n, r, id, perms, type) { 
+            
+    currentUser = { nom: n, role: r, id: id, permissions: perms, employee_type: type || 'OFFICE' };
     
     // On cache les éléments par défaut (Permissions/Groupes)
     document.querySelectorAll('[data-perm]').forEach(el => el.style.display = 'none');
@@ -8142,6 +8143,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
