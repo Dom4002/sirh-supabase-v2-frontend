@@ -424,13 +424,29 @@ button[type="submit"] {
 /* ============================================================
    5. COMPOSANTS (MODALS VS TOASTS)
 ============================================================ */
-
-/* 1. Les grandes fenêtres (Formulaires, Rapports) */
+/* 1. CONFIGURATION GÉNÉRALE DES MODALES */
 .swal2-popup:not(.swal2-toast) {
-    border-radius: 1rem !important; /* 16px : plus pro que 40px */
+    border-radius: 1rem !important;
     padding: 1.5rem !important;
-    width: 95% !important;
-    max-width: 500px; /* Taille standard pour mobile */
+    box-sizing: border-box !important;
+}
+
+/* 2. SUR MOBILE (Écrans < 768px) : On force une petite taille */
+@media (max-width: 768px) {
+    .swal2-popup:not(.swal2-toast) {
+        width: 95% !important;
+        max-width: 500px !important;
+    }
+}
+
+/* 3. SUR ORDINATEUR (Écrans > 768px) : On libère la largeur */
+@media (min-width: 769px) {
+    .swal2-popup:not(.swal2-toast) {
+        /* On permet à la fenêtre de grandir jusqu'à 1200px */
+        max-width: 1200px !important; 
+        /* 'auto' permet au JavaScript de décider (ex: width: '1000px' dans ton code JS) */
+        width: auto !important; 
+    }
 }
 
 /* 2. Les petites alertes de succès (Toasts) - LA CORRECTION ICI */
@@ -461,3 +477,4 @@ button.flex-1, button.md\:flex-none {
 button i {
     font-size: 0.9rem !important;
 }
+
