@@ -4421,42 +4421,44 @@ async function fetchAndPopulateDepartments() {
 
 
 function exportPayrollTemplate() {
-    // On cible les lignes du tableau actuellement visibles à l'écran
+    // 1. On récupère toutes les lignes affichées dans le tableau de comptabilité
     const rows = document.querySelectorAll('.accounting-row');
     
     if (rows.length === 0) {
         return Swal.fire('Oups', 'Aucun collaborateur affiché dans le tableau à exporter.', 'warning');
     }
 
+    // 2. Définition des entêtes (7 colonnes au total)
     let csvContent = "\ufeffMATRICULE;NOM;POSTE;SALAIRE_BASE;INDEMNITES_FIXES;TOTAL_PRIMES;TOTAL_RETENUES\n";
-            
+
     rows.forEach(row => {
-        // On récupère le div du "NET" qui contient les datasets (matricule, nom, poste)
+        // On identifie l'index de la ligne via l'ID du div NET
         const netDisplay = row.querySelector('[id^="net-"]');
         if (!netDisplay) return;
-
         const index = netDisplay.id.split('-')[1];
+
+        // 3. RÉCUPÉRATION DES INFOS "TÉLLES QU'ELLES SONT" À L'ÉCRAN
         const matricule = netDisplay.dataset.matricule || "";
         const nom = netDisplay.dataset.nom || "";
         const poste = netDisplay.dataset.poste || "";
         
-        // On récupère la valeur actuelle de la BASE
+        // On récupère les valeurs des champs (Base, Primes, Retenues)
         const baseCurrent = document.getElementById(`base-${index}`).value || 0;
-
-        // --- NOUVEAU : On récupère la valeur des INDEMNITÉS affichée dans le tableau ---
         const indemCurrent = document.getElementById(`indem-constante-${index}`).innerText || 0;
+        const primeCurrent = document.getElementById(`prime-${index}`).value || 0;
+        const taxCurrent = document.getElementById(`tax-${index}`).value || 0; // On récupère la taxe calculée auto !
 
-        // On génère la ligne CSV avec les données réelles
-        csvContent += `\t${matricule};${nom};${poste};${baseCurrent};${indemCurrent};0;0\n`;
+        // 4. Génération de la ligne avec les 7 colonnes remplies
+        csvContent += `\t${matricule};${nom};${poste};${baseCurrent};${indemCurrent};${primeCurrent};${taxCurrent}\n`;
     });
 
+    // 5. Téléchargement du fichier
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
     link.download = `Saisie_Paie_${document.getElementById('pay-month').value}.csv`;
     link.click();
 }
-
 
 
 
@@ -8020,6 +8022,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
