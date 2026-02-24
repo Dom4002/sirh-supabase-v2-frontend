@@ -2681,19 +2681,35 @@ async function handleClockInOut() {
                         </div>
                     </div>
 
-                    <!-- COLONNE DROITE : PREUVE & NOTE -->
+                        <!-- COLONNE DROITE : PREUVE (PHOTO OU SIGNATURE) & NOTE -->
                     <div class="space-y-4 flex flex-col">
-                        <div class="bg-slate-900 rounded-xl overflow-hidden relative border-2 border-slate-200 shadow-inner flex-shrink-0" style="height: 180px;">
+                        
+                        <!-- SELECTEUR DE TYPE DE PREUVE -->
+                        <div class="flex p-1 bg-slate-100 rounded-xl border border-slate-200 shadow-inner">
+                            <button type="button" onclick="switchProofMode('photo')" id="btn-mode-photo" class="flex-1 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all bg-white shadow-sm text-blue-600">📸 Photo Cachet</button>
+                            <button type="button" onclick="switchProofMode('sign')" id="btn-mode-sign" class="flex-1 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all text-slate-500">✍️ Signature</button>
+                        </div>
+
+                        <!-- ZONE APPAREIL PHOTO -->
+                        <div id="proof-photo-area" class="bg-slate-900 rounded-xl overflow-hidden relative border-2 border-slate-200 shadow-inner flex-shrink-0" style="height: 180px;">
                             <video id="proof-video" autoplay playsinline class="w-full h-full object-cover"></video>
                             <img id="proof-image" class="w-full h-full object-cover hidden absolute top-0 left-0">
                             <canvas id="proof-canvas" class="hidden"></canvas>
-                            <div class="absolute bottom-2 left-0 right-0 flex justify-center gap-2">
-                                <button type="button" id="btn-snap" class="bg-white text-slate-900 px-4 py-1.5 rounded-full text-[10px] font-black uppercase shadow-lg hover:scale-105 transition-transform">📸 PRENDRE CACHET</button>
+                            <div class="absolute bottom-2 left-0 right-0 flex justify-center">
+                                <button type="button" id="btn-snap" class="bg-white text-slate-900 px-4 py-1.5 rounded-full text-[10px] font-black uppercase shadow-lg">📸 PRENDRE PHOTO</button>
                             </div>
                         </div>
 
-                        <div class="flex-1 flex flex-col">
-                            <textarea id="swal-report" class="swal2-textarea !mt-0 flex-1 text-sm" placeholder="Note de rapport... (Optionnel)"></textarea>
+                        <!-- ZONE SIGNATURE (Cachée par défaut) -->
+                        <div id="proof-sign-area" class="hidden flex-shrink-0">
+                            <div class="relative">
+                                <canvas id="visit-signature-pad" class="signature-zone w-full h-[180px] bg-white"></canvas>
+                                <button type="button" onclick="clearVisitSignature()" class="absolute bottom-2 right-2 bg-slate-100 text-slate-400 px-2 py-1 rounded text-[8px] font-black uppercase">Effacer</button>
+                            </div>
+                        </div>
+
+                        <div class="flex-1">
+                            <textarea id="swal-report" class="swal2-textarea !mt-0 w-full text-sm h-24" placeholder="Note de rapport..."></textarea>
                         </div>
                         
                         <div class="p-3 bg-red-50 rounded-xl border border-red-100 flex items-center gap-3">
@@ -2712,18 +2728,27 @@ async function handleClockInOut() {
             cancelButtonColor: '#ef4444', 
             allowOutsideClick: false,
             didOpen: () => {
+                // 1. GESTION DU CONTEXTE MISSION (Existant)
                 const ctxMem = localStorage.getItem('active_mission_context');
                 if (ctxMem) {
                     const c = JSON.parse(ctxMem);
                     if (c.prescripteurId) document.getElementById('swal-prescripteur').value = c.prescripteurId;
                     if (c.preNotes) document.getElementById('swal-report').value = `[Objectif: ${c.preNotes}] \n`;
                 }
+
+                // 2. SÉLECTEUR CONTACT / NOUVEAU NOM (Existant)
                 document.getElementById('swal-prescripteur').addEventListener('change', (e) => {
                     document.getElementById('container-autre-nom').classList.toggle('hidden', e.target.value !== 'autre');
                 });
+
+                // 3. INITIALISATION CAMÉRA (Existant)
                 const video = document.getElementById('proof-video');
-                navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }).then(s => { proofStream = s; video.srcObject = s; });
+                navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+                    .then(s => { proofStream = s; video.srcObject = s; })
+                    .catch(e => console.warn("Caméra indisponible", e));
+
                 document.getElementById('btn-snap').onclick = () => {
+                    if (!video || video.videoWidth === 0) return;
                     const canvas = document.getElementById('proof-canvas');
                     canvas.width = video.videoWidth; canvas.height = video.videoHeight;
                     canvas.getContext('2d').drawImage(video, 0, 0);
@@ -2733,15 +2758,80 @@ async function handleClockInOut() {
                         document.getElementById('proof-image').classList.remove('hidden'); 
                     }, 'image/jpeg', 0.8);
                 };
+
+                // 4. NOUVEAU : INITIALISATION DU SIGNATURE PAD
+                const signCanvas = document.getElementById('visit-signature-pad');
+                // Ajustement haute résolution pour mobile (Retina)
+                const ratio = Math.max(window.devicePixelRatio || 1, 1);
+                signCanvas.width = signCanvas.offsetWidth * ratio;
+                signCanvas.height = 180 * ratio;
+                signCanvas.getContext("2d").scale(ratio, ratio);
+
+                window.visitSignPad = new SignaturePad(signCanvas, {
+                    backgroundColor: 'rgb(255, 255, 255)',
+                    penColor: 'rgb(0, 0, 128)' // Bleu Marine Pro
+                });
+
+            // 5. NOUVEAU : LOGIQUE DE BASCULEMENT (ONGLETS) AVEC GESTION CAMÉRA
+                window.switchProofMode = (mode) => {
+                    const isPhoto = mode === 'photo';
+
+                    // --- GESTION ÉNERGIE : COUPE/RELANCE LA CAMÉRA ---
+                    if (!isPhoto && proofStream) {
+                        // On éteint la caméra si on passe en mode Signature
+                        proofStream.getTracks().forEach(track => track.stop());
+                        proofStream = null;
+                    } 
+                    else if (isPhoto && !proofStream) {
+                        // On rallume la caméra si on revient en mode Photo
+                        const video = document.getElementById('proof-video');
+                        navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+                            .then(s => { 
+                                proofStream = s; 
+                                if (video) video.srcObject = s; 
+                            })
+                            .catch(e => console.warn("Impossible de relancer la caméra", e));
+                    }
+
+                    // Affichage des zones
+                    document.getElementById('proof-photo-area').classList.toggle('hidden', !isPhoto);
+                    document.getElementById('proof-sign-area').classList.toggle('hidden', isPhoto);
+                    
+                    // Mise à jour visuelle des boutons
+                    const btnPhoto = document.getElementById('btn-mode-photo');
+                    const btnSign = document.getElementById('btn-mode-sign');
+                    
+                    if (isPhoto) {
+                        btnPhoto.className = "flex-1 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all bg-white shadow-sm text-blue-600";
+                        btnSign.className = "flex-1 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all text-slate-500";
+                    } else {
+                        btnSign.className = "flex-1 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all bg-white shadow-sm text-blue-600";
+                        btnPhoto.className = "flex-1 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all text-slate-500";
+                    }
+                    
+                    window.currentProofMode = mode;
+                };
+
+                window.clearVisitSignature = () => { window.visitSignPad.clear(); };
+                window.currentProofMode = 'photo'; // Mode par défaut au démarrage
             },
             preConfirm: () => {
+                let finalProof = proofBlob; // Par défaut, on prend la photo si elle existe
+
+                // Si on est en mode signature et que le canvas n'est pas vide
+                if (window.currentProofMode === 'sign' && !window.visitSignPad.isEmpty()) {
+                    const dataURL = window.visitSignPad.toDataURL('image/png');
+                    finalProof = dataURLtoBlob(dataURL); // Utilise la fonction utilitaire discutée plus tôt
+                }
+
                 return {
                     outcome: document.getElementById('swal-outcome').value,
                     report: document.getElementById('swal-report').value,
                     isLastExit: document.getElementById('last-exit-check').checked,
                     prescripteur_id: document.getElementById('swal-prescripteur').value,
                     contact_nom_libre: document.getElementById('swal-nom-libre').value,
-                    selectedProducts: Array.from(document.querySelectorAll('input[name="presented_prods"]:checked')).map(i => ({id: i.value, name: i.dataset.name}))
+                    selectedProducts: Array.from(document.querySelectorAll('input[name="presented_prods"]:checked')).map(i => ({id: i.value, name: i.dataset.name})),
+                    proofFile: finalProof // C'est cette variable que tu devras utiliser dans ton FormData
                 };
             }
         });
@@ -2786,9 +2876,11 @@ async function handleClockInOut() {
         if (schedule_id) fd.append('schedule_id', schedule_id);
         if (forced_location_id) fd.append('forced_location_id', forced_location_id);
         
-        if (proofBlob) {
-            const compressed = await compressImage(proofBlob);
-            fd.append('proof_photo', compressed, 'capture.jpg');
+        if (formResult.proofFile) {
+            Swal.update({ text: 'Compression de la preuve...' });
+            const compressed = await compressImage(formResult.proofFile);
+            // On l'envoie toujours sous le nom 'proof_photo' pour que le serveur le reconnaisse
+            fd.append('proof_photo', compressed, 'preuve_visite.jpg');
         }
         
         if (isLastExit) fd.append('is_last_exit', 'true');
@@ -2821,6 +2913,14 @@ async function handleClockInOut() {
     }
 }
 
+
+
+function dataURLtoBlob(dataurl) {
+    var arr = dataurl.split(','), mime = arr[0].match(/:(.*?);/)[1],
+        bstr = atob(arr[1]), n = bstr.length, u8arr = new Uint8Array(n);
+    while(n--){ u8arr[n] = bstr.charCodeAt(n); }
+    return new Blob([u8arr], {type:mime});
+}
 
 
 function openFullFolder(id) {
@@ -8236,6 +8336,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
