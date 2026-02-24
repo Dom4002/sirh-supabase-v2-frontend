@@ -441,7 +441,7 @@ button[type="submit"] {
 }
 
 /* ============================================================
-   9. COMPOSANTS (MODALS VS TOASTS) - LE FIX EST ICI
+   9. COMPOSANTS (MODALS VS TOASTS) - LE FIX ULTIME
 ============================================================ */
 
 /* 1. Règle Globale de base (Priorité à la protection mobile) */
@@ -449,36 +449,39 @@ button[type="submit"] {
     border-radius: 1rem !important;
     padding: 1.5rem !important;
     box-sizing: border-box !important;
-    /* On force à ne jamais dépasser la taille de l'écran */
     max-width: 95vw !important; 
 }
 
 /* 2. Comportement sur Mobile Uniquement (Écrans < 768px) */
 @media (max-width: 767px) {
     .swal2-popup:not(.swal2-toast) {
-        width: 95% !important; /* Prend 95% de la largeur du téléphone */
-        max-width: 500px !important; /* Limite raisonnable */
+        width: 95% !important; 
+        max-width: 500px !important; 
     }
 }
 
 /* 3. Comportement sur PC (Écrans >= 768px) */
 @media (min-width: 768px) {
     .swal2-popup:not(.swal2-toast) {
-        /* On autorise une très grande largeur (jusqu'à 1200px) */
         max-width: 1200px !important; 
+        width: auto !important; 
         
-        /* 
-           ⚠️ C'EST ICI QU'ÉTAIT LE BUG ⚠️
-           On a enlevé le "width: auto !important;" et le "width: 95% !important;".
-           Maintenant, le CSS laisse le JavaScript gérer la taille.
-           Si ton JS dit "width: 900px" (pour un contrat), ça fera 900px.
-        */
+        /* On coupe la barre de scroll externe (la boite principale) */
+        overflow: hidden !important; 
+    }
+
+    /* C'EST ÇA QUI TUE LA BARRE FINE : On dit au conteneur HTML de s'adapter au PDF sans scroller */
+    .swal2-html-container {
+        overflow-y: hidden !important; 
+        overflow-x: hidden !important;
+        padding-right: 0 !important;
+        margin-right: 0 !important;
     }
 }
 
 /* 4. Les petites alertes de succès (Toasts en haut à droite) */
 .swal2-toast {
-    padding: 0.5rem 1rem !important; /* Très fin */
+    padding: 0.5rem 1rem !important; 
     border-radius: 0.75rem !important;
     box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1) !important;
     width: auto !important;
@@ -492,17 +495,14 @@ button[type="submit"] {
     font-weight: 700 !important;
 }
 
-/* 5. Harmonisation des boutons (Exporter, Actualiser, etc.) */
+/* 5. Harmonisation des boutons */
 button.flex-1, button.md\:flex-none {
-    padding: 0.5rem 1rem !important; /* Réduction de la taille des bulles */
-    font-size: 0.75rem !important; /* Texte plus fin */
+    padding: 0.5rem 1rem !important; 
+    font-size: 0.75rem !important; 
     border-radius: 0.75rem !important;
-    height: 40px !important; /* Hauteur fixe pour éviter les boutons "géants" */
+    height: 40px !important; 
 }
 
-/* Empêche les icônes de flotter */
 button i {
     font-size: 0.9rem !important;
 }
-
-
