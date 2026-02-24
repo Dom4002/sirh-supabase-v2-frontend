@@ -336,18 +336,20 @@ button[type="submit"] {
 }
 
 
-
 /* ============================================================
-   8. ADAPTATION DES MODALES SUR PC (LARGEUR ÉTENDUE)
+   8. ADAPTATION CIBLÉE (PLANNING & RAPPORT UNIQUEMENT)
 ============================================================ */
 @media (min-width: 1024px) {
-    .swal2-popup {
-        max-width: 850px !important; /* Plus large sur PC */
-        width: auto !important;
+    /* On ne touche qu'aux popups qui ont la classe 'wide-modal' */
+    .swal2-popup.wide-modal {
+        max-width: 900px !important;
+        width: 900px !important;
+        padding: 2rem !important;
     }
     
-    /* Si la modale contient une grille, on s'assure qu'elle prend toute la place */
-    .swal2-html-container {
+    /* On s'assure que le contenu prend toute la place */
+    .swal2-popup.wide-modal .swal2-html-container {
         max-width: 100% !important;
+        margin: 0 !important;
     }
 }
