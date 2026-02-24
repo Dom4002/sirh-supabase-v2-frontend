@@ -2774,25 +2774,32 @@ async function handleClockInOut() {
                     }, 'image/jpeg', 0.8);
                 };
 
-                // 4. INITIALISATION SIGNATURE (RÉGLAGE PRÉCISION HD)
+            // 4. INITIALISATION SIGNATURE (AVEC FONCTION DE REDIMENSIONNEMENT)
                 const signCanvas = document.getElementById('visit-signature-pad');
-                const ratio = Math.max(window.devicePixelRatio || 1, 1);
                 
-                // Ajustement technique pour que le tracé ne soit pas décalé
-                signCanvas.width = signCanvas.offsetWidth * ratio;
-                signCanvas.height = signCanvas.offsetHeight * ratio;
-                signCanvas.getContext("2d").scale(ratio, ratio);
+                // On prépare la fonction de calcul de taille
+                window.reinitVisitCanvas = () => {
+                    const ratio = Math.max(window.devicePixelRatio || 1, 1);
+                    // On ne recalcule que si l'élément est visible à l'écran
+                    if (signCanvas.offsetWidth > 0) {
+                        signCanvas.width = signCanvas.offsetWidth * ratio;
+                        signCanvas.height = signCanvas.offsetHeight * ratio;
+                        signCanvas.getContext("2d").scale(ratio, ratio);
+                        if (window.visitSignPad) window.visitSignPad.clear();
+                    }
+                };
 
+                // Création du pad (on utilise un fond transparent au début pour éviter les bugs)
                 window.visitSignPad = new SignaturePad(signCanvas, { 
-                    backgroundColor: 'rgb(255, 255, 255)', 
+                    backgroundColor: 'rgba(255, 255, 255, 0)', 
                     penColor: 'rgb(0, 0, 128)' 
-                });
+                });    
 
                 // 5. FONCTION SWITCH MODE (CORRIGÉE)
-                window.switchProofMode = (mode) => {
+               window.switchProofMode = (mode) => {
                     const isPhoto = mode === 'photo';
                     
-                    // Gestion intelligente du flux vidéo pour éviter l'erreur "not defined"
+                    // 1. Gestion du flux vidéo (Inchangé)
                     if (!isPhoto && proofStream) { 
                         proofStream.getTracks().forEach(t => t.stop()); 
                         proofStream = null; 
@@ -2806,11 +2813,22 @@ async function handleClockInOut() {
                             }); 
                     }
 
-                    // Mise à jour visuelle de l'interface
+                    // 2. Mise à jour visuelle de l'interface (Inchangé)
                     document.getElementById('proof-photo-area').classList.toggle('hidden', !isPhoto);
                     document.getElementById('proof-sign-area').classList.toggle('hidden', isPhoto);
                     
-                    // Mise à jour des styles de boutons (Focus bleu vs gris)
+                    // --- AJOUT : RÉINITIALISATION DU CANVAS SI ON PASSE EN MODE SIGNATURE ---
+                    if (!isPhoto) {
+                        // On attend 50ms que la zone soit bien affichée par le navigateur
+                        setTimeout(() => {
+                            if (typeof window.reinitVisitCanvas === 'function') {
+                                window.reinitVisitCanvas();
+                            }
+                        }, 50);
+                    }
+                    // -----------------------------------------------------------------------
+
+                    // 3. Mise à jour des styles de boutons (Inchangé)
                     document.getElementById('btn-mode-photo').className = isPhoto ? 'flex-1 py-1.5 rounded-lg text-[9px] font-black uppercase bg-white shadow-sm text-blue-600' : 'flex-1 py-1.5 rounded-lg text-[9px] font-black uppercase text-slate-500';
                     document.getElementById('btn-mode-sign').className = !isPhoto ? 'flex-1 py-1.5 rounded-lg text-[9px] font-black uppercase bg-white shadow-sm text-blue-600' : 'flex-1 py-1.5 rounded-lg text-[9px] font-black uppercase text-slate-500';
                     
@@ -8336,6 +8354,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
