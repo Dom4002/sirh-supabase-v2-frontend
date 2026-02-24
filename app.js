@@ -3523,19 +3523,17 @@ function toggleSidebar() {
 
 
 async function openEditModal(id) {
-    // 1. ON TROUVE L'EMPLOYÉ EN PREMIER
+    // 1. ON TROUVE L'EMPLOYÉ
     const e = employees.find(x => x.id === id);
     
     if (e) {
-        // --- NOUVEAU : On mémorise l'état original pour permettre la comparaison ---
-        // On crée une copie indépendante de l'objet pour ne pas polluer la liste globale
+        // Mémorisation pour le "Partial Update"
         currentEditingOriginal = { ...e };
 
-        // 2. On affiche la modale
         document.getElementById('edit-modal').classList.remove('hidden');
         document.getElementById('edit-id-hidden').value = id;
 
-        // --- DEBUT DU BLOC DE PROTECTION STRATÉGIQUE (Inchangé) ---
+        // --- GESTION DES BLOCS DE SÉCURITÉ (Visibilité) ---
         const perms = currentUser.permissions || {};
         const blockStatus = document.getElementById('edit-block-status');
         const blockContract = document.getElementById('edit-block-contract');
@@ -3544,24 +3542,48 @@ async function openEditModal(id) {
         if (blockContract) blockContract.style.display = perms.can_manage_contracts ? 'block' : 'none';
         if (blockHierarchy) blockHierarchy.style.display = perms.can_manage_contracts ? 'block' : 'none';
         if (blockStatus) blockStatus.style.display = (perms.can_manage_contracts || perms.can_edit_employee_basic) ? 'block' : 'none';
-        // --- FIN DU BLOC DE PROTECTION ---
-
-        // 3. Charger la liste des managers
+        
+        // --- CHARGEMENT DES DONNÉES ---
         await populateManagerSelects(); 
 
-        // 4. Remplissage des données (Logique originale conservée)
+        // 1. Manager & Scope
         const mgrSelect = document.getElementById('edit-manager');
         if(mgrSelect) mgrSelect.value = e.manager_id || "";
     
         const scopeInput = document.getElementById('edit-scope');
         if(scopeInput) scopeInput.value = (e.scope || []).join(', ');
 
+        // 2. Type & Statut
         document.getElementById('edit-type').value = e.employee_type || 'OFFICE';
         document.getElementById('edit-statut').value = e.statut || 'Actif';
         
+        // --- CORRECTION RÔLE : FORCAGE DE LA VALEUR ---
         const roleSelect = document.getElementById('edit-role');
-        if(roleSelect) roleSelect.value = e.role || 'EMPLOYEE';
+        if(roleSelect) {
+            // A. On s'assure que la liste est bien remplie avec les rôles globaux
+            if (window.activeRolesList && window.activeRolesList.length > 0) {
+                // On regénère les options pour être sûr qu'elles sont là
+                const opts = window.activeRolesList.map(r => `<option value="${r.role_name}">${r.role_name}</option>`).join('');
+                roleSelect.innerHTML = `<option value="">-- Sélectionner --</option>` + opts;
+            }
+            
+            // B. On nettoie la valeur de la BDD (Suppression espaces + conversion string)
+            const dbRole = String(e.role || 'EMPLOYEE').trim();
+            
+            // C. On applique la valeur
+            roleSelect.value = dbRole;
+
+            // D. Sécurité : Si après avoir mis la valeur, le select est toujours vide (pas de match), 
+            // c'est qu'il y a une différence de majuscule/minuscule. On essaie de forcer.
+            if (!roleSelect.value) {
+                // On cherche l'option qui ressemble le plus (insensible à la casse)
+                const options = Array.from(roleSelect.options);
+                const match = options.find(opt => opt.value.toUpperCase() === dbRole.toUpperCase());
+                if (match) roleSelect.value = match.value;
+            }
+        }
         
+        // 3. Département & Contrat
         const deptSelect = document.getElementById('edit-dept');
         if(deptSelect) deptSelect.value = e.dept || 'IT & Tech';
 
@@ -3573,6 +3595,7 @@ async function openEditModal(id) {
             dateInput.value = e.date ? convertToInputDate(e.date) : new Date().toISOString().split('T')[0];
         }
 
+        // 4. Finances
         const inputSalaire = document.getElementById('edit-salaire-fixe');
         const inputTransport = document.getElementById('edit-indemnite-transport');
         const inputLogement = document.getElementById('edit-indemnite-logement');
@@ -3585,7 +3608,6 @@ async function openEditModal(id) {
         if(initCheck) initCheck.checked = false;
     }
 }
-
 
 
 function updatePaginationUI(containerId, meta, callbackName) {
@@ -8104,6 +8126,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
