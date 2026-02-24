@@ -417,3 +417,47 @@ button[type="submit"] {
     display: block;
     -webkit-overflow-scrolling: touch;
 }
+
+
+
+
+/* ============================================================
+   5. COMPOSANTS (MODALS VS TOASTS)
+============================================================ */
+
+/* 1. Les grandes fenêtres (Formulaires, Rapports) */
+.swal2-popup:not(.swal2-toast) {
+    border-radius: 1rem !important; /* 16px : plus pro que 40px */
+    padding: 1.5rem !important;
+    width: 95% !important;
+    max-width: 500px; /* Taille standard pour mobile */
+}
+
+/* 2. Les petites alertes de succès (Toasts) - LA CORRECTION ICI */
+.swal2-toast {
+    padding: 0.5rem 1rem !important; /* Très fin */
+    border-radius: 0.75rem !important;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1) !important;
+    width: auto !important;
+    max-width: 300px !important;
+}
+
+.swal2-toast .swal2-title {
+    font-size: 0.85rem !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    font-weight: 700 !important;
+}
+
+/* 3. Harmonisation des boutons (Exporter, Actualiser, etc.) */
+button.flex-1, button.md\:flex-none {
+    padding: 0.5rem 1rem !important; /* Réduction de la taille des bulles */
+    font-size: 0.75rem !important; /* Texte plus fin */
+    border-radius: 0.75rem !important;
+    height: 40px !important; /* Hauteur fixe pour éviter les boutons "géants" */
+}
+
+/* Empêche les icônes de flotter */
+button i {
+    font-size: 0.9rem !important;
+}
