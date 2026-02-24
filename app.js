@@ -1345,7 +1345,10 @@ async function fetchTemplates() {
             return;
         }
 
-        templates.forEach(t => {
+templates.forEach(t => {
+            // On sécurise le nom du fichier pour éviter les bugs si y'a des apostrophes
+            const safeLabel = t.label.replace(/'/g, "\\'"); 
+
             tbody.innerHTML += `
                 <tr class="border-b hover:bg-slate-50 transition-all group">
                     <td class="px-6 py-4 font-black uppercase text-blue-600 text-xs">${t.role_target}</td>
@@ -1359,7 +1362,9 @@ async function fetchTemplates() {
                         </span>
                     </td>
                     <td class="px-6 py-4 text-right">
-                        <button onclick="window.open('${t.template_file_url}', '_blank')" class="p-2 text-slate-400 hover:text-blue-600" title="Voir le fichier"><i class="fa-solid fa-eye"></i></button>
+                        <!-- CORRECTION : On appelle viewDocument qui va ouvrir le Modal -->
+                        <button onclick="viewDocument('${t.template_file_url}', '${safeLabel}')" class="p-2 text-slate-400 hover:text-blue-600" title="Voir le fichier"><i class="fa-solid fa-eye"></i></button>
+                        
                         <button onclick="deleteTemplate('${t.id}')" class="p-2 text-slate-200 hover:text-red-500" title="Supprimer"><i class="fa-solid fa-trash-can"></i></button>
                     </td>
                 </tr>
@@ -8143,6 +8148,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
