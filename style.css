@@ -359,8 +359,6 @@ button[type="submit"] {
     }
 }
 
-
-
 .signature-zone {
     background-color: #f8fafc;
     border: 2px dashed #e2e8f0;
@@ -368,8 +366,6 @@ button[type="submit"] {
     cursor: crosshair;
     touch-action: none; /* Important pour le tactile */
 }
-
-
 
 /* On s'assure que SweetAlert passe toujours devant tout le monde */
 .swal2-container {
@@ -418,40 +414,43 @@ button[type="submit"] {
     -webkit-overflow-scrolling: touch;
 }
 
-
-
-
 /* ============================================================
-   5. COMPOSANTS (MODALS VS TOASTS)
+   9. COMPOSANTS (MODALS VS TOASTS) - LE FIX EST ICI
 ============================================================ */
-/* 1. Règle de base (Priorité Mobile) */
+
+/* 1. Règle Globale de base (Priorité à la protection mobile) */
 .swal2-popup:not(.swal2-toast) {
     border-radius: 1rem !important;
     padding: 1.5rem !important;
     box-sizing: border-box !important;
-    width: 95% !important;
-    max-width: 500px !important; 
+    /* On force à ne jamais dépasser la taille de l'écran */
+    max-width: 95vw !important; 
 }
 
-/* 2. Règle Ordinateur (Écrans plus larges que 768px) */
+/* 2. Comportement sur Mobile Uniquement (Écrans < 768px) */
+@media (max-width: 767px) {
+    .swal2-popup:not(.swal2-toast) {
+        width: 95% !important; /* Prend 95% de la largeur du téléphone */
+        max-width: 500px !important; /* Limite raisonnable */
+    }
+}
+
+/* 3. Comportement sur PC (Écrans >= 768px) */
 @media (min-width: 768px) {
     .swal2-popup:not(.swal2-toast) {
-        max-width: 95vw !important; 
-        width: auto !important; 
-    }
-}
-
-/* 3. SUR ORDINATEUR (Écrans > 768px) : On libère la largeur */
-@media (min-width: 769px) {
-    .swal2-popup:not(.swal2-toast) {
-        /* On permet à la fenêtre de grandir jusqu'à 1200px */
+        /* On autorise une très grande largeur (jusqu'à 1200px) */
         max-width: 1200px !important; 
-        /* 'auto' permet au JavaScript de décider (ex: width: '1000px' dans ton code JS) */
-        width: auto !important; 
+        
+        /* 
+           ⚠️ C'EST ICI QU'ÉTAIT LE BUG ⚠️
+           On a enlevé le "width: auto !important;" et le "width: 95% !important;".
+           Maintenant, le CSS laisse le JavaScript gérer la taille.
+           Si ton JS dit "width: 900px" (pour un contrat), ça fera 900px.
+        */
     }
 }
 
-/* 2. Les petites alertes de succès (Toasts) - LA CORRECTION ICI */
+/* 4. Les petites alertes de succès (Toasts en haut à droite) */
 .swal2-toast {
     padding: 0.5rem 1rem !important; /* Très fin */
     border-radius: 0.75rem !important;
@@ -467,7 +466,7 @@ button[type="submit"] {
     font-weight: 700 !important;
 }
 
-/* 3. Harmonisation des boutons (Exporter, Actualiser, etc.) */
+/* 5. Harmonisation des boutons (Exporter, Actualiser, etc.) */
 button.flex-1, button.md\:flex-none {
     padding: 0.5rem 1rem !important; /* Réduction de la taille des bulles */
     font-size: 0.75rem !important; /* Texte plus fin */
@@ -479,5 +478,3 @@ button.flex-1, button.md\:flex-none {
 button i {
     font-size: 0.9rem !important;
 }
-
-
