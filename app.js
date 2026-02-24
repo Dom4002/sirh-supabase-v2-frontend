@@ -1258,19 +1258,39 @@ async function setSession(n, r, id, perms, type) {
 // ============================================================
 // GESTION DU MOT DE PASSE OUBLIÉ (FLOW EN 2 ÉTAPES) ✅
 // ============================================================
-
 async function handleForgotPassword() {
-    // ÉTAPE 1 : Demander l'email
+    // ÉTAPE 1 : Demander l'email avec un design épuré
     const { value: email } = await Swal.fire({
         title: 'Mot de passe oublié ?',
-        text: "Entrez votre email pour recevoir un code de sécurité.",
-        input: 'email',
-        inputPlaceholder: 'votre-email@entreprise.com',
+        html: `
+            <div class="text-center px-2">
+                <p class="text-slate-500 text-sm mb-8 leading-relaxed">
+                    Entrez votre email professionnel. Nous vous enverrons un <b>code de sécurité</b> pour réinitialiser votre accès.
+                </p>
+                <div class="text-left">
+                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Adresse Email</label>
+                    <input type="email" id="swal-email-input" class="swal2-input !m-0 !w-full" placeholder="nom@entreprise.com">
+                </div>
+            </div>
+        `,
         showCancelButton: true,
         confirmButtonText: 'Envoyer le code',
-        confirmButtonColor: '#2563eb',
         cancelButtonText: 'Annuler',
-        customClass: { popup: 'rounded-2xl' }
+        confirmButtonColor: '#2563eb',
+        reverseButtons: true, // Annuler à gauche, Envoyer à droite
+        customClass: {
+            popup: 'rounded-[2rem]',
+            confirmButton: 'rounded-xl px-6 py-3 font-bold',
+            cancelButton: 'rounded-xl px-6 py-3 font-bold'
+        },
+        preConfirm: () => {
+            const email = document.getElementById('swal-email-input').value;
+            if (!email || !email.includes('@')) {
+                Swal.showValidationMessage('Veuillez entrer une adresse email valide');
+                return false;
+            }
+            return email;
+        }
     });
 
     if (!email) return;
@@ -1287,57 +1307,66 @@ async function handleForgotPassword() {
         const data = await response.json();
 
         if (data.status === "success") {
-            // ÉTAPE 2 : Demander le code et le nouveau mot de passe
+            // ÉTAPE 2 : Demander le code (Design harmonisé)
             const { value: formValues } = await Swal.fire({
-                title: 'Code envoyé !',
-                text: 'Consultez votre boîte mail.',
+                title: 'Vérifiez vos mails',
                 html: `
-                    <input id="swal-code" class="swal2-input" placeholder="Code à 6 chiffres" maxlength="6">
-                    <input id="swal-newpass" type="password" class="swal2-input" placeholder="Nouveau mot de passe">
+                    <div class="text-center px-2">
+                        <p class="text-slate-500 text-sm mb-8">Un code à 6 chiffres a été envoyé à <b>${email}</b>.</p>
+                        <div class="grid grid-cols-1 gap-4 text-left">
+                            <div>
+                                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Code de sécurité</label>
+                                <input id="swal-code" class="swal2-input !m-0 !text-center !text-2xl !font-black !tracking-[0.5em]" maxlength="6" placeholder="000000">
+                            </div>
+                            <div>
+                                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Nouveau mot de passe</label>
+                                <input id="swal-newpass" type="password" class="swal2-input !m-0" placeholder="••••••••">
+                            </div>
+                        </div>
+                    </div>
                 `,
                 focusConfirm: false,
-                confirmButtonText: 'Changer le mot de passe',
-                confirmButtonColor: '#10b981',
                 showCancelButton: true,
+                confirmButtonText: 'Changer le mot de passe',
+                confirmButtonColor: '#10b981', // Vert pour le succès
                 preConfirm: () => {
                     const code = document.getElementById('swal-code').value;
                     const pass = document.getElementById('swal-newpass').value;
-                    if (!code || !pass) {
-                        Swal.showValidationMessage(`Veuillez remplir les deux champs`);
+                    if (!code || code.length < 6) {
+                        Swal.showValidationMessage(`Entrez le code à 6 chiffres`);
                         return false;
                     }
-                    return { code: code, newPassword: pass };
+                    if (pass.length < 6) {
+                        Swal.showValidationMessage(`Le mot de passe doit faire 6 caractères min.`);
+                        return false;
+                    }
+                    return { code, newPassword: pass };
                 }
             });
 
             if (formValues) {
                 Swal.fire({ title: 'Mise à jour...', didOpen: () => Swal.showLoading() });
-
                 const resReset = await fetch(`${SIRH_CONFIG.apiBaseUrl}/reset-password`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        email: email.toLowerCase().trim(), 
-                        code: formValues.code, 
-                        newPassword: formValues.newPassword 
-                    })
+                    body: JSON.stringify({ email: email.toLowerCase().trim(), code: formValues.code, newPassword: formValues.newPassword })
                 });
 
                 if (resReset.ok) {
-                    Swal.fire('Succès !', 'Mot de passe modifié.', 'success');
+                    Swal.fire({ icon: 'success', title: 'Succès !', text: 'Votre mot de passe a été modifié.', confirmButtonColor: '#2563eb' });
                 } else {
                     const err = await resReset.json();
-                    throw new Error(err.error || "Code invalide");
+                    throw new Error(err.error || "Code invalide ou expiré");
                 }
             }
+
         } else {
-            throw new Error(data.error || "Email inconnu");
+            throw new Error(data.error || "Utilisateur introuvable");
         }
     } catch (e) {
         Swal.fire('Échec', e.message, 'error');
     }
 }
-
 
 
 async function fetchTemplates() {
@@ -8358,6 +8387,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
