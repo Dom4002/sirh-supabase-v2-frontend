@@ -1026,8 +1026,24 @@ if(d.status === "success") {
     
     localStorage.setItem('sirh_user_session', JSON.stringify(userData));
 
-    const Toast = Swal.mixin({toast: true, position: 'top-end', showConfirmButton: false, timer: 2000});
-    Toast.fire({icon: 'success', title: 'Bienvenue ' + userData.nom});
+const Toast = Swal.mixin({
+        toast: true,
+        position: 'top', // Placé en haut au centre, plus élégant sur mobile
+        showConfirmButton: false,
+        timer: 2000,
+        timerProgressBar: true,
+        background: '#ffffff',
+        color: '#1e293b',
+        customClass: {
+            popup: 'swal2-toast' // Force le style petit
+        }
+    });
+    
+    Toast.fire({
+        icon: 'success',
+        title: 'Connexion réussie',
+        text: 'Bienvenue ' + userData.nom
+    });
     
     // 3. ON APPELLE setSession
     await setSession(userData.nom, userData.role, userData.id, d.permissions, userData.employee_type); 
@@ -8387,6 +8403,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
