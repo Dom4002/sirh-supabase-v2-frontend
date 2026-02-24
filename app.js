@@ -986,90 +986,93 @@ async function secureFetch(url, options = {}) {
 
 
 async function handleLogin(e) { 
-                e.preventDefault(); 
-                // Déverrouille l'audio pour mobile
-                NOTIF_SOUND.play().then(() => { NOTIF_SOUND.pause(); NOTIF_SOUND.currentTime = 0; }).catch(() => {});
-                
-                const u = document.getElementById('login-user').value.trim();
-                const p = document.getElementById('login-pass').value.trim();
-                const btn = document.getElementById('btn-login');
-                const originalBtnText = btn.innerHTML; 
-                
-                btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Connexion...'; 
-                btn.disabled = true;
-                btn.classList.add('opacity-50', 'cursor-not-allowed');
-                
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 60000);
-                try {
-                    const response = await fetch(`${URL_LOGIN}?u=${encodeURIComponent(u.toLowerCase())}&p=${encodeURIComponent(p)}`, { signal: controller.signal });
-                    clearTimeout(timeoutId); 
-                    
-                    const d = await response.json();
-                    
-// --- DANS app.js (handleLogin) ---
-if(d.status === "success") { 
-    // 1. On enregistre le token
-    if(d.token) localStorage.setItem('sirh_token', d.token);
+    e.preventDefault(); 
+    // Déverrouille l'audio pour mobile
+    NOTIF_SOUND.play().then(() => { NOTIF_SOUND.pause(); NOTIF_SOUND.currentTime = 0; }).catch(() => {});
     
-    // 2. On prépare les données de session
-    let r = d.role || "EMPLOYEE"; if(Array.isArray(r)) r = r[0]; 
+    const u = document.getElementById('login-user').value.trim();
+    const p = document.getElementById('login-pass').value.trim();
+    const btn = document.getElementById('btn-login');
+    const originalBtnText = btn.innerHTML; 
     
-    // === CORRECTION ICI : ON AJOUTE LES PERMISSIONS DANS L'OBJET ===
-    const userData = { 
-        nom: d.nom || u, 
-        role: String(r).toUpperCase(), 
-        id: d.id,
-        employee_type: d.employee_type || 'OFFICE', 
-        permissions: d.permissions || {} // <--- C'EST CETTE LIGNE QUI MANQUAIT
-    };
+    btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Connexion...'; 
+    btn.disabled = true;
+    btn.classList.add('opacity-50', 'cursor-not-allowed');
     
-    localStorage.setItem('sirh_user_session', JSON.stringify(userData));
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 60000);
 
-const Toast = Swal.mixin({
-        toast: true,
-        position: 'top', // Placé en haut au centre, plus élégant sur mobile
-        showConfirmButton: false,
-        timer: 2000,
-        timerProgressBar: true,
-        background: '#ffffff',
-        color: '#1e293b',
-        customClass: {
-            popup: 'swal2-toast' // Force le style petit
+    try {
+        const response = await fetch(`${URL_LOGIN}?u=${encodeURIComponent(u.toLowerCase())}&p=${encodeURIComponent(p)}`, { signal: controller.signal });
+        clearTimeout(timeoutId); 
+        
+        const d = await response.json();
+        
+        // --- CAS 1 : CONNEXION RÉUSSIE ---
+        if(d.status === "success") { 
+            if(d.token) localStorage.setItem('sirh_token', d.token);
+            
+            let r = d.role || "EMPLOYEE"; if(Array.isArray(r)) r = r[0]; 
+            
+            const userData = { 
+                nom: d.nom || u, 
+                role: String(r).toUpperCase(), 
+                id: d.id,
+                employee_type: d.employee_type || 'OFFICE', 
+                permissions: d.permissions || {} 
+            };
+            
+            localStorage.setItem('sirh_user_session', JSON.stringify(userData));
+
+            const Toast = Swal.mixin({
+                toast: true,
+                position: 'top', 
+                showConfirmButton: false,
+                timer: 2000,
+                timerProgressBar: true,
+                background: '#ffffff',
+                color: '#1e293b'
+            });
+            
+            Toast.fire({
+                icon: 'success',
+                title: 'Connexion réussie',
+                text: 'Bienvenue ' + userData.nom
+            });
+            
+            await setSession(userData.nom, userData.role, userData.id, d.permissions, userData.employee_type); 
         }
-    });
-    
-    Toast.fire({
-        icon: 'success',
-        title: 'Connexion réussie',
-        text: 'Bienvenue ' + userData.nom
-    });
-    
-    // 3. ON APPELLE setSession
-    await setSession(userData.nom, userData.role, userData.id, d.permissions, userData.employee_type); 
+        
+        // --- CAS 2 : COMPTE RÉVOQUÉ (Employé Sorti) ---
+        else if (d.status === "revoked") {
+            Swal.fire({
+                title: 'Accès Révoqué',
+                text: d.message,
+                icon: 'warning',
+                confirmButtonColor: '#0f172a'
+            });
+        }
+        
+        // --- CAS 3 : IDENTIFIANTS INCORRECTS ---
+        else { 
+            Swal.fire('Refusé', d.message || 'Identifiant ou mot de passe incorrect', 'error'); 
+        }
+
+    } catch (error) {
+        console.error(error);
+        if (error.name === 'AbortError') { 
+            Swal.fire('Délai dépassé', 'Le serveur démarre. Cela peut prendre 30 à 60 secondes. Veuillez réessayer.', 'warning'); 
+        } else if (!navigator.onLine) {
+            Swal.fire('Hors Ligne', 'Vous semblez déconnecté d\'internet.', 'error');
+        } else { 
+            Swal.fire('Erreur Système', 'Impossible de contacter le serveur. Réessayez.', 'error'); 
+        }
+    } finally {
+        btn.innerHTML = originalBtnText; 
+        btn.disabled = false; 
+        btn.classList.remove('opacity-50', 'cursor-not-allowed');
+    }
 }
-                    
-                    else { 
-                        // Ce bloc reste inchangé
-                        Swal.fire('Refusé', 'Identifiant ou mot de passe incorrect', 'error'); 
-                    }
-                } catch (error) {
-                    // Ce bloc reste inchangé
-                    console.error(error);
-                    if (error.name === 'AbortError') { 
-                        Swal.fire('Délai dépassé', 'Le serveur démarre . Cela peut prendre 30 à 60 secondes. Veuillez réessayer dans un instant.', 'warning'); 
-                    } else if (!navigator.onLine) {
-                        Swal.fire('Hors Ligne', 'Vous semblez déconnecté d\'internet.', 'error');
-                    } else { 
-                        Swal.fire('Erreur Système', 'Impossible de contacter le serveur. Réessayez.', 'error'); 
-                    }
-                } finally {
-                    // Ce bloc reste inchangé
-                    btn.innerHTML = originalBtnText; btn.disabled = false; btn.classList.remove('opacity-50', 'cursor-not-allowed');
-                }
-            }
-
-
 
 
 async function refreshAllData(force = false) {
@@ -8403,6 +8406,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
