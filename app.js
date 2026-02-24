@@ -7634,25 +7634,25 @@ async function fetchMobileReports(page = 1) {
                                 <i id="icon-${accordionId}" class="fa-solid fa-chevron-down text-white/50 transition-transform duration-300"></i>
                             </div>
                         </div>
-                            <div id="${accordionId}" class="hidden bg-slate-50/50">
-                                <table class="w-full text-left border-collapse">
-                                    <thead class="bg-slate-100 border-b">
-                                        <tr class="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                                            <th class="p-4 w-1/3">👤 Contact & Lieu</th>
-                                            <th class="p-4 w-1/3">📦 Détails de la visite</th>
-                                            <th class="p-4 text-center">📸 Preuve</th>
-                                            <th class="p-4 text-right">📝 Notes</th>
-                                            ${isChef ? '<th class="p-4 text-center">Action</th>' : ''}
-                                        </tr>
-                                    </thead>
-                                    <tbody class="divide-y divide-slate-100">`;
+                           <div id="${accordionId}" class="hidden bg-slate-50/50">
+                                <div class="table-container"> <!-- AJOUT DU WRAPPER ICI -->
+                                    <table class="w-full text-left border-collapse min-w-[800px]"> <!-- min-w pour empêcher la déformation -->
+                                        <thead class="bg-slate-100 border-b">
+                                            <tr class="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                                                <th class="p-4">👤 Contact & Lieu</th>
+                                                <th class="p-4">📦 Détails de la visite</th>
+                                                <th class="p-4 text-center">📸 Preuve</th>
+                                                <th class="p-4 text-right">📝 Notes</th>
+                                                ${isChef ? '<th class="p-4 text-center">Action</th>' : ''}
+                                            </tr>
+                                        </thead>
+                                        <tbody class="divide-y divide-slate-100">`;
                
             visits.forEach(v => {
                     let durationText = "---";
                     if (v.duration) durationText = v.duration >= 60 ? `${Math.floor(v.duration / 60)}h ${v.duration % 60}m` : `${v.duration} min`;
 
-// GESTION DES PRODUITS (Version Blindée)
-                    let prodsHtml = "";
+                     let prodsHtml = "";
                     let prods = [];
 
                     try {
@@ -7776,10 +7776,10 @@ async function fetchMobileReports(page = 1) {
                                 <i id="icon-${accordionId}" class="fa-solid fa-chevron-down text-slate-300 transition-transform duration-300"></i>
                             </div>
                         </div>
-
-                        <div id="${accordionId}" class="hidden border-t border-slate-100 bg-slate-50/50">
-                            <table class="w-full text-left">
-                                <tbody class="divide-y divide-slate-100">`;
+                            <div id="${accordionId}" class="hidden border-t border-slate-100 bg-slate-50/50">
+                                <div class="table-container"> <!-- AJOUT DU WRAPPER ICI -->
+                                    <table class="w-full text-left min-w-[700px]"> <!-- min-w pour forcer le scroll propre -->
+                                        <tbody class="divide-y divide-slate-100">`;
                 
                 reports.forEach(rep => {
                     const hours = Math.floor(rep.total_work_minutes / 60);
@@ -8387,6 +8387,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
