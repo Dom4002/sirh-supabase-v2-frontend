@@ -755,33 +755,44 @@ async function openAddScheduleModal() {
         // 3. LA MODALE DE PLANIFICATION (Style "Netreps" amélioré)
         const { value: form } = await Swal.fire({
             title: 'Planifier une visite',
-            html: `
-                <div class="text-left space-y-4">
-                    ${empFieldHtml}
+html: `
+                <div class="text-left">
+                    <!-- Ligne 1 : Pour Qui ? (Pleine largeur) -->
+                    <div class="mb-4">
+                        ${empFieldHtml}
+                    </div>
                     
-                    <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Date</label>
-                            <input id="sched-date" type="date" class="swal2-input !mt-0 !h-10 text-sm" value="${new Date().toISOString().split('T')[0]}">
+                    <!-- GRILLE : 2 COLONNES SUR PC, 1 SUR MOBILE -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        
+                        <!-- Colonne Gauche -->
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Date</label>
+                                <input id="sched-date" type="date" class="swal2-input !mt-0 !h-auto text-sm" value="${new Date().toISOString().split('T')[0]}">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Lieu (Hôpital / Pharma)</label>
+                                <select id="sched-loc" class="swal2-select !mt-0 text-sm font-bold w-full">${locOptions}</select>
+                            </div>
                         </div>
-                        <div>
-                            <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Heure (Matin/Soir)</label>
-                            <input id="sched-start" type="time" class="swal2-input !mt-0 !h-10 text-sm" value="09:00">
+
+                        <!-- Colonne Droite -->
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Heure (Matin/Soir)</label>
+                                <input id="sched-start" type="time" class="swal2-input !mt-0 !h-auto text-sm" value="09:00">
+                            </div>
+                            <div class="bg-blue-50/50 p-1 rounded-xl border border-blue-100">
+                                <label class="block text-[10px] font-black text-blue-600 uppercase mb-1 ml-1">Qui allez-vous voir ?</label>
+                                <select id="sched-pres" class="swal2-select !mt-0 text-sm font-bold text-blue-800 bg-white w-full">
+                                    ${presOptions}
+                                </select>
+                            </div>
                         </div>
                     </div>
 
-                    <div>
-                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Lieu (Hôpital / Pharma)</label>
-                        <select id="sched-loc" class="swal2-input !mt-0 text-sm font-bold">${locOptions}</select>
-                    </div>
-
-                    <div class="bg-blue-50 p-2 rounded-xl border border-blue-100">
-                        <label class="block text-[10px] font-black text-blue-600 uppercase mb-1">Qui allez-vous voir ?</label>
-                        <select id="sched-pres" class="swal2-input !mt-0 text-sm font-bold text-blue-800 bg-white">
-                            ${presOptions}
-                        </select>
-                    </div>
-
+                    <!-- Note (Pleine largeur) -->
                     <div>
                         <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Objectif / Note</label>
                         <textarea id="sched-notes" class="swal2-textarea !mt-0 !h-20 text-sm" placeholder="Ex: Présentation nouveau produit..."></textarea>
@@ -2633,38 +2644,59 @@ async function handleClockInOut() {
         const { value: formResult } = await Swal.fire({
             title: 'Fin de visite',
             html: `
-                <div class="text-left mb-4 bg-blue-50/50 p-3 rounded-xl border border-blue-100">
-                    <label class="text-[10px] font-black text-blue-800 uppercase">👤 Personne rencontrée</label>
-                    <select id="swal-prescripteur" class="swal2-input mt-1 !text-sm font-bold text-slate-700 bg-white">${presOptions}</select>
-                    <div id="container-autre-nom" class="hidden mt-3 animate-fadeIn">
-                        <input id="swal-nom-libre" class="swal2-input !mt-1 !text-sm" placeholder="Nom du nouveau contact">
+                <!-- GRILLE PRINCIPALE : 2 Colonnes sur PC -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
+                    
+                    <!-- COLONNE GAUCHE : INFOS CLÉS -->
+                    <div class="space-y-4">
+                        <div class="bg-blue-50/50 p-3 rounded-xl border border-blue-100">
+                            <label class="text-[10px] font-black text-blue-800 uppercase">👤 Personne rencontrée</label>
+                            <select id="swal-prescripteur" class="swal2-select mt-1 !text-sm font-bold text-slate-700 bg-white w-full">${presOptions}</select>
+                            <div id="container-autre-nom" class="hidden mt-3 animate-fadeIn">
+                                <input id="swal-nom-libre" class="swal2-input !mt-1 !text-sm" placeholder="Nom du nouveau contact">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="text-[10px] font-black text-slate-400 uppercase">Résultat</label>
+                            <select id="swal-outcome" class="swal2-select mt-1 !text-sm font-bold w-full">
+                                <option value="VU">✅ Présentation effectuée</option>
+                                <option value="ABSENT">❌ Médecin Absent</option>
+                                <option value="COMMANDE">💰 Commande prise</option>
+                                <option value="RAS">👍 Visite de courtoisie</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <p class="text-[9px] font-black text-slate-400 uppercase mb-2">Produits présentés</p>
+                            <div class="flex flex-wrap gap-2 max-h-32 overflow-y-auto custom-scroll p-1 border border-slate-100 rounded-xl bg-slate-50">
+                                ${productsHtml}
+                            </div>
+                        </div>
                     </div>
-                </div>
-                <div class="text-left mb-2">
-                    <label class="text-[10px] font-black text-slate-400 uppercase">Résultat</label>
-                    <select id="swal-outcome" class="swal2-input mt-1 !text-sm font-bold">
-                        <option value="VU">✅ Présentation effectuée</option>
-                        <option value="ABSENT">❌ Médecin Absent</option>
-                        <option value="COMMANDE">💰 Commande prise</option>
-                        <option value="RAS">👍 Visite de courtoisie</option>
-                    </select>
-                </div>
-                <p class="text-[9px] font-black text-slate-400 uppercase mb-2 mt-4 text-left">Produits présentés</p>
-                <div class="flex flex-nowrap gap-2 mb-4 overflow-x-auto custom-scroll pb-2 w-full">${productsHtml}</div>
-                <div class="bg-slate-900 rounded-xl overflow-hidden relative mb-4 border-2 border-slate-200 shadow-inner" style="height: 180px;">
-                    <video id="proof-video" autoplay playsinline class="w-full h-full object-cover"></video>
-                    <img id="proof-image" class="w-full h-full object-cover hidden absolute top-0 left-0">
-                    <canvas id="proof-canvas" class="hidden"></canvas>
-                    <div class="absolute bottom-2 left-0 right-0 flex justify-center gap-2">
-                        <button type="button" id="btn-snap" class="bg-white text-slate-900 px-4 py-1.5 rounded-full text-[10px] font-black uppercase">📸 CACHET</button>
+
+                    <!-- COLONNE DROITE : PREUVE & NOTE -->
+                    <div class="space-y-4 flex flex-col">
+                        <div class="bg-slate-900 rounded-xl overflow-hidden relative border-2 border-slate-200 shadow-inner flex-shrink-0" style="height: 180px;">
+                            <video id="proof-video" autoplay playsinline class="w-full h-full object-cover"></video>
+                            <img id="proof-image" class="w-full h-full object-cover hidden absolute top-0 left-0">
+                            <canvas id="proof-canvas" class="hidden"></canvas>
+                            <div class="absolute bottom-2 left-0 right-0 flex justify-center gap-2">
+                                <button type="button" id="btn-snap" class="bg-white text-slate-900 px-4 py-1.5 rounded-full text-[10px] font-black uppercase shadow-lg hover:scale-105 transition-transform">📸 PRENDRE CACHET</button>
+                            </div>
+                        </div>
+
+                        <div class="flex-1 flex flex-col">
+                            <textarea id="swal-report" class="swal2-textarea !mt-0 flex-1 text-sm" placeholder="Note de rapport... (Optionnel)"></textarea>
+                        </div>
+                        
+                        <div class="p-3 bg-red-50 rounded-xl border border-red-100 flex items-center gap-3">
+                            <input type="checkbox" id="last-exit-check" class="w-5 h-5 accent-red-600 cursor-pointer">
+                            <label for="last-exit-check" class="text-[10px] font-black text-red-700 uppercase cursor-pointer select-none">
+                                C'est ma dernière visite (Fin de journée)
+                            </label>
+                        </div>
                     </div>
-                </div>
-                <div class="relative mt-2">
-                    <textarea id="swal-report" class="swal2-textarea" style="height: 70px;" placeholder="Note de rapport..."></textarea>
-                </div>
-                <div class="mt-4 p-3 bg-red-50 rounded-xl border border-red-100 flex items-center gap-3">
-                    <input type="checkbox" id="last-exit-check" class="w-5 h-5 accent-red-600">
-                    <label for="last-exit-check" class="text-[10px] font-black text-red-700 uppercase text-left">Dernière visite (Fin de journée)</label>
                 </div>
             `,
             confirmButtonText: 'Valider le rapport',
@@ -8167,6 +8199,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
