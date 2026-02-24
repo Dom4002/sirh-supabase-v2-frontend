@@ -708,6 +708,8 @@ async function startMissionFromAgenda(missionId, locationId, presId, notes) {
         Swal.fire('Erreur', e.message || "Impossible de démarrer (Vérifiez le GPS).", 'error');
     }
 }
+
+
 // --- FONCTION POUR CRÉER UNE MISSION (PLANNING) ---
 async function openAddScheduleModal() {
     Swal.fire({ title: 'Chargement des données...', didOpen: () => Swal.showLoading() });
@@ -757,50 +759,47 @@ async function openAddScheduleModal() {
             title: 'Planifier une visite',
             customClass: { popup: 'wide-modal' }, 
 
-            html: `
-                <div class="text-left">
-                    <!-- Ligne 1 : Pour Qui ? (Pleine largeur) -->
-                    <div class="mb-4">
-                        ${empFieldHtml}
-                    </div>
-                    
-                    <!-- GRILLE : 2 COLONNES SUR PC, 1 SUR MOBILE -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                        
-                        <!-- Colonne Gauche -->
-                        <div class="space-y-4">
-                            <div>
-                                <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Date</label>
-                                <input id="sched-date" type="date" class="swal2-input !mt-0 !h-auto text-sm" value="${new Date().toISOString().split('T')[0]}">
-                            </div>
-                            <div>
-                                <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Lieu (Hôpital / Pharma)</label>
-                                <select id="sched-loc" class="swal2-select !mt-0 text-sm font-bold w-full">${locOptions}</select>
-                            </div>
-                        </div>
+    html: `
+    <div class="text-left space-y-6">
+        <!-- Section Qui -->
+        <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+            <label class="block text-[10px] font-black text-slate-400 uppercase mb-2">Assignation</label>
+            ${empFieldHtml}
+        </div>
 
-                        <!-- Colonne Droite -->
-                        <div class="space-y-4">
-                            <div>
-                                <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Heure (Matin/Soir)</label>
-                                <input id="sched-start" type="time" class="swal2-input !mt-0 !h-auto text-sm" value="09:00">
-                            </div>
-                            <div class="bg-blue-50/50 p-1 rounded-xl border border-blue-100">
-                                <label class="block text-[10px] font-black text-blue-600 uppercase mb-1 ml-1">Qui allez-vous voir ?</label>
-                                <select id="sched-pres" class="swal2-select !mt-0 text-sm font-bold text-blue-800 bg-white w-full">
-                                    ${presOptions}
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Note (Pleine largeur) -->
-                    <div>
-                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Objectif / Note</label>
-                        <textarea id="sched-notes" class="swal2-textarea !mt-0 !h-20 text-sm" placeholder="Ex: Présentation nouveau produit..."></textarea>
-                    </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- Gauche : Quand -->
+            <div class="space-y-4">
+                <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
+                    <label class="block text-[9px] font-black text-slate-400 uppercase mb-1">Date de la visite</label>
+                    <input id="sched-date" type="date" class="w-full outline-none font-bold text-slate-700" value="${new Date().toISOString().split('T')[0]}">
                 </div>
-            `,
+                <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
+                    <label class="block text-[9px] font-black text-slate-400 uppercase mb-1">Heure de passage</label>
+                    <input id="sched-start" type="time" class="w-full outline-none font-bold text-slate-700" value="09:00">
+                </div>
+            </div>
+
+            <!-- Droite : Où -->
+            <div class="space-y-4">
+                <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
+                    <label class="block text-[9px] font-black text-slate-400 uppercase mb-1">Lieu / Pharmacie</label>
+                    <select id="sched-loc" class="w-full outline-none font-bold text-blue-600 bg-transparent">${locOptions}</select>
+                </div>
+                <div class="bg-blue-50 p-3 rounded-xl border border-blue-100 shadow-sm">
+                    <label class="block text-[9px] font-black text-blue-400 uppercase mb-1">Médecin à rencontrer</label>
+                    <select id="sched-pres" class="w-full outline-none font-black text-blue-800 bg-transparent">${presOptions}</select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bas : Note -->
+        <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+            <label class="block text-[10px] font-black text-slate-400 uppercase mb-2">Objectif de la mission</label>
+            <textarea id="sched-notes" class="w-full bg-transparent outline-none text-sm h-20 resize-none" placeholder="Ex: Présentation du nouveau produit..."></textarea>
+        </div>
+    </div>
+`,
             focusConfirm: false,
             showCancelButton: true,
             confirmButtonText: 'Ajouter à mon agenda',
@@ -2674,55 +2673,64 @@ async function handleClockInOut() {
         const swalRes = await Swal.fire({
             title: 'Fin de visite',
             customClass: { popup: 'wide-modal' },
-            html: `
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
-                    <div class="space-y-4">
-                        <div class="bg-blue-50/50 p-3 rounded-xl border border-blue-100">
-                            <label class="text-[10px] font-black text-blue-800 uppercase">👤 Personne rencontrée</label>
-                            <select id="swal-prescripteur" class="swal2-select mt-1 !text-sm font-bold text-slate-700 bg-white w-full">${presOptions}</select>
-                            <div id="container-autre-nom" class="hidden mt-3 animate-fadeIn">
-                                <input id="swal-nom-libre" class="swal2-input !mt-1 !text-sm" placeholder="Nom du nouveau contact">
-                            </div>
-                        </div>
-                        <div>
-                            <label class="text-[10px] font-black text-slate-400 uppercase">Résultat</label>
-                            <select id="swal-outcome" class="swal2-select mt-1 !text-sm font-bold w-full">
-                                <option value="VU">✅ Présentation effectuée</option>
-                                <option value="ABSENT">❌ Médecin Absent</option>
-                                <option value="COMMANDE">💰 Commande prise</option>
-                                <option value="RAS">👍 Visite de courtoisie</option>
-                            </select>
-                        </div>
-                        <div>
-                            <p class="text-[9px] font-black text-slate-400 uppercase mb-2">Produits présentés</p>
-                            <div class="flex flex-wrap gap-2 max-h-32 overflow-y-auto custom-scroll p-1 border border-slate-100 rounded-xl bg-slate-50">${productsHtml}</div>
-                        </div>
-                    </div>
-                    <div class="space-y-4 flex flex-col">
-                        <div class="flex p-1 bg-slate-100 rounded-xl border border-slate-200 shadow-inner">
-                            <button type="button" onclick="switchProofMode('photo')" id="btn-mode-photo" class="flex-1 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all bg-white shadow-sm text-blue-600">📸 Photo Cachet</button>
-                            <button type="button" onclick="switchProofMode('sign')" id="btn-mode-sign" class="flex-1 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all text-slate-500">✍️ Signature</button>
-                        </div>
-                        <div id="proof-photo-area" class="bg-slate-900 rounded-xl overflow-hidden relative border-2 border-slate-200 shadow-inner flex-shrink-0" style="height: 180px;">
-                            <video id="proof-video" autoplay playsinline class="w-full h-full object-cover"></video>
-                            <img id="proof-image" class="w-full h-full object-cover hidden absolute top-0 left-0">
-                            <canvas id="proof-canvas" class="hidden"></canvas>
-                            <div class="absolute bottom-2 left-0 right-0 flex justify-center"><button type="button" id="btn-snap" class="bg-white text-slate-900 px-4 py-1.5 rounded-full text-[10px] font-black uppercase shadow-lg">📸 PRENDRE PHOTO</button></div>
-                        </div>
-                        <div id="proof-sign-area" class="hidden flex-shrink-0">
-                            <div class="relative">
-                                <canvas id="visit-signature-pad" class="signature-zone w-full h-[180px] bg-white"></canvas>
-                                <button type="button" onclick="clearVisitSignature()" class="absolute bottom-2 right-2 bg-slate-100 text-slate-400 px-2 py-1 rounded text-[8px] font-black uppercase">Effacer</button>
-                            </div>
-                        </div>
-                        <div class="flex-1"><textarea id="swal-report" class="swal2-textarea !mt-0 w-full text-sm h-24" placeholder="Note de rapport..."></textarea></div>
-                        <div class="p-3 bg-red-50 rounded-xl border border-red-100 flex items-center gap-3">
-                            <input type="checkbox" id="last-exit-check" class="w-5 h-5 accent-red-600 cursor-pointer">
-                            <label for="last-exit-check" class="text-[10px] font-black text-red-700 uppercase cursor-pointer select-none">Dernière visite (Fin de journée)</label>
-                        </div>
-                    </div>
+html: `
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 text-left">
+        <!-- COLONNE GAUCHE : FORMULAIRE -->
+        <div class="space-y-6">
+            <div class="bg-slate-50 p-5 rounded-2xl border border-slate-100">
+                <label class="text-[10px] font-black text-slate-400 uppercase mb-3 block">1. Identification Contact</label>
+                <select id="swal-prescripteur" class="w-full p-3 bg-white border border-slate-200 rounded-xl font-bold text-sm outline-none focus:ring-2 focus:ring-blue-500">${presOptions}</select>
+                <div id="container-autre-nom" class="hidden mt-3">
+                    <input id="swal-nom-libre" class="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm" placeholder="Nom du contact...">
                 </div>
-            `,
+            </div>
+
+            <div class="bg-slate-50 p-5 rounded-2xl border border-slate-100">
+                <label class="text-[10px] font-black text-slate-400 uppercase mb-3 block">2. Résultat de visite</label>
+                <select id="swal-outcome" class="w-full p-3 bg-white border border-slate-200 rounded-xl font-black text-blue-600 outline-none">
+                    <option value="VU">✅ Présentation effectuée</option>
+                    <option value="ABSENT">❌ Médecin Absent</option>
+                    <option value="COMMANDE">💰 Commande prise</option>
+                    <option value="RAS">👍 Visite de courtoisie</option>
+                </select>
+                
+                <p class="text-[9px] font-black text-slate-400 uppercase mt-4 mb-2">Produits présentés</p>
+                <div class="flex flex-wrap gap-2 max-h-[100px] overflow-y-auto p-1">${productsHtml}</div>
+            </div>
+        </div>
+
+        <!-- COLONNE DROITE : MÉDIA & NOTES -->
+        <div class="space-y-6 flex flex-col">
+            <!-- SELECTEUR MODE -->
+            <div class="flex p-1 bg-slate-100 rounded-xl border border-slate-200 shrink-0">
+                <button type="button" onclick="switchProofMode('photo')" id="btn-mode-photo" class="flex-1 py-2 rounded-lg text-[9px] font-black uppercase transition-all bg-white shadow-sm text-blue-600">📸 Cachet</button>
+                <button type="button" onclick="switchProofMode('sign')" id="btn-mode-sign" class="flex-1 py-2 rounded-lg text-[9px] font-black uppercase transition-all text-slate-500">✍️ Signature</button>
+            </div>
+
+            <!-- ZONE MÉDIA -->
+            <div id="proof-photo-area" class="h-44 bg-slate-900 rounded-2xl overflow-hidden relative border-2 border-slate-200 flex-shrink-0 shadow-inner">
+                <video id="proof-video" autoplay playsinline class="w-full h-full object-cover"></video>
+                <img id="proof-image" class="w-full h-full object-cover hidden absolute top-0 left-0">
+                <canvas id="proof-canvas" class="hidden"></canvas>
+                <button type="button" id="btn-snap" class="absolute bottom-3 left-1/2 -translate-x-1/2 bg-white text-slate-900 px-4 py-2 rounded-full text-[10px] font-black shadow-xl">CAPTURER</button>
+            </div>
+
+            <div id="proof-sign-area" class="hidden h-44 flex-shrink-0">
+                <canvas id="visit-signature-pad" class="signature-zone w-full h-full bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200"></canvas>
+            </div>
+
+            <!-- NOTES & CLOTURE -->
+            <div class="flex-1 space-y-4">
+                <textarea id="swal-report" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm h-24 resize-none outline-none focus:bg-white" placeholder="Vos observations..."></textarea>
+                
+                <label class="flex items-center gap-3 p-3 bg-red-50 rounded-xl border border-red-100 cursor-pointer group">
+                    <input type="checkbox" id="last-exit-check" class="w-5 h-5 accent-red-600">
+                    <span class="text-[10px] font-black text-red-700 uppercase">Clôturer ma journée après cette visite</span>
+                </label>
+            </div>
+        </div>
+    </div>
+`,
             confirmButtonText: 'Valider le rapport',
             confirmButtonColor: '#2563eb',
             showCancelButton: true,
@@ -8350,6 +8358,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
