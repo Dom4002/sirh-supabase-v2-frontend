@@ -186,21 +186,30 @@ let chatSubscription = null;
             const ITEMS_PER_PAGE = 10; // Nombre d'employés par page
 
 
-            window.addEventListener('DOMContentLoaded', () => {
-                applyBranding(); 
-                const session = localStorage.getItem('sirh_user_session');
-                const loader = document.getElementById('initial-loader');
-            
-                if(session) {
-                    try {
-                        const u = JSON.parse(session);
-                        if(u && u.nom) {
-                            console.log("Restauration session : " + u.nom);
+
+           window.addEventListener('DOMContentLoaded', () => {
+    applyBranding(); 
+    const session = localStorage.getItem('sirh_user_session');
+    const loader = document.getElementById('initial-loader');
+
+    if(session) {
+        try {
+            const u = JSON.parse(session);
+            if(u && u.nom) {
+                console.log("Restauration session : " + u.nom);
+                
+                // === CORRECTION ICI : ON PASSE u.permissions ===
+                setSession(u.nom, u.role, u.id, u.permissions);
                             
-                            // On lance la session (qui va attendre la fin du chargement des données avant de cacher le loader)
-                            setSession(u.nom, u.role, u.id, u.permissions);
-                            
-                            // ❌ LE SETTIMEOUT QUI CACHAIT LE LOADER TROP TÔT A ÉTÉ SUPPRIMÉ ICI
+                                            
+                                // On laisse le loader 1 seconde (1000ms) pour faire "Pro"
+                                setTimeout(() => {
+                                    const loader = document.getElementById('initial-loader');
+                                    loader.style.opacity = '0';
+                                    loader.style.transform = 'scale(1.1)'; // Petit effet de zoom en disparaissant
+                                    setTimeout(() => loader.classList.add('hidden'), 700);
+                                }, 1200);
+
                             
                         } else {
                             throw new Error("Session invalide");
@@ -215,7 +224,6 @@ let chatSubscription = null;
                     loader.classList.add('hidden');
                 }
             });
-
 
 
 
@@ -1193,16 +1201,6 @@ async function setSession(n, r, id, perms) {
             const hasDashAccess = document.querySelector(`button[onclick="switchView('dash')"]`);
             hasDashAccess ? switchView('dash') : switchView('my-profile');
         }
-
-
-        const hasDashAccess = document.querySelector(`button[onclick="switchView('dash')"]`);
-                    hasDashAccess ? switchView('dash') : switchView('my-profile');
-        }
-            
-       if (window.innerWidth < 768) {
-                    document.getElementById('sidebar').classList.add('-translate-x-full');
-                    document.getElementById('sidebar-overlay').classList.add('hidden');
-       }
 
         // 5. PHASE DE RÉVÉLATION (Zéro écran vide)
         // On active l'affichage technique de l'app (mais elle est à opacity: 0 via CSS)
@@ -3349,9 +3347,7 @@ function switchView(v) {
 
     if(window.innerWidth < 768) { 
         const sb = document.getElementById('sidebar'); 
-        if(!sb.classList.contains('-translate-x-full')) {
-            toggleSidebar(true); // Fermeture propre et forcée qui gère l'overlay correctement
-        }
+        if(!sb.classList.contains('-translate-x-full')) toggleSidebar(); 
     }
 
     // --- 2. DÉCLENCHEMENT DE L'ANIMATION (FADE IN) ---
@@ -3498,33 +3494,25 @@ async function openBulkManagerModal() {
 
 
 
-function toggleSidebar(forceClose = false) {
+
+function toggleSidebar() {
     const sb = document.getElementById('sidebar');
     const overlay = document.getElementById('sidebar-overlay');
     const isMobile = window.innerWidth < 768;
 
-    // 1. Si on demande une fermeture forcée, on ajoute la classe. Sinon, on la bascule.
-    if (forceClose === true) {
-        sb.classList.add('-translate-x-full');
-    } else {
-        sb.classList.toggle('-translate-x-full');
-    }
-
-    // 2. On vérifie la situation RÉELLE de la sidebar après l'action
-    const isHidden = sb.classList.contains('-translate-x-full');
+    // 1. On bascule la classe de translation (Cacher/Afficher)
+    // On retire md:translate-x-0 du HTML pour laisser le JS piloter
+    sb.classList.toggle('-translate-x-full');
 
     if (isMobile) {
-        // Sur mobile : si la sidebar est cachée, le filtre DOIT être caché. Sinon il s'affiche.
-        if (isHidden) {
-            overlay.classList.add('hidden');
-        } else {
-            overlay.classList.remove('hidden');
-        }
+        // Sur mobile, on gère l'overlay sombre
+        overlay.classList.toggle('hidden');
     } else {
-        // Sur PC : l'overlay sombre est toujours caché
+        // Sur ordinateur, on peut ajouter une petite animation de transition
+        // Si la sidebar est cachée, on s'assure que l'overlay est caché
         overlay.classList.add('hidden');
     }
-}
+}        
 
 
           
@@ -8147,8 +8135,6 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
-
-
 
 
 
