@@ -805,6 +805,9 @@ async function openAddScheduleModal() {
             showCancelButton: true,
             confirmButtonText: 'Ajouter à mon agenda',
             confirmButtonColor: '#4f46e5',
+            showCancelButton: true,
+            cancelButtonText: 'Fermer',
+            cancelButtonColor: '#94a3b8', 
             preConfirm: () => {
                 return {
                     employee_id: document.getElementById('sched-emp').value,
@@ -2704,6 +2707,9 @@ async function handleClockInOut() {
             `,
             confirmButtonText: 'Valider le rapport',
             confirmButtonColor: '#2563eb',
+            showCancelButton: true,
+            cancelButtonText: 'Annuler',
+            cancelButtonColor: '#ef4444', 
             allowOutsideClick: false,
             didOpen: () => {
                 const ctxMem = localStorage.getItem('active_mission_context');
@@ -7250,6 +7256,9 @@ async function openDailyReportModal() {
         confirmButtonText: 'Envoyer le rapport',
         showCancelButton: true,
         confirmButtonColor: '#0f172a',
+        cancelButtonText: 'Fermer',
+        cancelButtonColor: '#94a3b8', 
+        reverseButtons: true, 
         preConfirm: () => {
             return {
                 summary: document.getElementById('daily-summary').value,
@@ -8202,6 +8211,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
