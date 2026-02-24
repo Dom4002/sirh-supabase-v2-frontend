@@ -178,9 +178,9 @@ let chatSubscription = null;
                 geo_required: false  // Force le GPS ou non
             };
 
-            let currentUser = null, employees = [], videoStream = null, capturedBlob = null, contractBlob = null, contractStream = null, signaturePad = null;
+            let currentUser = null, employees = [], videoStream = null,  capturedBlob = null, contractBlob = null, contractStream = null, signaturePad = null;
          
-            
+            let proofStream = null;
             let offsetSuivant = null; // Mémorise le marque-page pour le lot suivant
             let currentPage = 1;
             const ITEMS_PER_PAGE = 10; // Nombre d'employés par page
@@ -2254,31 +2254,36 @@ async function fetchAttendanceReport(mode = 'PERSONAL', period = 'monthly') {
     const container = document.getElementById('personal-report-container');
     
     if (mode === 'GLOBAL') {
-        Swal.fire({ title: 'Chargement...', text: 'Récupération des données en cours', didOpen: () => Swal.showLoading() });
+        Swal.fire({ title: 'Chargement...', text: 'Analyse des présences en cours', didOpen: () => Swal.showLoading() });
     } else {
         if(container) container.innerHTML = '<div class="flex justify-center p-4"><i class="fa-solid fa-circle-notch fa-spin text-indigo-500"></i></div>';
     }
 
     try {
-        // L'URL passe bien le paramètre 'mode' pour que le serveur sache s'il doit filtrer par individu ou non
         const url = `${URL_READ_REPORT}?agent=${encodeURIComponent(currentUser.nom)}&requester_id=${encodeURIComponent(currentUser.id)}&mode=${mode}&period=${period}`;
         const r = await secureFetch(url);
         const rawReports = await r.json();
 
         // --- NORMALISATION DES DONNÉES ---
         const cleanReports = rawReports.map(rep => {
-            let nomRaw = rep.nom || rep['nom (from Employé)'] || rep.Employé || 'Inconnu';
-            let nomAffiche = Array.isArray(nomRaw) ? nomRaw[0] : nomRaw;
-
-            return {
-                mois: rep.mois || rep['Mois/Année'] || '-',
-                nom: nomAffiche,
-                jours: rep.jours || rep['Jours de présence'] || 0,
-                heures: rep.heures || rep['Total Heures'] || 0,
-                statut: rep.Statut || 'Clôturé',
-                heure_arrivee: rep.heure || rep.Heure || '--:--',
-                zone: rep.zone || rep.Zone || 'Bureau'
-            };
+            if (period === 'today') {
+                return {
+                    nom: rep.nom || 'Inconnu',
+                    matricule: rep.matricule || '-',
+                    statut: rep.statut || 'ABSENT',
+                    arrivee: rep.arrivee || '--:--',
+                    duree: rep.duree || '0h 00m',
+                    zone: rep.zone || '---'
+                };
+            } else {
+                return {
+                    mois: rep.mois || '-',
+                    nom: rep.nom || 'Inconnu',
+                    jours: rep.jours || 0,
+                    heures: rep.heures || '0h 00m',
+                    statut: 'Validé'
+                };
+            }
         });
         
         if (mode === 'GLOBAL') {
@@ -2286,84 +2291,108 @@ async function fetchAttendanceReport(mode = 'PERSONAL', period = 'monthly') {
             let tableHtml = '';
             
             if (period === 'today') {
-                // --- RAPPORT JOURNALIER ---
-                // CORRECTION : On compte comme "devant être présents" les Actifs ET ceux En Poste
-                const totalActifs = employees.filter(e => {
-                    const s = (e.statut || "").toLowerCase();
-                    return s.includes('actif') || s.includes('poste');
-                }).length;
-
-                const presents = cleanReports.length; 
-                const taux = totalActifs > 0 ? Math.round((presents / totalActifs) * 100) : 0;
+                // --- RAPPORT JOURNALIER (IMPECCABLE) ---
+                const nbPresents = cleanReports.filter(r => r.statut === 'PRÉSENT').length;
+                const nbPartis = cleanReports.filter(r => r.statut === 'PARTI').length;
+                const nbAbsents = cleanReports.filter(r => r.statut === 'ABSENT' || r.statut === 'CONGÉ').length;
 
                 tableHtml = `
-                    <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-200">
-                        <div class="text-center sm:text-left">
-                            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Taux de présence (Actifs)</p>
-                            <h3 class="text-2xl font-black text-indigo-600">${presents} / ${totalActifs} <span class="text-sm text-slate-400">Présents</span></h3>
+                    <div class="grid grid-cols-3 gap-3 mb-6">
+                        <div class="bg-emerald-50 p-3 rounded-2xl border border-emerald-100 text-center">
+                            <p class="text-[8px] font-black text-emerald-600 uppercase">En Poste</p>
+                            <h4 class="text-xl font-black text-emerald-700">${nbPresents}</h4>
                         </div>
-                        <div class="w-16 h-16 rounded-full border-4 border-indigo-100 flex items-center justify-center font-black text-indigo-600 bg-white shadow-sm">${taux}%</div>
-                        <button onclick="downloadReportCSV('${period}')" class="bg-emerald-600 text-white px-4 py-2 rounded-lg text-xs font-bold uppercase shadow hover:bg-emerald-700 transition-all flex items-center gap-2"><i class="fa-solid fa-file-csv"></i> Excel</button>
+                        <div class="bg-blue-50 p-3 rounded-2xl border border-blue-100 text-center">
+                            <p class="text-[8px] font-black text-blue-600 uppercase">Terminé</p>
+                            <h4 class="text-xl font-black text-blue-700">${nbPartis}</h4>
+                        </div>
+                        <div class="bg-rose-50 p-3 rounded-2xl border border-rose-100 text-center">
+                            <p class="text-[8px] font-black text-rose-600 uppercase">Absents</p>
+                            <h4 class="text-xl font-black text-rose-700">${nbAbsents}</h4>
+                        </div>
                     </div>
-                    <div class="overflow-x-auto max-h-[50vh] custom-scroll">
+                    
+                    <div class="flex justify-end mb-4">
+                        <button onclick="downloadReportCSV('${period}')" class="bg-emerald-600 text-white px-4 py-2 rounded-lg text-xs font-bold uppercase shadow hover:bg-emerald-700 transition-all flex items-center gap-2"><i class="fa-solid fa-file-csv"></i> Exporter Excel</button>
+                    </div>
+
+                    <div class="overflow-x-auto max-h-[50vh] custom-scroll border rounded-xl">
                         <table class="w-full text-left whitespace-nowrap">
-                            <thead class="bg-slate-100 text-[10px] uppercase font-black text-slate-500 sticky top-0">
-                                <tr><th class="p-3">Employé</th><th class="p-3 text-center">Arrivée</th><th class="p-3 text-center">Zone</th><th class="p-3 text-right">Statut</th></tr>
+                            <thead class="bg-slate-900 text-white text-[9px] uppercase font-black sticky top-0">
+                                <tr>
+                                    <th class="p-3">Employé</th>
+                                    <th class="p-3 text-center">Statut</th>
+                                    <th class="p-3 text-center">Arrivée</th>
+                                    <th class="p-3 text-center">Temps de Présence</th>
+                                    <th class="p-3 text-right">Zone</th>
+                                </tr>
                             </thead>
-                            <tbody class="divide-y divide-slate-50 text-xs">
+                            <tbody class="divide-y divide-slate-100 text-[11px]">
                 `;
 
                 cleanReports.forEach(item => {
-                    let hAffiche = item.heure_arrivee.match(/(\d{2}:\d{2})/) ? item.heure_arrivee.match(/(\d{2}:\d{2})/)[1] : item.heure_arrivee;
+                    let badgeClass = "bg-rose-100 text-rose-700"; // Absent par défaut
+                    if (item.statut === 'PRÉSENT') badgeClass = "bg-emerald-100 text-emerald-700";
+                    else if (item.statut === 'PARTI') badgeClass = "bg-blue-100 text-blue-700";
+                    else if (item.statut === 'CONGÉ') badgeClass = "bg-amber-100 text-amber-700";
 
                     tableHtml += `
-                        <tr>
-                            <td class="p-3 font-bold text-slate-700 uppercase">${item.nom}</td>
-                            <td class="p-3 text-center font-mono text-blue-600 font-bold">${hAffiche}</td>
-                            <td class="p-3 text-center text-slate-500">${item.zone}</td>
-                            <td class="p-3 text-right"><span class="bg-emerald-50 text-emerald-600 px-2 py-1 rounded font-black text-[9px]">PRÉSENT</span></td>
+                        <tr class="${item.statut === 'ABSENT' ? 'opacity-60 bg-slate-50/50' : ''}">
+                            <td class="p-3">
+                                <div class="font-bold text-slate-700 uppercase">${item.nom}</div>
+                                <div class="text-[9px] text-slate-400">ID: ${item.matricule}</div>
+                            </td>
+                            <td class="p-3 text-center">
+                                <span class="px-2 py-0.5 rounded font-black text-[9px] ${badgeClass}">${item.statut}</span>
+                            </td>
+                            <td class="p-3 text-center font-mono font-bold text-slate-500">${item.arrivee}</td>
+                            <td class="p-3 text-center">
+                                <div class="font-black text-indigo-600">${item.duree}</div>
+                                <div class="text-[8px] text-slate-400 font-bold uppercase">${item.statut === 'PRÉSENT' ? 'Live' : 'Total'}</div>
+                            </td>
+                            <td class="p-3 text-right text-slate-400 font-medium">${item.zone}</td>
                         </tr>
                     `;
                 });
                 
-                if(cleanReports.length === 0) tableHtml += `<tr><td colspan="4" class="p-10 text-center text-slate-400 italic">Aucun pointage aujourd'hui.</td></tr>`;
+                if(cleanReports.length === 0) tableHtml += `<tr><td colspan="5" class="p-10 text-center text-slate-400 italic">Aucune donnée pour ce jour.</td></tr>`;
 
             } else {
-                // --- RAPPORT MENSUEL ---
+                // --- RAPPORT MENSUEL (Impeccable par cumul amplitude) ---
                 tableHtml = `
                     <div class="flex justify-end mb-4">
                         <button onclick="downloadReportCSV('${period}')" class="bg-emerald-600 text-white px-4 py-2 rounded-lg text-xs font-bold uppercase shadow hover:bg-emerald-700 transition-all flex items-center gap-2"><i class="fa-solid fa-file-csv"></i> Télécharger Cumul</button>
                     </div>
-                    <div class="overflow-x-auto max-h-[60vh] custom-scroll">
+                    <div class="overflow-x-auto max-h-[60vh] custom-scroll border rounded-xl">
                         <table class="w-full text-left whitespace-nowrap border-collapse">
-                            <thead class="bg-slate-100 text-[10px] uppercase font-black text-slate-500 sticky top-0">
-                                <tr><th class="p-4">Mois</th><th class="p-4">Employé</th><th class="p-4 text-center">Jours Prés.</th><th class="p-4 text-center">Heures Tot.</th><th class="p-4 text-right">Statut</th></tr>
+                            <thead class="bg-slate-900 text-white text-[9px] uppercase font-black sticky top-0">
+                                <tr><th class="p-4">Mois</th><th class="p-4">Employé</th><th class="p-4 text-center">Jours Présence</th><th class="p-4 text-center">Heures Totales</th><th class="p-4 text-right">Statut</th></tr>
                             </thead>
-                            <tbody class="divide-y divide-slate-100 text-xs">
+                            <tbody class="divide-y divide-slate-100 text-[11px]">
                 `;
 
                 cleanReports.forEach(item => {
                     tableHtml += `
-                        <tr class="hover:bg-blue-50/30 transition-all">
+                        <tr class="hover:bg-slate-50 transition-all">
                             <td class="p-4 font-bold text-slate-700 capitalize">${item.mois}</td>
                             <td class="p-4 font-medium uppercase">${item.nom}</td>
                             <td class="p-4 text-center font-black text-slate-800">${item.jours} j</td>
-                            <td class="p-4 text-center font-mono text-blue-600 font-bold">${item.heures}</td>
+                            <td class="p-4 text-center font-mono text-indigo-600 font-black">${item.heures}</td>
                             <td class="p-4 text-right"><span class="bg-emerald-50 text-emerald-600 px-2 py-1 rounded font-bold text-[9px]">Validé</span></td>
                         </tr>`;
                 });
-                if(cleanReports.length === 0) tableHtml += `<tr><td colspan="5" class="p-10 text-center text-slate-400 italic">Aucune donnée mensuelle trouvée.</td></tr>`;
+                if(cleanReports.length === 0) tableHtml += `<tr><td colspan="5" class="p-10 text-center text-slate-400 italic">Aucune donnée mensuelle.</td></tr>`;
             }
 
             tableHtml += `</tbody></table></div>`;
             
             Swal.fire({
-                title: period === 'today' ? 'Pointages du Jour' : 'Rapport Mensuel',
+                title: period === 'today' ? 'Analyse des Présences (Live)' : 'Cumul de Présence Mensuel',
                 html: tableHtml,
-                width: '850px',
-                confirmButtonText: 'Fermer la fenêtre',
+                width: '900px',
+                confirmButtonText: 'Fermer',
                 confirmButtonColor: '#0f172a',
-                customClass: { popup: 'rounded-[2rem]' }
+                customClass: { popup: 'rounded-2xl' }
             });
             
             currentReportData = cleanReports; 
@@ -2372,10 +2401,9 @@ async function fetchAttendanceReport(mode = 'PERSONAL', period = 'monthly') {
         }
     } catch (e) {
         console.error("Erreur rapport:", e);
-        Swal.fire('Erreur', "Impossible de charger les données du serveur.", 'error');
+        Swal.fire('Erreur', "Impossible de charger le rapport.", 'error');
     }
 }
-
 
 
 function renderPersonalReport(reports, container) {
@@ -2706,50 +2734,92 @@ async function handleClockInOut() {
             cancelButtonColor: '#ef4444', 
             allowOutsideClick: false,
             didOpen: () => {
+                // 1. GESTION DU CONTEXTE (Mission & Médecin) - Inchangé
                 const ctxMem = localStorage.getItem('active_mission_context');
                 if (ctxMem) {
                     const c = JSON.parse(ctxMem);
                     if (c.prescripteurId) document.getElementById('swal-prescripteur').value = c.prescripteurId;
                     if (c.preNotes) document.getElementById('swal-report').value = `[Objectif: ${c.preNotes}] \n`;
                 }
+                
                 document.getElementById('swal-prescripteur').addEventListener('change', (e) => {
                     document.getElementById('container-autre-nom').classList.toggle('hidden', e.target.value !== 'autre');
                 });
-                const video = document.getElementById('proof-video');
-                navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
-                    .then(s => { proofStream = s; video.srcObject = s; });
 
+                // 2. INITIALISATION CAMÉRA
+                const video = document.getElementById('proof-video');
+                // On s'assure que proofStream est bien assigné à la variable globale
+                navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+                    .then(s => { 
+                        proofStream = s; 
+                        if (video) video.srcObject = s; 
+                    })
+                    .catch(err => console.error("Erreur Caméra:", err));
+
+                // 3. LOGIQUE CAPTURE PHOTO - Sécurisée
                 document.getElementById('btn-snap').onclick = () => {
-                    if (!video || video.videoWidth === 0) return;
+                    if (!video || video.videoWidth === 0) return Swal.fire('Patientez', 'La caméra s\'initialise...', 'info');
+                    
                     const canvas = document.getElementById('proof-canvas');
-                    canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+                    canvas.width = video.videoWidth; 
+                    canvas.height = video.videoHeight;
                     canvas.getContext('2d').drawImage(video, 0, 0);
+                    
                     canvas.toBlob(b => { 
+                        if(!b) return;
                         proofBlob = b; 
-                        document.getElementById('proof-image').src = URL.createObjectURL(b); 
-                        document.getElementById('proof-image').classList.remove('hidden'); 
+                        const imgPreview = document.getElementById('proof-image');
+                        imgPreview.src = URL.createObjectURL(b); 
+                        imgPreview.classList.remove('hidden'); 
                     }, 'image/jpeg', 0.8);
                 };
 
+                // 4. INITIALISATION SIGNATURE (RÉGLAGE PRÉCISION HD)
                 const signCanvas = document.getElementById('visit-signature-pad');
                 const ratio = Math.max(window.devicePixelRatio || 1, 1);
+                
+                // Ajustement technique pour que le tracé ne soit pas décalé
                 signCanvas.width = signCanvas.offsetWidth * ratio;
-                signCanvas.height = 180 * ratio;
+                signCanvas.height = signCanvas.offsetHeight * ratio;
                 signCanvas.getContext("2d").scale(ratio, ratio);
-                window.visitSignPad = new SignaturePad(signCanvas, { backgroundColor: 'rgb(255, 255, 255)', penColor: 'rgb(0, 0, 128)' });
 
+                window.visitSignPad = new SignaturePad(signCanvas, { 
+                    backgroundColor: 'rgb(255, 255, 255)', 
+                    penColor: 'rgb(0, 0, 128)' 
+                });
+
+                // 5. FONCTION SWITCH MODE (CORRIGÉE)
                 window.switchProofMode = (mode) => {
                     const isPhoto = mode === 'photo';
-                    if (!isPhoto && proofStream) { proofStream.getTracks().forEach(t => t.stop()); proofStream = null; } 
-                    else if (isPhoto && !proofStream) { navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }).then(s => { proofStream = s; video.srcObject = s; }); }
+                    
+                    // Gestion intelligente du flux vidéo pour éviter l'erreur "not defined"
+                    if (!isPhoto && proofStream) { 
+                        proofStream.getTracks().forEach(t => t.stop()); 
+                        proofStream = null; 
+                    } 
+                    else if (isPhoto && !proofStream) { 
+                        navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+                            .then(s => { 
+                                proofStream = s; 
+                                const v = document.getElementById('proof-video');
+                                if (v) v.srcObject = s; 
+                            }); 
+                    }
+
+                    // Mise à jour visuelle de l'interface
                     document.getElementById('proof-photo-area').classList.toggle('hidden', !isPhoto);
                     document.getElementById('proof-sign-area').classList.toggle('hidden', isPhoto);
+                    
+                    // Mise à jour des styles de boutons (Focus bleu vs gris)
                     document.getElementById('btn-mode-photo').className = isPhoto ? 'flex-1 py-1.5 rounded-lg text-[9px] font-black uppercase bg-white shadow-sm text-blue-600' : 'flex-1 py-1.5 rounded-lg text-[9px] font-black uppercase text-slate-500';
                     document.getElementById('btn-mode-sign').className = !isPhoto ? 'flex-1 py-1.5 rounded-lg text-[9px] font-black uppercase bg-white shadow-sm text-blue-600' : 'flex-1 py-1.5 rounded-lg text-[9px] font-black uppercase text-slate-500';
+                    
                     window.currentProofMode = mode;
                 };
+
+                // 6. ACTIONS FINALES
                 window.clearVisitSignature = () => { window.visitSignPad.clear(); };
-                window.currentProofMode = 'photo';
+                window.currentProofMode = 'photo'; // Mode par défaut
             },
             preConfirm: () => {
                 let finalProof = proofBlob;
@@ -8257,6 +8327,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
