@@ -4254,18 +4254,19 @@ async function viewDocument(url, title) {
 
     const urlLower = url.toLowerCase();
     const isDocx = urlLower.includes('.docx');
-    const isPdf = urlLower.includes('.pdf');
-    
+    const isBlob = url.startsWith('blob:'); // Détecte si c'est un fichier temporaire (Brouillon)
+
     let finalUrl = url;
 
-    // Si c'est un Word, on passe par Google
-    if (isDocx) {
+    // 1. Si c'est un Word distant, on utilise le viewer Google
+    if (isDocx && !isBlob) {
         finalUrl = `https://docs.google.com/gview?url=${encodeURIComponent(url)}&embedded=true`;
     } 
-    // Si c'est un PDF ou HTML, on ajoute un "timestamp" pour éviter que le navigateur ne garde une vieille version en mémoire
-    else {
+    // 2. Si c'est un PDF distant (Supabase/Drive), on ajoute l'anti-cache
+    else if (!isBlob) {
         finalUrl = url + (url.includes('?') ? '&' : '?') + 't=' + Date.now();
     }
+    // 3. Si c'est un BLOB (ton brouillon), on garde l'URL pure, sinon le navigateur ne le trouve plus
 
     Swal.fire({
         title: `<span class="text-sm font-black uppercase text-slate-500">${title}</span>`,
@@ -4286,6 +4287,8 @@ async function viewDocument(url, title) {
         customClass: { popup: 'rounded-[2.5rem]' }
     });
 }
+
+
 
     async function openHtmlInNewWindow(url) {
         if (!url.toLowerCase().includes('.html')) {
@@ -8126,6 +8129,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
