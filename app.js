@@ -7500,20 +7500,39 @@ async function fetchMobileReports(page = 1) {
                     let durationText = "---";
                     if (v.duration) durationText = v.duration >= 60 ? `${Math.floor(v.duration / 60)}h ${v.duration % 60}m` : `${v.duration} min`;
 
-                    // GESTION DES PRODUITS (Affichage propre en tags)
+// GESTION DES PRODUITS (Version Blindée)
                     let prodsHtml = "";
                     let prods = [];
+
                     try {
-                        if (typeof v.presented_products === 'string') prods = JSON.parse(v.presented_products);
-                        else if (Array.isArray(v.presented_products)) prods = v.presented_products;
-                    } catch(e) {}
+                        // 1. Premier niveau de nettoyage
+                        if (typeof v.presented_products === 'string') {
+                            prods = JSON.parse(v.presented_products);
+                        } else if (Array.isArray(v.presented_products)) {
+                            prods = v.presented_products;
+                        }
+
+                        // 2. Nettoyage individuel (C'est ici que ça corrige ton bug)
+                        // On parcourt chaque élément et on force la conversion si c'est encore du texte
+                        prods = prods.map(item => {
+                            if (typeof item === 'string' && item.trim().startsWith('{')) {
+                                try { return JSON.parse(item); } catch (e) { return item; }
+                            }
+                            return item;
+                        });
+
+                    } catch (e) { console.error("Erreur parsing produits", e); }
                     
+                    // 3. Affichage
                     if (prods.length > 0) {
                         prodsHtml = `<div class="flex flex-wrap gap-1 mt-2">` + 
                             prods.map(p => {
-                                // 👇 LA CORRECTION EST ICI :
-                                // On vérifie toutes les possibilités : name, NAME, Name, ou juste p si c'est du texte simple
-                                const nomAffiche = p.name || p.NAME || p.Name || p.label || p;
+                                // On cherche le nom partout (Majuscule, minuscule, etc.)
+                                let nomAffiche = p;
+                                
+                                if (typeof p === 'object' && p !== null) {
+                                    nomAffiche = p.NAME || p.Name || p.name || p.label || "Produit";
+                                }
                                 
                                 return `<span class="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded text-[8px] font-black uppercase border border-indigo-100 shadow-sm">${nomAffiche}</span>`;
                             }).join('') + 
@@ -8217,6 +8236,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
