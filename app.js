@@ -1048,6 +1048,182 @@ if(d.status === "success") {
 
 
 
+
+async function refreshAllData(force = false) {
+    const now = Date.now();
+    const icon = document.getElementById('refresh-icon'); 
+    if(icon) icon.classList.add('fa-spin');
+
+    if(force) {
+        const Toast = Swal.mixin({toast: true, position: 'top-end', showConfirmButton: false});
+        Toast.fire({icon: 'info', title: 'Actualisation...'});
+    }
+
+    try {
+        const tasks = [];
+        const perms = currentUser.permissions || {}; 
+
+        // 1. TACHES PUBLIQUES (GPS, Flash messages)
+        if (force || (now - lastFetchTimes.global > 3600000)) {
+            tasks.push(fetchCompanyConfig().catch(e => console.warn("GPS ignoré", e)));
+        }
+        tasks.push(fetchFlashMessage().catch(e => console.warn("Flash ignoré", e)));
+
+        // 2. TACHES LIÉES À LA LISTE DES EMPLOYÉS (RH / Admin / Comptable)
+        if (perms.can_see_employees) {
+            if (force || employees.length === 0 || (now - lastFetchTimes.employees > REFRESH_THRESHOLD)) {
+                // IMPORTANT : On ajoute la promesse de fetchData
+                tasks.push(fetchData(false, 1));
+                lastFetchTimes.employees = now;
+            }
+        }
+
+        // 3. TACHES LIÉES AU DASHBOARD (Stats & Live Tracker)
+        if (perms.can_see_dashboard) {
+            tasks.push(fetchLiveAttendance());
+        }
+
+        // 4. TÂCHE ROBOT (Alertes)
+        if (perms.can_send_announcements) {
+            tasks.push(triggerRobotCheck());
+        }
+
+        // 5. TACHES SPÉCIFIQUES AUX VUES ACTIVES
+        if (currentView === 'recruitment' && perms.can_see_recruitment) {
+            tasks.push(fetchCandidates());
+        }
+        
+        if (currentView === 'logs' && perms.can_see_audit) {
+            tasks.push(fetchLogs());
+        }
+        
+        // 6. ESPACE PERSONNEL
+        if (currentView === 'my-profile') {
+            tasks.push(fetchPayrollData());    
+            tasks.push(fetchLeaveRequests());  
+        }
+        
+        // 7. GESTION MANAGERIALE (Validation des congés)
+        if (currentUser.role !== 'EMPLOYEE' && !perms.can_see_employees) {
+            tasks.push(fetchLeaveRequests()); 
+        }
+
+        // --- ATTENTE DE TOUTES LES TÂCHES ---
+        await Promise.all(tasks);
+        
+        // 8. Rendu final des graphiques (Si on est sur le Dashboard et qu'on a le droit)
+        if (currentView === 'dash' && perms.can_see_dashboard) {
+            // On attend que les graphiques soient dessinés
+            await renderCharts();
+        }
+
+        if(force) {
+            const Toast = Swal.mixin({toast: true, position: 'top-end', showConfirmButton: false, timer: 2000});
+            Toast.fire({icon: 'success', title: 'Données à jour !'});
+        }
+
+        return true; // On confirme que tout est prêt
+
+    } catch (error) {
+        console.error("Erreur Sync:", error);
+        return false;
+    } finally {
+        if(icon) setTimeout(() => icon.classList.remove('fa-spin'), 500);
+    }
+}
+
+
+
+
+
+
+
+async function setSession(n, r, id, perms) {
+    currentUser = { nom: n, role: r, id: id, permissions: perms };
+    
+    // On cache les éléments par défaut
+    document.querySelectorAll('[data-perm]').forEach(el => el.style.display = 'none');
+    document.querySelectorAll('.menu-group').forEach(group => group.style.display = 'none');
+    
+    applyBranding();
+    
+    // 1. Cacher le login et préparer l'identité (Le loader reste à opacity: 1)
+    document.getElementById('login-screen').classList.add('hidden');
+    const loader = document.getElementById('initial-loader');
+    const appLayout = document.getElementById('app-layout');
+    
+    document.getElementById('name-display').innerText = n; 
+    document.getElementById('role-display').innerText = r; 
+    document.getElementById('avatar-display').innerText = n[0]; 
+    document.body.className = "text-slate-900 overflow-hidden h-screen w-screen role-" + r.toLowerCase(); 
+
+    // 2. Injecter les SKELETONS (Pendant que c'est caché)
+    const skeletonRow = `<tr class="border-b"><td class="p-4 flex gap-3 items-center"><div class="w-10 h-10 rounded-full skeleton"></div><div class="space-y-2"><div class="h-3 w-24 rounded skeleton"></div></div></td><td class="p-4"><div class="h-3 w-32 rounded skeleton"></div></td><td class="p-4"><div class="h-6 w-16 rounded-lg skeleton"></div></td><td class="p-4"></td></tr>`;
+    ['full-body', 'dashboard-body'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.innerHTML = skeletonRow.repeat(6);
+    });
+
+    // 3. CHARGEMENT DES DONNÉES (On attend que tout soit fini en arrière-plan)
+    try {
+        await Promise.all([
+            refreshAllData(false), 
+            syncClockInterface(), 
+            fetchAndPopulateDepartments(),
+            syncAllRoleSelects(),
+            fetchContractTemplatesForSelection()
+        ]);
+
+        await applyModulesUI(); 
+        applyPermissionsUI(perms);
+
+        // 4. LOGIQUE DE RENDU & NAVIGATION (Double Frame Technique)
+        // On demande au navigateur de préparer le dessin
+        requestAnimationFrame(() => {
+            // Navigation : On change de vue alors que le loader cache encore tout
+            const savedView = localStorage.getItem('sirh_last_view');
+            const buttonSelector = `button[onclick="switchView('${savedView}')"]`;
+            const buttonExists = savedView ? document.querySelector(buttonSelector) : null;
+
+            if (savedView && buttonExists && document.getElementById('view-' + savedView)) {
+                switchView(savedView);
+            } else {
+                const hasDashAccess = document.querySelector(`button[onclick="switchView('dash')"]`);
+                hasDashAccess ? switchView('dash') : switchView('my-profile');
+            }
+
+            // On attend le deuxième rafraîchissement pour être sûr que le rendu est fini
+            requestAnimationFrame(() => {
+                appLayout.classList.remove('hidden'); 
+                appLayout.classList.add('ready');
+
+                // 5. ENFIN, ON ENLÈVE LE LOADER
+                if (loader) {
+                    loader.style.opacity = '0';
+                    loader.style.transform = 'scale(1.05)';
+                    setTimeout(() => {
+                        loader.classList.add('hidden');
+                        document.body.style.backgroundColor = "#f1f5f9"; 
+                    }, 600); 
+                }
+            });
+        });
+
+        applyWidgetPreferences(); 
+        requestNotificationPermission();
+        initDarkMode();
+        
+    } catch (e) {
+        console.error("Erreur critique au démarrage de l'app:", e);
+        if(loader) loader.classList.add('hidden');
+        Swal.fire('Erreur', 'Impossible de charger toutes les données en temps réel.', 'warning');
+    }
+}
+
+
+
+
+
 // ============================================================
 // GESTION DU MOT DE PASSE OUBLIÉ (FLOW EN 2 ÉTAPES) ✅
 // ============================================================
@@ -1256,100 +1432,6 @@ async function openAddTemplateModal() {
 
 
 
-
-
-
-async function setSession(n, r, id, perms) {
-    currentUser = { nom: n, role: r, id: id, permissions: perms };
-    
-    // On cache les éléments par défaut
-    document.querySelectorAll('[data-perm]').forEach(el => el.style.display = 'none');
-    document.querySelectorAll('.menu-group').forEach(group => group.style.display = 'none');
-    
-    applyBranding();
-    
-    // 1. Cacher le login et préparer l'identité (Le loader reste à opacity: 1)
-    document.getElementById('login-screen').classList.add('hidden');
-    const loader = document.getElementById('initial-loader');
-    const appLayout = document.getElementById('app-layout');
-    
-    document.getElementById('name-display').innerText = n; 
-    document.getElementById('role-display').innerText = r; 
-    document.getElementById('avatar-display').innerText = n[0]; 
-    document.body.className = "text-slate-900 overflow-hidden h-screen w-screen role-" + r.toLowerCase(); 
-
-    // 2. Injecter les SKELETONS
-    const skeletonRow = `<tr class="border-b"><td class="p-4 flex gap-3 items-center"><div class="w-10 h-10 rounded-full skeleton"></div><div class="space-y-2"><div class="h-3 w-24 rounded skeleton"></div></div></td><td class="p-4"><div class="h-3 w-32 rounded skeleton"></div></td><td class="p-4"><div class="h-6 w-16 rounded-lg skeleton"></div></td><td class="p-4"></td></tr>`;
-    ['full-body', 'dashboard-body'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.innerHTML = skeletonRow.repeat(6);
-    });
-
-    // On affiche le layout de l'app en arrière-plan (toujours sous le loader)
-    appLayout.classList.remove('hidden'); 
-    appLayout.classList.add('ready');     
-
-    // 3. CHARGEMENT DES DONNÉES (On attend que tout soit fini)
-    try {
-        // Le mot clé 'await' est crucial ici : il bloque la suite tant que c'est pas chargé
-        await Promise.all([
-            refreshAllData(false), 
-            syncClockInterface(), 
-            fetchAndPopulateDepartments(),
-            syncAllRoleSelects(),
-            fetchContractTemplatesForSelection()
-        ]);
-
-        const fTypeSelect = document.getElementById('f-type');
-        if (fTypeSelect) {
-            fTypeSelect.removeEventListener('change', toggleContractFieldsVisibility); 
-            fTypeSelect.addEventListener('change', toggleContractFieldsVisibility);
-            toggleContractFieldsVisibility(); 
-        }
-
-        await applyModulesUI(); 
-        applyPermissionsUI(perms);
-
-        // 4. LOGIQUE DE NAVIGATION (On change de vue AVANT d'enlever le loader)
-        const searchContainer = document.getElementById('global-search-container');
-        if (searchContainer) {
-            searchContainer.style.display = perms?.can_see_employees ? 'block' : 'none';
-        }
-
-        const savedView = localStorage.getItem('sirh_last_view');
-        const buttonSelector = `button[onclick="switchView('${savedView}')"]`;
-        const buttonExists = savedView ? document.querySelector(buttonSelector) : null;
-
-        if (savedView && buttonExists && document.getElementById('view-' + savedView)) {
-            switchView(savedView);
-        } else {
-            const hasDashAccess = document.querySelector(`button[onclick="switchView('dash')"]`);
-            if (hasDashAccess) {
-                switchView('dash');
-            } else {
-                switchView('my-profile'); 
-            }
-        }
-
-        // 5. ENFIN, ON ENLÈVE LE LOADER (Maintenant que tout est dessiné)
-        if (loader) {
-            loader.style.opacity = '0';
-            setTimeout(() => {
-                loader.classList.add('hidden');
-                document.body.style.backgroundColor = "#f1f5f9"; 
-            }, 800); 
-        }
-
-        applyWidgetPreferences(); 
-        requestNotificationPermission();
-        initDarkMode();
-        
-    } catch (e) {
-        console.error("Erreur critique au démarrage de l'app:", e);
-        if(loader) loader.classList.add('hidden'); // On libère quand même l'écran en cas de bug
-        Swal.fire('Erreur', 'Impossible de charger toutes les données en temps réel.', 'warning');
-    }
-}
 
 
 
@@ -1749,89 +1831,6 @@ async function offerRegisterLocation(gps) {
 
 
 
-
-
-async function refreshAllData(force = false) {
-    const now = Date.now();
-    const icon = document.getElementById('refresh-icon'); 
-    if(icon) icon.classList.add('fa-spin');
-
-    if(force) {
-        const Toast = Swal.mixin({toast: true, position: 'top-end', showConfirmButton: false});
-        Toast.fire({icon: 'info', title: 'Actualisation...'});
-    }
-
-    try {
-        const tasks = [];
-        const perms = currentUser.permissions || {}; // Sécurité si perms est null
-
-        // 1. TACHES PUBLIQUES (Toujours autorisées)
-        if (force || (now - lastFetchTimes.global > 3600000)) {
-            tasks.push(fetchCompanyConfig().catch(e => console.warn("GPS ignoré", e)));
-        }
-        tasks.push(fetchFlashMessage().catch(e => console.warn("Flash ignoré", e)));
-
-        // 2. TACHES LIÉES À LA LISTE DES EMPLOYÉS (RH / Admin / Comptable)
-        if (perms.can_see_employees) {
-            if (force || employees.length === 0 || (now - lastFetchTimes.employees > REFRESH_THRESHOLD)) {
-                tasks.push(fetchData(false, 1));
-                lastFetchTimes.employees = now;
-            }
-            // J'ai retiré le Robot et le LiveAttendance d'ici car le Comptable passait par là
-        }
-
-        // 3. NOUVEAU BLOC : TACHES LIÉES AU DASHBOARD (Stats & Live Tracker)
-        // Seuls ceux qui ont explicitement "can_see_dashboard" lanceront cette requête
-        if (perms.can_see_dashboard) {
-            tasks.push(fetchLiveAttendance());
-        }
-
-        // 4. NOUVEAU BLOC : TÂCHE ROBOT
-        // Lié strictement au droit d'envoyer des annonces
-        if (perms.can_send_announcements) {
-            tasks.push(triggerRobotCheck());
-        }
-
-        // 5. TACHES SPECIFIQUES AUX VUES (Avec vérification des droits)
-        if (currentView === 'recruitment' && perms.can_see_recruitment) {
-            tasks.push(fetchCandidates());
-        }
-        
-        if (currentView === 'logs' && perms.can_see_audit) {
-            tasks.push(fetchLogs());
-        }
-        
-        // 6. ESPACE PERSONNEL (Toujours autorisé pour l'utilisateur connecté)
-        if (currentView === 'my-profile') {
-            tasks.push(fetchPayrollData());    
-            tasks.push(fetchLeaveRequests());  
-        }
-        
-        // 7. GESTION MANAGERIALE (Validation des congés de l'équipe)
-        // On ne charge que les congés ici. Le LiveAttendance est désormais géré par le bloc 3.
-        if (currentUser.role !== 'EMPLOYEE' && !perms.can_see_employees) {
-            tasks.push(fetchLeaveRequests()); 
-        }
-
-        // On attend que toutes les requêtes autorisées soient terminées
-        await Promise.all(tasks);
-        
-        // Mise à jour finale de l'interface du Dashboard si on est dessus
-        if (currentView === 'dash' && perms.can_see_dashboard) {
-            renderCharts();
-        }
-
-        if(force) {
-            const Toast = Swal.mixin({toast: true, position: 'top-end', showConfirmButton: false, timer: 2000});
-            Toast.fire({icon: 'success', title: 'Données à jour !'});
-        }
-
-    } catch (error) {
-        console.error("Erreur Sync:", error);
-    } finally {
-        if(icon) setTimeout(() => icon.classList.remove('fa-spin'), 500);
-    }
-}
 
 
 
@@ -8005,6 +8004,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
