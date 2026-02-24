@@ -6442,7 +6442,7 @@ let deferredPrompt; // Correction : retrait du "/" parasite
     // Variable temporaire pour stocker les données du rapport affiché
     let currentReportData = [];
 
-    function downloadReportCSV(period = 'monthly') {
+   function downloadReportCSV(period = 'monthly') {
     if (!currentReportData || currentReportData.length === 0) {
         return Swal.fire('Erreur', 'Aucune donnée à exporter.', 'warning');
     }
@@ -6451,52 +6451,62 @@ let deferredPrompt; // Correction : retrait du "/" parasite
     let csvContent = "";
 
     if (period === 'today') {
-        // En-têtes pour le rapport du jour
-        headers = ["Employe", "Heure Arrivee", "Zone", "Statut"];
+        // --- EN-TÊTES POUR LE RAPPORT DU JOUR (LIVE) ---
+        headers = ["Employé", "Matricule", "Statut", "Arrivée", "Durée Présence", "Zone"];
         csvContent = headers.join(";") + "\n";
         
         currentReportData.forEach(row => {
-            const clean = (text) => String(text).replace(/;/g, ",").replace(/\n/g, " ");
-            let heureAffichee = row.heure_arrivee.match(/(\d{2}:\d{2})/) ? row.heure_arrivee.match(/(\d{2}:\d{2})/)[1] : row.heure_arrivee;
+            const clean = (text) => text ? String(text).replace(/;/g, ",").replace(/\n/g, " ") : "---";
             
+            // Correction ici : On utilise 'arrivee' au lieu de 'heure_arrivee'
+            // Et on ajoute une sécurité pour éviter le crash si la valeur est vide
+            let hAffiche = row.arrivee || "---";
+            if (hAffiche && typeof hAffiche === 'string' && hAffiche.match(/(\d{2}:\d{2})/)) {
+                hAffiche = hAffiche.match(/(\d{2}:\d{2})/)[1];
+            }
+
             const rowData = [
                 clean(row.nom),
-                clean(heureAffichee),
-                clean(row.zone),
-                'PRÉSENT' 
+                clean(row.matricule),
+                clean(row.statut),
+                clean(hAffiche),
+                clean(row.duree),
+                clean(row.zone)
             ];
             const cleanRow = rowData.map(val => `"${String(val).replace(/"/g, '""')}"`);
             csvContent += cleanRow.join(";") + "\n";
         });
         
     } else {
-        // En-têtes pour le rapport mensuel (Ton code qui marche bien)
-        headers = ["Mois/Annee", "Employe", "Jours Presence", "Total Heures", "Statut"];
+        // --- EN-TÊTES POUR LE RAPPORT MENSUEL (CUMUL) ---
+        headers = ["Mois/Année", "Employé", "Jours Présence", "Total Heures", "Statut"];
         csvContent = headers.join(";") + "\n";
 
         currentReportData.forEach(row => {
-            const clean = (text) => String(text).replace(/;/g, ",").replace(/\n/g, " ");
+            const clean = (text) => text ? String(text).replace(/;/g, ",").replace(/\n/g, " ") : "---";
             
             const rowData = [
                 clean(row.mois),
                 clean(row.nom),
                 clean(row.jours),
-                clean(row.heures).replace('h', ''), 
-                clean(row.statut)
+                clean(row.heures), 
+                "Validé"
             ];
             const cleanRow = rowData.map(val => `"${String(val).replace(/"/g, '""')}"`);
             csvContent += cleanRow.join(";") + "\n";
         });
     }
 
-    // 3. Créer le fichier et le télécharger
+    // --- CRÉATION ET TÉLÉCHARGEMENT DU FICHIER ---
     const blob = new Blob(["\ufeff" + csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
     
     const dateStr = new Date().toLocaleDateString('fr-FR').replace(/\//g, "-");
+    const fileName = period === 'today' ? `Presence_Live_${dateStr}.csv` : `Presence_Mensuelle_${dateStr}.csv`;
+    
     link.setAttribute("href", url);
-    link.setAttribute("download", `Rapport_Presence_${dateStr}.csv`);
+    link.setAttribute("download", fileName);
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
@@ -6505,7 +6515,6 @@ let deferredPrompt; // Correction : retrait du "/" parasite
     const Toast = Swal.mixin({toast: true, position: 'top-end', showConfirmButton: false, timer: 3000});
     Toast.fire({ icon: 'success', title: 'Exportation réussie !' });
 }
-
 
 // CONFIGURATION DES LIENS DU FORMULAIRE
 const AIRTABLE_FORM_PUBLIC_LINK = "https://dom4002.github.io/recrutement_page/?shared=1&hdob=0&hlm=0&hdip=0&hid=0"; // Remplacez par votre lien de partage
@@ -8327,6 +8336,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
