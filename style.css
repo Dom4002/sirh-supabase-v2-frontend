@@ -332,7 +332,7 @@ button[type="submit"] {
 
 /* SÉCURITÉ LOGIN : Le login doit être au-dessus de tout sauf du loader */
 #login-screen {
-    z-index: 9000; 
+    z-index: 500;
 }
 
 
@@ -362,4 +362,11 @@ button[type="submit"] {
     border-radius: 1rem;
     cursor: crosshair;
     touch-action: none; /* Important pour le tactile */
+}
+
+
+
+/* On s'assure que SweetAlert passe toujours devant tout le monde */
+.swal2-container {
+    z-index: 10000 !important;
 }
