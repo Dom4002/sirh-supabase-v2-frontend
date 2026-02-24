@@ -149,10 +149,26 @@ button:active { transform: scale(0.96); }
 }
 
 /* SUR ORDINATEUR : On fait sauter la barre de scroll pour les documents */
+/* 3. Comportement sur PC (Écrans >= 768px) */
 @media (min-width: 768px) {
+    .swal2-popup:not(.swal2-toast) {
+        /* Laisse la largeur s'étendre selon ce que demande le JavaScript */
+        max-width: 1200px !important; 
+        width: auto !important; 
+        
+        /* 
+           ❌ LE FIX EST ICI ❌
+           On force la fenêtre à s'agrandir verticalement au lieu de créer une barre de scroll
+        */
+        height: auto !important;
+        max-height: 95vh !important; 
+        overflow-y: hidden !important; /* TUE LA BARRE FINE EXTERNE */
+    }
+
     .swal2-html-container {
-        max-height: 85vh !important; /* Laisse assez de place pour ton iFrame de 75vh */
-        overflow-y: hidden !important; /* Cache la double barre de scroll */
+        /* On laisse toute la place à l'iframe (le PDF) sans scroll externe */
+        max-height: 85vh !important; 
+        overflow-y: hidden !important; 
         padding-right: 0 !important;
     }
 }
@@ -488,4 +504,5 @@ button.flex-1, button.md\:flex-none {
 button i {
     font-size: 0.9rem !important;
 }
+
 
