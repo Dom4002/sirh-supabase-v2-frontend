@@ -4296,23 +4296,33 @@ async function viewDocument(url, title) {
     }
     // 3. Si c'est un BLOB (ton brouillon), on garde l'URL pure, sinon le navigateur ne le trouve plus
 
-    Swal.fire({
+Swal.fire({
         title: `<span class="text-sm font-black uppercase text-slate-500">${title}</span>`,
         html: `
-            <div class="rounded-2xl overflow-hidden border border-slate-200 bg-white" style="height: 75vh;">
-                <iframe src="${finalUrl}" class="w-full h-full" frameborder="0"></iframe>
-            </div>
-            <div class="mt-4 flex justify-between items-center">
-                <a href="${url}" target="_blank" download class="text-xs font-bold text-blue-600 hover:underline">
-                    <i class="fa-solid fa-download"></i> Télécharger l'original
-                </a>
-                <button onclick="Swal.close()" class="px-6 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold uppercase">Fermer</button>
+            <!-- On utilise flex-col pour que le bouton prenne sa place en bas sans être écrasé -->
+            <div class="flex flex-col h-[70vh] gap-4">
+                
+                <!-- La zone PDF prend tout l'espace restant (flex-1) -->
+                <div class="flex-1 rounded-xl overflow-hidden border border-slate-200 bg-slate-50 shadow-inner relative">
+                    <iframe src="${finalUrl}" class="absolute inset-0 w-full h-full" frameborder="0"></iframe>
+                </div>
+
+                <!-- La barre d'action en bas, taille fixe (shrink-0) -->
+                <div class="shrink-0 flex justify-between items-center bg-white pt-2">
+                    <a href="${url}" target="_blank" download class="text-xs font-bold text-blue-600 hover:text-blue-800 transition-colors flex items-center gap-2">
+                        <i class="fa-solid fa-download"></i> Télécharger l'original
+                    </a>
+                    <button onclick="Swal.close()" class="px-6 py-2.5 bg-slate-900 text-white rounded-lg text-xs font-bold uppercase shadow-md hover:bg-slate-800 transition-all active:scale-95">
+                        Fermer
+                    </button>
+                </div>
+
             </div>
         `,
         width: '900px',
         showConfirmButton: false,
-        padding: '1.5rem',
-        customClass: { popup: 'rounded-[2.5rem]' }
+        padding: '1.5rem', // On garde un padding raisonnable
+        customClass: { popup: 'rounded-2xl' } // On force un radius raisonnable
     });
 }
 
@@ -8157,6 +8167,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
