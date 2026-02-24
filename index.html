@@ -871,22 +871,26 @@
         </div>
     </div>
 
-    <!-- 2. BARRE DE FILTRES INTELLIGENTE -->
-<!-- BARRE DE FILTRES COMPTABILITÉ AVANCÉE -->
-<div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 mb-6 space-y-4">
-    <div class="flex flex-wrap gap-4 items-center">
+    
+
+    <!-- 3. TABLEAU DES SALAIRES --><!-- BARRE DE FILTRES COMPTABILITÉ RESPONSIVE -->
+<div class="bg-white p-4 md:p-6 rounded-2xl border border-slate-100 mb-6 shadow-sm">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
         
-        <!-- 1. Recherche Nom/Matricule -->
-        <div class="flex-1 min-w-[250px] relative">
-            <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
-            <input type="text" id="search-accounting" onkeyup="filterAccountingTableLocally()" placeholder="Chercher un collaborateur..." class="w-full pl-12 pr-4 py-3 bg-slate-50 border-none rounded-2xl text-sm focus:ring-2 focus:ring-blue-500 transition-all">
+        <!-- 1. Recherche (Prend 2 colonnes sur tablette pour rester lisible) -->
+        <div class="sm:col-span-2 lg:col-span-1">
+            <label class="text-[8px] font-black text-slate-400 uppercase ml-2 mb-1 block">Recherche</label>
+            <div class="relative">
+                <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                <input type="text" id="search-accounting" onkeyup="filterAccountingTableLocally()" placeholder="Chercher un collaborateur..." class="w-full pl-11 pr-4 py-2.5 bg-slate-50 border-none rounded-xl text-xs focus:ring-2 focus:ring-blue-500 transition-all">
+            </div>
         </div>
 
-        <!-- 2. Filtre Activité (Fixe/Mobile) -->
-        <div class="flex flex-col">
-            <label class="text-[8px] font-black text-slate-400 uppercase ml-2 mb-1">Activité</label>
-            <select id="filter-accounting-type" onchange="loadAccountingView()" class="p-3 bg-slate-50 border-none rounded-2xl text-xs font-bold outline-none cursor-pointer">
-                <option value="all">Tous</option>
+        <!-- 2. Filtre Activité -->
+        <div>
+            <label class="text-[8px] font-black text-slate-400 uppercase ml-2 mb-1 block">Activité</label>
+            <select id="filter-accounting-type" onchange="loadAccountingView()" class="w-full p-2.5 bg-slate-50 border-none rounded-xl text-xs font-bold outline-none cursor-pointer">
+                <option value="all">Toutes les activités</option>
                 <option value="OFFICE">🏢 Bureau</option>
                 <option value="MOBILE">🚗 Terrain</option>
                 <option value="FIXED">🏠 Site Fixe</option>
@@ -894,31 +898,32 @@
         </div>
 
         <!-- 3. Filtre Département -->
-        <div class="flex flex-col">
-            <label class="text-[8px] font-black text-slate-400 uppercase ml-2 mb-1">Département</label>
-            <select id="filter-accounting-dept" onchange="loadAccountingView()" class="p-3 bg-slate-50 border-none rounded-2xl text-xs font-bold outline-none cursor-pointer">
-                <option value="all">Tous</option>
+        <div>
+            <label class="text-[8px] font-black text-slate-400 uppercase ml-2 mb-1 block">Département</label>
+            <select id="filter-accounting-dept" onchange="loadAccountingView()" class="w-full p-2.5 bg-slate-50 border-none rounded-xl text-xs font-bold outline-none cursor-pointer">
+                <option value="all">Tous les départements</option>
             </select>
         </div>
 
-        <!-- 4. Filtre Statut (Important pour les fins de contrat) -->
-        <div class="flex flex-col">
-            <label class="text-[8px] font-black text-slate-400 uppercase ml-2 mb-1">Statut RH</label>
-            <select id="filter-accounting-status" onchange="loadAccountingView()" class="p-3 bg-slate-50 border-none rounded-2xl text-xs font-bold outline-none cursor-pointer">
-                <option value="Actif">🟢 Actifs</option>
-                <option value="Congé">🟡 En Congé</option>
-                <option value="all">⚪ Tous (Incl. Sortis)</option>
-            </select>
+        <!-- 4. Filtre Statut + Bouton Reset intégré -->
+        <div class="flex items-end gap-2">
+            <div class="flex-1">
+                <label class="text-[8px] font-black text-slate-400 uppercase ml-2 mb-1 block">Statut RH</label>
+                <select id="filter-accounting-status" onchange="loadAccountingView()" class="w-full p-2.5 bg-slate-50 border-none rounded-xl text-xs font-bold outline-none cursor-pointer">
+                    <option value="Actif">🟢 Actifs</option>
+                    <option value="Congé">🟡 En Congé</option>
+                    <option value="all">⚪ Tous (Incl. Sortis)</option>
+                </select>
+            </div>
+            
+            <!-- Bouton Reset (Aligné avec le select) -->
+            <button onclick="resetAccountingFilters()" class="bg-slate-100 text-slate-400 p-2.5 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all shadow-sm shrink-0" title="Réinitialiser les filtres">
+                <i class="fa-solid fa-filter-circle-xmark text-lg"></i>
+            </button>
         </div>
-
-        <!-- 5. Bouton Reset -->
-        <button onclick="resetAccountingFilters()" class="mt-4 p-3 text-slate-400 hover:text-red-500 transition-all" title="Réinitialiser les filtres">
-            <i class="fa-solid fa-filter-circle-xmark text-lg"></i>
-        </button>
+        
     </div>
 </div>
-
-    <!-- 3. TABLEAU DES SALAIRES -->
     <div class="bg-white rounded-xl shadow-2xl border border-slate-200 overflow-hidden">
         <div class="max-h-[60vh] overflow-y-auto custom-scroll">
             <table class="w-full text-left border-collapse">
@@ -1253,7 +1258,6 @@
                     <!-- ICI : Scroll vertical + Grille responsive -->
                     <div class="max-h-[350px] custom-scroll pr-2">
                         <div id="payroll-container" class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                            <!-- Sera rempli par fetchPayrollData() -->
                             <div class="col-span-full text-center py-4 text-slate-400 italic text-xs">Recherche des bulletins...</div>
                         </div>
                     </div>
@@ -1852,9 +1856,9 @@
 
 
 <div id="leave-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-md hidden flex items-center justify-center z-[200] p-4 transition-all duration-300">
-    <div class="bg-white w-full max-w-4xl rounded-[2rem] shadow-2xl overflow-hidden border border-white/20 animate-fadeIn">
+<div class="bg-white w-full max-w-lg md:max-w-4xl rounded-[2rem] shadow-2xl flex flex-col max-h-[95vh] overflow-hidden border border-white/20 animate-fadeIn">
         <!-- En-tête Pro -->
-        <div class="bg-slate-900 p-6 text-white flex justify-between items-center">
+        <div class="bg-slate-900 p-5 text-white flex justify-between items-center shrink-0">
             <div>
                 <h3 class="text-xl font-black uppercase tracking-tight">Demande d'Absence</h3>
                 <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Formulaire de congé & maladie</p>
@@ -1862,7 +1866,7 @@
             <button onclick="document.getElementById('leave-modal').classList.add('hidden')" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-2xl"></i></button>
         </div>
 
-        <form onsubmit="submitLeaveRequest(event)" class="p-8">
+    <form onsubmit="submitLeaveRequest(event)" class="p-6 md:p-8 overflow-y-auto custom-scroll">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                 
                 <!-- COLONNE GAUCHE : TYPE & DATES -->
@@ -2001,6 +2005,7 @@
     </body>
 
     </html>
+
 
 
 
