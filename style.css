@@ -267,42 +267,32 @@ button[type="submit"] {
 }
 
 
-/* 1. État initial de l'application (Totalement invisible) */
+/* 1. L'application est visible par défaut, mais prête pour une transition fluide */
 #app-layout {
     opacity: 0;
-    transform: translateY(10px); /* Petit décalage vers le bas pour l'effet d'entrée */
-    transition: opacity 0.8s ease-in-out, transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
-    visibility: hidden;
+    transition: opacity 0.5s ease-in-out;
 }
 
-/* 2. État quand le chargement est fini (La classe 'ready' est ajoutée par le JS) */
+/* 2. Quand on ajoute 'ready', elle devient opaque */
 #app-layout.ready {
-    opacity: 1;
-    transform: translateY(0);
-    visibility: visible;
+    opacity: 1 !important;
 }
 
-/* 3. Sécurité du Loader (Doit être au-dessus de TOUT) */
+/* 3. LE LOADER : Il doit être bleu nuit et couvrir tout l'écran */
 #initial-loader {
     position: fixed;
     inset: 0;
-    z-index: 9999; /* Priorité maximale */
-    background-color: #0f172a; /* Ta couleur bleu nuit */
+    z-index: 9999;
+    background-color: #0f172a !important; /* Force ta couleur bleu nuit */
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    transition: opacity 0.6s ease-in-out, visibility 0.6s;
+    opacity: 1;
+    transition: opacity 0.4s ease-out;
 }
 
-/* 4. Bloquer le scroll pendant que le loader est là */
-body.loading {
-    overflow: hidden !important;
-}
-
-/* 5. Animation de sortie du loader (Zoom arrière discret) */
-#initial-loader.fade-out {
-    opacity: 0;
-    transform: scale(1.1);
-    pointer-events: none;
+/* 4. Quand on cache le loader */
+#initial-loader.hidden {
+    display: none !important;
 }
