@@ -3386,6 +3386,54 @@ function toggleBulkActions() {
     }
 }
 
+
+
+
+
+async function deleteEmployee(id) {
+    // 1. On cherche le nom de l'employé pour personnaliser l'alerte
+    const emp = employees.find(e => e.id === id);
+    const empName = emp ? emp.nom : "ce collaborateur";
+
+    // 2. Alerte de confirmation de sécurité
+    const result = await Swal.fire({
+        title: 'Suppression Définitive',
+        text: `Êtes-vous sûr de vouloir supprimer ${empName} ? Cette action effacera son profil, son historique et ses accès au système.`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444', // Rouge
+        cancelButtonColor: '#64748b',
+        confirmButtonText: 'Oui, supprimer',
+        cancelButtonText: 'Annuler'
+    });
+
+    if (result.isConfirmed) {
+        Swal.fire({ title: 'Suppression en cours...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+        try {
+            // 3. Appel au serveur via secureFetch pour envoyer le token
+            const response = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/delete-employee`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: id, agent: currentUser.nom })
+            });
+
+            if (response.ok) {
+                Swal.fire('Supprimé !', 'Le collaborateur a été retiré de la base.', 'success');
+                // 4. On rafraîchit la liste immédiatement
+                fetchData(true, 1); 
+            } else {
+                const err = await response.json();
+                throw new Error(err.error || "Erreur serveur lors de la suppression.");
+            }
+        } catch (error) {
+            console.error(error);
+            Swal.fire('Erreur', error.message, 'error');
+        }
+    }
+}
+
+
 async function openBulkManagerModal() {
     const selectedIds = Array.from(document.querySelectorAll('.emp-select-checkbox:checked')).map(cb => cb.value);
     
@@ -8056,6 +8104,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
