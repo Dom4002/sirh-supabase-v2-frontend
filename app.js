@@ -1141,31 +1141,42 @@ async function refreshAllData(force = false) {
 async function setSession(n, r, id, perms) {
     currentUser = { nom: n, role: r, id: id, permissions: perms };
     
-    // On cache les éléments par défaut
+    // On cache les éléments par défaut (Permissions/Groupes)
     document.querySelectorAll('[data-perm]').forEach(el => el.style.display = 'none');
     document.querySelectorAll('.menu-group').forEach(group => group.style.display = 'none');
     
     applyBranding();
     
-    // 1. Cacher le login et préparer l'identité (Le loader reste à opacity: 1)
-    document.getElementById('login-screen').classList.add('hidden');
+    // 1. Préparation immédiate de l'écran
+    const loginScreen = document.getElementById('login-screen');
     const loader = document.getElementById('initial-loader');
     const appLayout = document.getElementById('app-layout');
+
+    if(loginScreen) loginScreen.classList.add('hidden');
     
+    // On s'assure que le loader est bien au-dessus et opaque (fond bleu nuit actif)
+    if (loader) {
+        loader.classList.remove('fade-out', 'hidden');
+        loader.style.opacity = '1';
+        loader.style.zIndex = '9999';
+    }
+    
+    // Remplissage des infos d'identité
     document.getElementById('name-display').innerText = n; 
     document.getElementById('role-display').innerText = r; 
     document.getElementById('avatar-display').innerText = n[0]; 
     document.body.className = "text-slate-900 overflow-hidden h-screen w-screen role-" + r.toLowerCase(); 
 
-    // 2. Injecter les SKELETONS (Pendant que c'est caché)
+    // 2. Injecter les SKELETONS (Pendant que le loader cache tout)
     const skeletonRow = `<tr class="border-b"><td class="p-4 flex gap-3 items-center"><div class="w-10 h-10 rounded-full skeleton"></div><div class="space-y-2"><div class="h-3 w-24 rounded skeleton"></div></div></td><td class="p-4"><div class="h-3 w-32 rounded skeleton"></div></td><td class="p-4"><div class="h-6 w-16 rounded-lg skeleton"></div></td><td class="p-4"></td></tr>`;
     ['full-body', 'dashboard-body'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.innerHTML = skeletonRow.repeat(6);
     });
 
-    // 3. CHARGEMENT DES DONNÉES (On attend que tout soit fini en arrière-plan)
     try {
+        // 3. CHARGEMENT DES DONNÉES CRITIQUES
+        // Le logo et la barre de chargement restent ici tant que le serveur n'a pas répondu
         await Promise.all([
             refreshAllData(false), 
             syncClockInterface(), 
@@ -1177,34 +1188,39 @@ async function setSession(n, r, id, perms) {
         await applyModulesUI(); 
         applyPermissionsUI(perms);
 
-        // 4. LOGIQUE DE RENDU & NAVIGATION (Double Frame Technique)
-        // On demande au navigateur de préparer le dessin
+        // 4. NAVIGATION PRÉEMPTIVE (On choisit la vue SOUS le loader)
+        const savedView = localStorage.getItem('sirh_last_view');
+        const buttonSelector = `button[onclick="switchView('${savedView}')"]`;
+        const buttonExists = savedView ? document.querySelector(buttonSelector) : null;
+
+        if (savedView && buttonExists && document.getElementById('view-' + savedView)) {
+            switchView(savedView);
+        } else {
+            const hasDashAccess = document.querySelector(`button[onclick="switchView('dash')"]`);
+            hasDashAccess ? switchView('dash') : switchView('my-profile');
+        }
+
+        // 5. PHASE DE RÉVÉLATION (Zéro écran vide)
+        // On active l'affichage technique de l'app (mais elle est à opacity: 0 via CSS)
+        appLayout.classList.remove('hidden'); 
+
+        // On utilise le double cycle pour garantir que le navigateur a "peint" l'app en mémoire
         requestAnimationFrame(() => {
-            // Navigation : On change de vue alors que le loader cache encore tout
-            const savedView = localStorage.getItem('sirh_last_view');
-            const buttonSelector = `button[onclick="switchView('${savedView}')"]`;
-            const buttonExists = savedView ? document.querySelector(buttonSelector) : null;
-
-            if (savedView && buttonExists && document.getElementById('view-' + savedView)) {
-                switchView(savedView);
-            } else {
-                const hasDashAccess = document.querySelector(`button[onclick="switchView('dash')"]`);
-                hasDashAccess ? switchView('dash') : switchView('my-profile');
-            }
-
-            // On attend le deuxième rafraîchissement pour être sûr que le rendu est fini
             requestAnimationFrame(() => {
-                appLayout.classList.remove('hidden'); 
+                // L'application est prête en arrière-plan. On lance l'échange visuel.
+                
+                // On rend l'application opaque (ready)
                 appLayout.classList.add('ready');
 
-                // 5. ENFIN, ON ENLÈVE LE LOADER
                 if (loader) {
-                    loader.style.opacity = '0';
-                    loader.style.transform = 'scale(1.05)';
+                    // On lance l'animation de sortie du loader (le logo et la barre s'effacent doucement)
+                    loader.classList.add('fade-out');
+                    
                     setTimeout(() => {
                         loader.classList.add('hidden');
                         document.body.style.backgroundColor = "#f1f5f9"; 
-                    }, 600); 
+                        document.body.style.overflow = 'auto'; // On libère le scroll
+                    }, 600); // Délai calé sur la transition CSS
                 }
             });
         });
@@ -1216,10 +1232,10 @@ async function setSession(n, r, id, perms) {
     } catch (e) {
         console.error("Erreur critique au démarrage de l'app:", e);
         if(loader) loader.classList.add('hidden');
-        Swal.fire('Erreur', 'Impossible de charger toutes les données en temps réel.', 'warning');
+        if(appLayout) appLayout.classList.remove('hidden');
+        Swal.fire('Erreur', 'Données chargées avec des erreurs mineures.', 'warning');
     }
 }
-
 
 
 
@@ -8004,6 +8020,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
