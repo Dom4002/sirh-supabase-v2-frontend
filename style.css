@@ -141,10 +141,20 @@ button:active { transform: scale(0.96); }
     margin-bottom: 0.5rem !important;
 }
 
-/* Le contenu HTML (pour éviter que ça déborde) */
+/* Fix pour les modales qui dépassent (Priorité Mobile) */
 .swal2-html-container {
-    margin: 1rem 0 0 0 !important;
-    overflow-x: hidden !important; /* Empêche le scroll horizontal accidentel */
+    max-height: 70vh !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+}
+
+/* SUR ORDINATEUR : On fait sauter la barre de scroll pour les documents */
+@media (min-width: 768px) {
+    .swal2-html-container {
+        max-height: 85vh !important; /* Laisse assez de place pour ton iFrame de 75vh */
+        overflow-y: hidden !important; /* Cache la double barre de scroll */
+        padding-right: 0 !important;
+    }
 }
 
 /* Standardiser les inputs SweetAlert pour qu'ils matchent avec le fond */
@@ -478,3 +488,4 @@ button.flex-1, button.md\:flex-none {
 button i {
     font-size: 0.9rem !important;
 }
+
