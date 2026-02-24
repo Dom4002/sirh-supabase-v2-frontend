@@ -376,3 +376,26 @@ button[type="submit"] {
     z-index: 10000 !important;
 }
 
+/* Empêche les tableaux de casser le design sur mobile */
+.table-container {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch; /* Scroll fluide sur iPhone */
+    border-radius: 1rem;
+}
+
+/* Fix pour les modales qui dépassent de l'écran en hauteur */
+.swal2-html-container {
+    max-height: 70vh !important;
+    overflow-y: auto !important;
+    padding-right: 5px !important;
+}
+
+/* Personnalisation du scroll pour les tableaux */
+.table-container::-webkit-scrollbar {
+    height: 4px;
+}
+.table-container::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 10px;
+}
