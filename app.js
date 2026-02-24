@@ -3520,19 +3520,21 @@ function toggleSidebar() {
             function convertToInputDate(dStr){if(!dStr) return ""; if(dStr.match(/^\d{4}-\d{2}-\d{2}$/)) return dStr; if(dStr.includes('/')){const p=dStr.split('/'); return `${p[2]}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}`;} return "";}
             
     
-
 async function openEditModal(id) {
-    // 1. ON TROUVE L'EMPLOYÉ
     const e = employees.find(x => x.id === id);
     if (!e) return;
 
-    // Mémorisation pour le "Partial Update"
+    // DEBUG : Supprime ces lignes après le test
+    console.log("--- DEBUG MODAL ---");
+    console.log("ID recherché:", id);
+    console.log("Rôle brut en BDD:", e.role);
+
     currentEditingOriginal = { ...e };
 
     document.getElementById('edit-modal').classList.remove('hidden');
     document.getElementById('edit-id-hidden').value = id;
 
-    // --- GESTION DES BLOCS DE VISIBILITÉ ---
+    // --- VISIBILITÉ DES BLOCS ---
     const perms = currentUser.permissions || {};
     const blockStatus = document.getElementById('edit-block-status');
     const blockContract = document.getElementById('edit-block-contract');
@@ -3542,73 +3544,63 @@ async function openEditModal(id) {
     if (blockHierarchy) blockHierarchy.style.display = perms.can_manage_contracts ? 'block' : 'none';
     if (blockStatus) blockStatus.style.display = (perms.can_manage_contracts || perms.can_edit_employee_basic) ? 'block' : 'none';
     
-    // --- REMPLISSAGE DES DONNÉES ---
+    // --- REMPLISSAGE DES DROPDOWNS ---
     await populateManagerSelects(); 
 
-    // 1. Manager & Scope
-    const mgrSelect = document.getElementById('edit-manager');
-    if(mgrSelect) mgrSelect.value = e.manager_id || "";
-    const scopeInput = document.getElementById('edit-scope');
-    if(scopeInput) scopeInput.value = (e.scope || []).join(', ');
-
-    // 2. Type & Statut
-    document.getElementById('edit-type').value = e.employee_type || 'OFFICE';
-    document.getElementById('edit-statut').value = e.statut || 'Actif';
-    
-    // ============================================================
-    // 🛡️ FOCUS : SYNCHRONISATION FORCÉE DU RÔLE
-    // ============================================================
     const roleSelect = document.getElementById('edit-role');
     if (roleSelect) {
-        // A. On s'assure que le menu contient tous les rôles de la BDD
+        // ON FORCE LA GÉNÉRATION DES OPTIONS IMMÉDIATEMENT
         const roles = window.activeRolesList || [];
-        if (roles.length > 0) {
-            roleSelect.innerHTML = '<option value="">-- Sélectionner --</option>' + 
-                roles.map(r => `<option value="${r.role_name}">${r.role_name}</option>`).join('');
-        }
+        roleSelect.innerHTML = '<option value="">-- Sélectionner --</option>' + 
+            roles.map(r => `<option value="${r.role_name}">${r.role_name}</option>`).join('');
+    }
 
-        // B. On normalise la valeur (Suppression des espaces invisibles)
-        const dbRole = String(e.role || '').trim();
+    // --- PETIT DÉLAI DE SÉCURITÉ POUR LE RENDU ---
+    setTimeout(() => {
+        // 1. Manager & Scope
+        const mgrSelect = document.getElementById('edit-manager');
+        if(mgrSelect) mgrSelect.value = e.manager_id || "";
+        const scopeInput = document.getElementById('edit-scope');
+        if(scopeInput) scopeInput.value = (e.scope || []).join(', ');
 
-        // C. On tente de sélectionner la valeur exacte
-        roleSelect.value = dbRole;
-
-        // D. FALLBACK : Si le select ne l'a pas pris (valeur vide), on tente en ignorant la casse
-        if (!roleSelect.value || roleSelect.selectedIndex <= 0) {
-            const options = Array.from(roleSelect.options);
-            const matchingOption = options.find(opt => opt.value.trim().toUpperCase() === dbRole.toUpperCase());
-            if (matchingOption) {
-                roleSelect.value = matchingOption.value;
+        // 2. Type & Statut
+        document.getElementById('edit-type').value = e.employee_type || 'OFFICE';
+        document.getElementById('edit-statut').value = e.statut || 'Actif';
+        
+        // 3. RÔLE (FORÇAGE)
+        if (roleSelect) {
+            const roleToSet = String(e.role || '').trim();
+            roleSelect.value = roleToSet;
+            
+            // Si ça n'a pas marché (valeur vide), on force via l'index
+            if (!roleSelect.value) {
+                const options = Array.from(roleSelect.options);
+                const index = options.findIndex(opt => opt.value.toUpperCase() === roleToSet.toUpperCase());
+                if (index !== -1) roleSelect.selectedIndex = index;
             }
         }
-    }
-    // ============================================================
 
-    // 3. Département & Contrat
-    const deptSelect = document.getElementById('edit-dept');
-    if(deptSelect) deptSelect.value = e.dept || 'IT & Tech';
+        // 4. Département & Contrat
+        const deptSelect = document.getElementById('edit-dept');
+        if(deptSelect) deptSelect.value = e.dept || 'IT & Tech';
+        const typeSelect = document.getElementById('edit-type-contrat');
+        if(typeSelect) typeSelect.value = e.limit || '365';
+        
+        const dateInput = document.getElementById('edit-start-date');
+        if (dateInput) {
+            dateInput.value = e.date ? convertToInputDate(e.date) : new Date().toISOString().split('T')[0];
+        }
 
-    const typeSelect = document.getElementById('edit-type-contrat');
-    if(typeSelect) typeSelect.value = e.limit || '365';
-    
-    const dateInput = document.getElementById('edit-start-date');
-    if (dateInput) {
-        dateInput.value = e.date ? convertToInputDate(e.date) : new Date().toISOString().split('T')[0];
-    }
+        // 5. Finances
+        if(document.getElementById('edit-salaire-fixe')) document.getElementById('edit-salaire-fixe').value = e.salaire_base_fixe || 0;
+        if(document.getElementById('edit-indemnite-transport')) document.getElementById('edit-indemnite-transport').value = e.indemnite_transport || 0;
+        if(document.getElementById('edit-indemnite-logement')) document.getElementById('edit-indemnite-logement').value = e.indemnite_logement || 0;
 
-    // 4. Finances
-    const inputSalaire = document.getElementById('edit-salaire-fixe');
-    const inputTransport = document.getElementById('edit-indemnite-transport');
-    const inputLogement = document.getElementById('edit-indemnite-logement');
-
-    if(inputSalaire) inputSalaire.value = e.salaire_base_fixe || 0;
-    if(inputTransport) inputTransport.value = e.indemnite_transport || 0;
-    if(inputLogement) inputLogement.value = e.indemnite_logement || 0;
-
-    const initCheck = document.getElementById('edit-init-check');
-    if(initCheck) initCheck.checked = false;
+        document.getElementById('edit-init-check').checked = false;
+        
+        console.log("Rôle final affiché dans le menu:", roleSelect.value);
+    }, 50); 
 }
-
 
 
 function updatePaginationUI(containerId, meta, callbackName) {
