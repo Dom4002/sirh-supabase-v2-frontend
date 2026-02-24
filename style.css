@@ -1,210 +1,211 @@
 /* ============================================================
-        1. VARIABLES DE MARQUE & SYSTÈME DESIGN (ROOT)
-        ============================================================ */
-        :root {
-            /* Couleurs de base */
-            --primary: #0f172a;
-            --accent: #2563eb;
-            --font-main: 'Plus Jakarta Sans', sans-serif;
-            --base-size: 16px;
-            
-            /* Échelle d'arrondis Premium */
-            --radius-sm: 0.5rem;   /* 8px */
-            --radius-md: 1rem;     /* 16px */
-            --radius-lg: 1.5rem;   /* 24px */
-            --radius-xl: 2.25rem;  /* 36px */
-            --radius-full: 9999px;
+   1. VARIABLES DE MARQUE & SYSTÈME DESIGN (ROOT)
+============================================================ */
+:root {
+    /* Couleurs de base */
+    --primary: #0f172a;
+    --accent: #2563eb;
+    --font-main: 'Plus Jakarta Sans', sans-serif;
+    --base-size: 16px;
+    
+    /* Échelle d'arrondis Premium */
+    --radius-sm: 0.5rem;   /* 8px */
+    --radius-md: 1rem;     /* 16px */
+    --radius-lg: 1.5rem;   /* 24px */
+    --radius-xl: 2.25rem;  /* 36px */
+    --radius-full: 9999px;
 
-            /* Ombres douces (Soft Shadows) */
-            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.05);
-            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.04), 0 4px 6px -4px rgb(0 0 0 / 0.04);
-            --shadow-premium: 0 20px 25px -5px rgb(0 0 0 / 0.05), 0 8px 10px -6px rgb(0 0 0 / 0.05);
+    /* Ombres douces (Soft Shadows) */
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.04), 0 4px 6px -4px rgb(0 0 0 / 0.04);
+    --shadow-premium: 0 20px 25px -5px rgb(0 0 0 / 0.05), 0 8px 10px -6px rgb(0 0 0 / 0.05);
 
-            /* Couleurs de texte calculées par JS */
-            --text-on-primary: #ffffff;
-            --text-on-accent: #ffffff;
+    /* Couleurs de texte calculées par JS */
+    --text-on-primary: #ffffff;
+    --text-on-accent: #ffffff;
 
-            /* Transitions */
-            --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
+    /* Transitions */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
 
-        /* ============================================================
-        2. DARK MODE ULTRA-MODERNE (Deep Slate & Navy)
-        ============================================================ */
-        body.dark-mode { 
-            background-color: #020617 !important; 
-            color: #f8fafc !important; 
-        }
-        
-        body.dark-mode aside { 
-            background-color: #020617 !important; 
-            border-right: 1px solid #1e293b !important; 
-        }
-        
-        body.dark-mode header, body.dark-mode .glass { 
-            background: rgba(2, 6, 23, 0.8) !important; 
-            border-bottom: 1px solid #1e293b !important; 
-            backdrop-filter: blur(16px) !important;
-        }
-        
-        body.dark-mode .bg-white, 
-        body.dark-mode section, 
-        body.dark-mode .bg-slate-50, 
-        body.dark-mode .bg-slate-100 {
-            background-color: #0f172a !important; 
-            border: 1px solid #1e293b !important; 
-            color: #f1f5f9 !important;
-            box-shadow: none !important;
-        }
+/* ============================================================
+   2. DARK MODE ULTRA-MODERNE (Deep Slate & Navy)
+============================================================ */
+body.dark-mode { 
+    background-color: #020617 !important; 
+    color: #f8fafc !important; 
+}
 
-        body.dark-mode input, body.dark-mode select, body.dark-mode textarea {
-            background-color: #1e293b !important; 
-            border: 1px solid #334155 !important; 
-            color: #ffffff !important;
-        }
+body.dark-mode aside { 
+    background-color: #020617 !important; 
+    border-right: 1px solid #1e293b !important; 
+}
 
-        body.dark-mode table thead { background-color: #1e293b !important; }
-        body.dark-mode table tbody tr:hover { background-color: #1e293b !important; }
-        body.dark-mode .text-slate-800, body.dark-mode .text-slate-900 { color: #f8fafc !important; }
+body.dark-mode header, body.dark-mode .glass { 
+    background: rgba(2, 6, 23, 0.8) !important; 
+    border-bottom: 1px solid #1e293b !important; 
+    backdrop-filter: blur(16px) !important;
+}
 
-        /* ============================================================
-        3. LAYOUT & BARRES DE SCROLL
-        ============================================================ */
-        html, body { 
-            background-color: #f8fafc; /* Fond clair par défaut */
-            font-family: var(--font-main); 
-            font-size: var(--base-size);
-            scroll-behavior: smooth;
-        }
+body.dark-mode .bg-white, 
+body.dark-mode section, 
+body.dark-mode .bg-slate-50, 
+body.dark-mode .bg-slate-100 {
+    background-color: #0f172a !important; 
+    border: 1px solid #1e293b !important; 
+    color: #f1f5f9 !important;
+    box-shadow: none !important;
+}
 
-        /* Scrollbar Invisible mais Fonctionnelle */
-        ::-webkit-scrollbar { width: 4px; height: 4px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { 
-            background: rgba(15, 23, 42, 0.08); 
-            border-radius: var(--radius-full); 
-        }
-        *:hover::-webkit-scrollbar-thumb { background: rgba(15, 23, 42, 0.15); }
-        body.dark-mode ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); }
+body.dark-mode input, body.dark-mode select, body.dark-mode textarea {
+    background-color: #1e293b !important; 
+    border: 1px solid #334155 !important; 
+    color: #ffffff !important;
+}
 
-        /* ============================================================
-        4. ANIMATIONS & TRANSITIONS DE VUES
-        ============================================================ */
-        .view-section { 
-            display: none !important; 
-            opacity: 0; 
-            transform: translateY(10px);
-        }
-        
-        .view-section.active { 
-            display: block !important; 
-            opacity: 1; 
-            transform: translateY(0);
-            animation: premiumFadeIn 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards; 
-        }
-        
-        @keyframes premiumFadeIn {
-            from { opacity: 0; transform: translateY(12px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
+body.dark-mode table thead { background-color: #1e293b !important; }
+body.dark-mode table tbody tr:hover { background-color: #1e293b !important; }
+body.dark-mode .text-slate-800, body.dark-mode .text-slate-900 { color: #f8fafc !important; }
 
-        /* Micro-interactions Boutons */
-        button, .nav-btn {
-            transition: var(--transition-smooth);
-            cursor: pointer;
-        }
+/* ============================================================
+   3. LAYOUT & BARRES DE SCROLL
+============================================================ */
+html, body { 
+    background-color: #f8fafc; 
+    font-family: var(--font-main); 
+    font-size: var(--base-size);
+    scroll-behavior: smooth;
+    /* Important pour éviter le scroll sur mobile quand la sidebar est ouverte */
+    overflow-x: hidden; 
+}
 
-        button:active { transform: scale(0.96); }
+/* Scrollbar Invisible mais Fonctionnelle */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { 
+    background: rgba(15, 23, 42, 0.08); 
+    border-radius: var(--radius-full); 
+}
+*:hover::-webkit-scrollbar-thumb { background: rgba(15, 23, 42, 0.15); }
+body.dark-mode ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); }
 
-        /* ============================================================
-        5. COMPOSANTS (CARDS, MODALS, INPUTS)
-        ============================================================ */
-        
-        /* Modals & SweetAlert */
-        .swal2-popup {
-            border-radius: var(--radius-xl) !important;
-            padding: 2.5rem !important;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
-        }
+/* ============================================================
+   4. ANIMATIONS & TRANSITIONS DE VUES
+============================================================ */
+.view-section { 
+    display: none !important; 
+    opacity: 0; 
+    transform: translateY(10px);
+}
 
-        /* Protéger les petites notifications (Toasts) de la taille géante */
-        .swal2-toast {
-            padding: 1rem !important;          /* On réduit les marges internes */
-            border-radius: 0.75rem !important; /* Arrondi plus léger et élégant */
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1) !important;
-            font-size: 0.85rem !important;     /* Police un peu plus fine */
-            width: auto !important;
-        }
+.view-section.active { 
+    display: block !important; 
+    opacity: 1; 
+    transform: translateY(0);
+    animation: premiumFadeIn 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards; 
+}
 
-        /* Style des cartes */
-        .bg-white { 
-            border-radius: var(--radius-lg); 
-            box-shadow: var(--shadow-lg);
-            border: 1px solid rgba(226, 232, 240, 0.6);
-        }
+@keyframes premiumFadeIn {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+}
 
-        /* Inputs & Selects */
-        input, select, textarea {
-            border-radius: var(--radius-md) !important;
-            transition: var(--transition-smooth) !important;
-        }
+/* Micro-interactions Boutons */
+button, .nav-btn {
+    transition: var(--transition-smooth);
+    cursor: pointer;
+}
 
-        input:focus, select:focus, textarea:focus {
-            ring: 2px;
-            ring-color: var(--accent);
-            border-color: var(--accent) !important;
-        }
+button:active { transform: scale(0.96); }
 
-        /* Glassmorphism */
-        .glass {
-            background: rgba(255, 255, 255, 0.8);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-        }
+/* ============================================================
+   5. COMPOSANTS (CARDS, MODALS, INPUTS)
+============================================================ */
 
-        /* ============================================================
-        6. BRANDING & RÔLES
-        ============================================================ */
-        aside { background-color: var(--primary) !important; color: var(--text-on-primary) !important; }
-        .nav-btn.bg-blue-600, #btn-login, .bg-blue-600 { background-color: var(--accent) !important; color: var(--text-on-accent) !important; }
+/* Modals & SweetAlert */
+.swal2-popup {
+    border-radius: var(--radius-xl) !important;
+    padding: 2.5rem !important;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
+}
 
-        .admin-only, .rh-only, .management-only { display: none !important; }
-        body.role-admin .admin-only, body.role-admin .rh-only, body.role-admin .management-only { display: block !important; } 
-        body.role-rh .rh-only, body.role-rh .management-only { display: block !important; }       
-        body.role-manager .management-only { display: block !important; }
+/* Protéger les petites notifications (Toasts) de la taille géante */
+.swal2-toast {
+    padding: 1rem !important;          
+    border-radius: 0.75rem !important; 
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1) !important;
+    font-size: 0.85rem !important;     
+    width: auto !important;
+}
 
-        /* Squelettes Animés */
-        .skeleton { 
-            background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%); 
-            background-size: 200% 100%; 
-            animation: skeleton-loading 1.8s infinite ease-in-out; 
-        }
-        @keyframes skeleton-loading { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+/* Style des cartes */
+.bg-white { 
+    border-radius: var(--radius-lg); 
+    box-shadow: var(--shadow-lg);
+    border: 1px solid rgba(226, 232, 240, 0.6);
+}
 
-        /* Privacy & Sensitive Data */
-        .sensitive-value {
-            filter: blur(6px);
-            transition: filter 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            cursor: pointer;
-            background-color: rgba(226, 232, 240, 0.4);
-            padding: 2px 8px;
-            border-radius: var(--radius-sm);
-            display: inline-block;
-        }
+/* Inputs & Selects */
+input, select, textarea {
+    border-radius: var(--radius-md) !important;
+    transition: var(--transition-smooth) !important;
+}
 
-        .sensitive-value.revealed {
-            filter: blur(0);
-            background-color: transparent;
-        }
+input:focus, select:focus, textarea:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: -1px;
+    border-color: var(--accent) !important;
+}
 
-        /* Barre de progression Loader */
-        @keyframes bar-slide {
-            0% { left: -40%; width: 30%; }
-            50% { width: 60%; }
-            100% { left: 100%; width: 30%; }
-        }
+/* Glassmorphism */
+.glass {
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
 
+/* ============================================================
+   6. BRANDING & RÔLES
+============================================================ */
+aside { background-color: var(--primary) !important; color: var(--text-on-primary) !important; }
+.nav-btn.bg-blue-600, #btn-login, .bg-blue-600 { background-color: var(--accent) !important; color: var(--text-on-accent) !important; }
+
+.admin-only, .rh-only, .management-only { display: none !important; }
+body.role-admin .admin-only, body.role-admin .rh-only, body.role-admin .management-only { display: block !important; } 
+body.role-rh .rh-only, body.role-rh .management-only { display: block !important; }       
+body.role-manager .management-only { display: block !important; }
+
+/* Squelettes Animés */
+.skeleton { 
+    background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%); 
+    background-size: 200% 100%; 
+    animation: skeleton-loading 1.8s infinite ease-in-out; 
+}
+@keyframes skeleton-loading { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+/* Privacy & Sensitive Data */
+.sensitive-value {
+    filter: blur(6px);
+    transition: filter 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+    background-color: rgba(226, 232, 240, 0.4);
+    padding: 2px 8px;
+    border-radius: var(--radius-sm);
+    display: inline-block;
+}
+
+.sensitive-value.revealed {
+    filter: blur(0);
+    background-color: transparent;
+}
+
+/* Barre de progression Loader */
+@keyframes bar-slide {
+    0% { left: -40%; width: 30%; }
+    50% { width: 60%; }
+    100% { left: 100%; width: 30%; }
+}
 
 /* --- HARMONISATION DES BOUTONS (STYLE SAAS PREMIUM) --- */
 button[onclick^="switchView"], 
@@ -212,10 +213,10 @@ button[onclick^="handle"],
 button[onclick^="open"], 
 button[type="submit"],
 #btn-clock {
-    border-radius: 0.5rem !important; /* Arrondi léger et pro (rounded-lg) */
-    font-weight: 600 !important;      /* Semi-gras au lieu de très gras */
-    font-size: 0.85rem !important;    /* Taille ajustée */
-    text-transform: none !important;  /* On enlève le tout majuscule, c'est plus lisible */
+    border-radius: 0.5rem !important; 
+    font-weight: 600 !important;      
+    font-size: 0.85rem !important;    
+    text-transform: none !important;  
     letter-spacing: normal !important; 
     transition: all 0.2s ease-in-out !important;
     cursor: pointer !important;
@@ -223,15 +224,13 @@ button[type="submit"],
     align-items: center !important;
     justify-content: center !important;
     gap: 6px !important;
-    padding: 8px 16px !important; /* Padding beaucoup plus fin */
+    padding: 8px 16px !important; 
 }
 
-/* Boutons d'action dans les formulaires (ex: le gros bouton noir) */
 button[type="submit"] {
     padding: 12px 20px !important;
     font-size: 0.9rem !important;
 }
-
 
 /* Animation fluide pour la sidebar */
 #sidebar {
@@ -240,7 +239,7 @@ button[type="submit"] {
 
 /* Quand la sidebar est masquée sur PC, elle ne doit pas prendre de place */
 #sidebar.-translate-x-full {
-    position: fixed; /* Elle sort du flux pour que le contenu s'élargisse */
+    position: fixed; 
 }
 
 /* On force les boutons du menu à écouter le JavaScript */
@@ -248,13 +247,11 @@ button[type="submit"] {
     font-size: var(--base-size) !important;
 }
 
-/* On ajuste la taille des icônes pour qu'elles suivent le texte */
 .nav-btn i {
     font-size: calc(var(--base-size) * 1.2) !important;
     width: calc(var(--base-size) * 1.5) !important;
 }
 
-/* On ajuste aussi les titres de rubriques (Personnel, Gestion, etc.) */
 .menu-group p {
     font-size: calc(var(--base-size) * 0.8) !important;
     margin-bottom: 0.5rem;
@@ -266,33 +263,54 @@ button[type="submit"] {
     box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1) !important;
 }
 
+/* ============================================================
+   7. GESTION DU CHARGEMENT & OVERLAYS (CORRECTION ÉCRAN FUMÉ)
+============================================================ */
 
-/* 1. L'application est visible par défaut, mais prête pour une transition fluide */
+/* L'application est visible par défaut, mais prête pour une transition fluide */
 #app-layout {
     opacity: 0;
     transition: opacity 0.5s ease-in-out;
 }
 
-/* 2. Quand on ajoute 'ready', elle devient opaque */
+/* Quand on ajoute 'ready', elle devient opaque */
 #app-layout.ready {
     opacity: 1 !important;
 }
 
-/* 3. LE LOADER : Il doit être bleu nuit et couvrir tout l'écran */
+/* LE LOADER : Il doit être bleu nuit et couvrir tout l'écran */
 #initial-loader {
     position: fixed;
     inset: 0;
     z-index: 9999;
-    background-color: #0f172a !important; /* Force ta couleur bleu nuit */
+    background-color: #0f172a !important; 
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     opacity: 1;
-    transition: opacity 0.4s ease-out;
+    transition: opacity 0.4s ease-out, transform 0.4s ease-out;
+    pointer-events: auto; /* Bloque les clics tant qu'il est là */
 }
 
-/* 4. Quand on cache le loader */
+/* Quand on cache le loader (Animation de sortie) */
+#initial-loader.fade-out {
+    opacity: 0;
+    transform: scale(1.1);
+    pointer-events: none; /* CRUCIAL : Libère l'écran pour cliquer en dessous */
+}
+
 #initial-loader.hidden {
     display: none !important;
+    pointer-events: none;
+}
+
+/* GESTION DE L'OVERLAY SIDEBAR (MOBILE) */
+#sidebar-overlay {
+    z-index: 40; /* Doit être sous la sidebar (z-50) mais sur le contenu */
+}
+
+/* SÉCURITÉ LOGIN : Le login doit être au-dessus de tout sauf du loader */
+#login-screen {
+    z-index: 9000; 
 }
