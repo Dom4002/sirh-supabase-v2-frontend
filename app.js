@@ -755,7 +755,9 @@ async function openAddScheduleModal() {
         // 3. LA MODALE DE PLANIFICATION (Style "Netreps" amélioré)
         const { value: form } = await Swal.fire({
             title: 'Planifier une visite',
-html: `
+            customClass: { popup: 'wide-modal' }, 
+
+            html: `
                 <div class="text-left">
                     <!-- Ligne 1 : Pour Qui ? (Pleine largeur) -->
                     <div class="mb-4">
@@ -2643,6 +2645,7 @@ async function handleClockInOut() {
 
         const { value: formResult } = await Swal.fire({
             title: 'Fin de visite',
+            customClass: { popup: 'wide-modal' },
             html: `
                 <!-- GRILLE PRINCIPALE : 2 Colonnes sur PC -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
@@ -8199,6 +8202,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
