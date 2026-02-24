@@ -3521,93 +3521,94 @@ function toggleSidebar() {
             
     
 
-
 async function openEditModal(id) {
     // 1. ON TROUVE L'EMPLOYÉ
     const e = employees.find(x => x.id === id);
+    if (!e) return;
+
+    // Mémorisation pour le "Partial Update"
+    currentEditingOriginal = { ...e };
+
+    document.getElementById('edit-modal').classList.remove('hidden');
+    document.getElementById('edit-id-hidden').value = id;
+
+    // --- GESTION DES BLOCS DE VISIBILITÉ ---
+    const perms = currentUser.permissions || {};
+    const blockStatus = document.getElementById('edit-block-status');
+    const blockContract = document.getElementById('edit-block-contract');
+    const blockHierarchy = document.getElementById('edit-block-hierarchy');
+
+    if (blockContract) blockContract.style.display = perms.can_manage_contracts ? 'block' : 'none';
+    if (blockHierarchy) blockHierarchy.style.display = perms.can_manage_contracts ? 'block' : 'none';
+    if (blockStatus) blockStatus.style.display = (perms.can_manage_contracts || perms.can_edit_employee_basic) ? 'block' : 'none';
     
-    if (e) {
-        // Mémorisation pour le "Partial Update"
-        currentEditingOriginal = { ...e };
+    // --- REMPLISSAGE DES DONNÉES ---
+    await populateManagerSelects(); 
 
-        document.getElementById('edit-modal').classList.remove('hidden');
-        document.getElementById('edit-id-hidden').value = id;
+    // 1. Manager & Scope
+    const mgrSelect = document.getElementById('edit-manager');
+    if(mgrSelect) mgrSelect.value = e.manager_id || "";
+    const scopeInput = document.getElementById('edit-scope');
+    if(scopeInput) scopeInput.value = (e.scope || []).join(', ');
 
-        // --- GESTION DES BLOCS DE SÉCURITÉ (Visibilité) ---
-        const perms = currentUser.permissions || {};
-        const blockStatus = document.getElementById('edit-block-status');
-        const blockContract = document.getElementById('edit-block-contract');
-        const blockHierarchy = document.getElementById('edit-block-hierarchy');
-
-        if (blockContract) blockContract.style.display = perms.can_manage_contracts ? 'block' : 'none';
-        if (blockHierarchy) blockHierarchy.style.display = perms.can_manage_contracts ? 'block' : 'none';
-        if (blockStatus) blockStatus.style.display = (perms.can_manage_contracts || perms.can_edit_employee_basic) ? 'block' : 'none';
-        
-        // --- CHARGEMENT DES DONNÉES ---
-        await populateManagerSelects(); 
-
-        // 1. Manager & Scope
-        const mgrSelect = document.getElementById('edit-manager');
-        if(mgrSelect) mgrSelect.value = e.manager_id || "";
+    // 2. Type & Statut
+    document.getElementById('edit-type').value = e.employee_type || 'OFFICE';
+    document.getElementById('edit-statut').value = e.statut || 'Actif';
     
-        const scopeInput = document.getElementById('edit-scope');
-        if(scopeInput) scopeInput.value = (e.scope || []).join(', ');
-
-        // 2. Type & Statut
-        document.getElementById('edit-type').value = e.employee_type || 'OFFICE';
-        document.getElementById('edit-statut').value = e.statut || 'Actif';
-        
-        // --- CORRECTION RÔLE : FORCAGE DE LA VALEUR ---
-        const roleSelect = document.getElementById('edit-role');
-        if(roleSelect) {
-            // A. On s'assure que la liste est bien remplie avec les rôles globaux
-            if (window.activeRolesList && window.activeRolesList.length > 0) {
-                // On regénère les options pour être sûr qu'elles sont là
-                const opts = window.activeRolesList.map(r => `<option value="${r.role_name}">${r.role_name}</option>`).join('');
-                roleSelect.innerHTML = `<option value="">-- Sélectionner --</option>` + opts;
-            }
-            
-            // B. On nettoie la valeur de la BDD (Suppression espaces + conversion string)
-            const dbRole = String(e.role || 'EMPLOYEE').trim();
-            
-            // C. On applique la valeur
-            roleSelect.value = dbRole;
-
-            // D. Sécurité : Si après avoir mis la valeur, le select est toujours vide (pas de match), 
-            // c'est qu'il y a une différence de majuscule/minuscule. On essaie de forcer.
-            if (!roleSelect.value) {
-                // On cherche l'option qui ressemble le plus (insensible à la casse)
-                const options = Array.from(roleSelect.options);
-                const match = options.find(opt => opt.value.toUpperCase() === dbRole.toUpperCase());
-                if (match) roleSelect.value = match.value;
-            }
-        }
-        
-        // 3. Département & Contrat
-        const deptSelect = document.getElementById('edit-dept');
-        if(deptSelect) deptSelect.value = e.dept || 'IT & Tech';
-
-        const typeSelect = document.getElementById('edit-type-contrat');
-        if(typeSelect) typeSelect.value = e.limit || '365';
-        
-        const dateInput = document.getElementById('edit-start-date');
-        if (dateInput) {
-            dateInput.value = e.date ? convertToInputDate(e.date) : new Date().toISOString().split('T')[0];
+    // ============================================================
+    // 🛡️ FOCUS : SYNCHRONISATION FORCÉE DU RÔLE
+    // ============================================================
+    const roleSelect = document.getElementById('edit-role');
+    if (roleSelect) {
+        // A. On s'assure que le menu contient tous les rôles de la BDD
+        const roles = window.activeRolesList || [];
+        if (roles.length > 0) {
+            roleSelect.innerHTML = '<option value="">-- Sélectionner --</option>' + 
+                roles.map(r => `<option value="${r.role_name}">${r.role_name}</option>`).join('');
         }
 
-        // 4. Finances
-        const inputSalaire = document.getElementById('edit-salaire-fixe');
-        const inputTransport = document.getElementById('edit-indemnite-transport');
-        const inputLogement = document.getElementById('edit-indemnite-logement');
+        // B. On normalise la valeur (Suppression des espaces invisibles)
+        const dbRole = String(e.role || '').trim();
 
-        if(inputSalaire) inputSalaire.value = e.salaire_base_fixe || 0;
-        if(inputTransport) inputTransport.value = e.indemnite_transport || 0;
-        if(inputLogement) inputLogement.value = e.indemnite_logement || 0;
+        // C. On tente de sélectionner la valeur exacte
+        roleSelect.value = dbRole;
 
-        const initCheck = document.getElementById('edit-init-check');
-        if(initCheck) initCheck.checked = false;
+        // D. FALLBACK : Si le select ne l'a pas pris (valeur vide), on tente en ignorant la casse
+        if (!roleSelect.value || roleSelect.selectedIndex <= 0) {
+            const options = Array.from(roleSelect.options);
+            const matchingOption = options.find(opt => opt.value.trim().toUpperCase() === dbRole.toUpperCase());
+            if (matchingOption) {
+                roleSelect.value = matchingOption.value;
+            }
+        }
     }
+    // ============================================================
+
+    // 3. Département & Contrat
+    const deptSelect = document.getElementById('edit-dept');
+    if(deptSelect) deptSelect.value = e.dept || 'IT & Tech';
+
+    const typeSelect = document.getElementById('edit-type-contrat');
+    if(typeSelect) typeSelect.value = e.limit || '365';
+    
+    const dateInput = document.getElementById('edit-start-date');
+    if (dateInput) {
+        dateInput.value = e.date ? convertToInputDate(e.date) : new Date().toISOString().split('T')[0];
+    }
+
+    // 4. Finances
+    const inputSalaire = document.getElementById('edit-salaire-fixe');
+    const inputTransport = document.getElementById('edit-indemnite-transport');
+    const inputLogement = document.getElementById('edit-indemnite-logement');
+
+    if(inputSalaire) inputSalaire.value = e.salaire_base_fixe || 0;
+    if(inputTransport) inputTransport.value = e.indemnite_transport || 0;
+    if(inputLogement) inputLogement.value = e.indemnite_logement || 0;
+
+    const initCheck = document.getElementById('edit-init-check');
+    if(initCheck) initCheck.checked = false;
 }
+
 
 
 function updatePaginationUI(containerId, meta, callbackName) {
@@ -8129,6 +8130,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
