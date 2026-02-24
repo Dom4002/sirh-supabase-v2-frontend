@@ -12,6 +12,8 @@
 let logsPage = 1;
 let logsTotalPages = 1;
 
+let currentEditingOriginal = null;
+
 // Fonction utilitaire pour compresser les images avant l'upload
 async function compressImage(file, maxWidth = 1200, quality = 0.7) {
     return new Promise((resolve) => {
@@ -3470,41 +3472,36 @@ function toggleSidebar() {
             function convertToInputDate(dStr){if(!dStr) return ""; if(dStr.match(/^\d{4}-\d{2}-\d{2}$/)) return dStr; if(dStr.includes('/')){const p=dStr.split('/'); return `${p[2]}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}`;} return "";}
             
     
+
+
 async function openEditModal(id) {
     // 1. ON TROUVE L'EMPLOYÉ EN PREMIER
     const e = employees.find(x => x.id === id);
     
     if (e) {
+        // --- NOUVEAU : On mémorise l'état original pour permettre la comparaison ---
+        // On crée une copie indépendante de l'objet pour ne pas polluer la liste globale
+        currentEditingOriginal = { ...e };
+
         // 2. On affiche la modale
         document.getElementById('edit-modal').classList.remove('hidden');
         document.getElementById('edit-id-hidden').value = id;
 
-        // --- DEBUT DU BLOC DE PROTECTION STRATÉGIQUE ---
+        // --- DEBUT DU BLOC DE PROTECTION STRATÉGIQUE (Inchangé) ---
         const perms = currentUser.permissions || {};
         const blockStatus = document.getElementById('edit-block-status');
         const blockContract = document.getElementById('edit-block-contract');
         const blockHierarchy = document.getElementById('edit-block-hierarchy');
 
-        // Seul le DRH (can_manage_contracts) voit le bloc Contrat/Salaire
-        if (blockContract) {
-            blockContract.style.display = perms.can_manage_contracts ? 'block' : 'none';
-        }
-
-        // Seul le DRH (can_manage_contracts) voit le bloc Hiérarchie/Manager
-        if (blockHierarchy) {
-            blockHierarchy.style.display = perms.can_manage_contracts ? 'block' : 'none';
-        }
-
-        // Le bloc statut (Rôle/Dép) est visible pour le DRH OU pour l'édition de base
-        if (blockStatus) {
-            blockStatus.style.display = (perms.can_manage_contracts || perms.can_edit_employee_basic) ? 'block' : 'none';
-        }
+        if (blockContract) blockContract.style.display = perms.can_manage_contracts ? 'block' : 'none';
+        if (blockHierarchy) blockHierarchy.style.display = perms.can_manage_contracts ? 'block' : 'none';
+        if (blockStatus) blockStatus.style.display = (perms.can_manage_contracts || perms.can_edit_employee_basic) ? 'block' : 'none';
         // --- FIN DU BLOC DE PROTECTION ---
 
         // 3. Charger la liste des managers
         await populateManagerSelects(); 
 
-        // 4. Remplissage des données (Logique originale conservée + Ajout Finances)
+        // 4. Remplissage des données (Logique originale conservée)
         const mgrSelect = document.getElementById('edit-manager');
         if(mgrSelect) mgrSelect.value = e.manager_id || "";
     
@@ -3528,7 +3525,6 @@ async function openEditModal(id) {
             dateInput.value = e.date ? convertToInputDate(e.date) : new Date().toISOString().split('T')[0];
         }
 
-        // --- NOUVEAU : Remplissage des montants financiers ---
         const inputSalaire = document.getElementById('edit-salaire-fixe');
         const inputTransport = document.getElementById('edit-indemnite-transport');
         const inputLogement = document.getElementById('edit-indemnite-logement');
@@ -3541,6 +3537,8 @@ async function openEditModal(id) {
         if(initCheck) initCheck.checked = false;
     }
 }
+
+
 
 function updatePaginationUI(containerId, meta, callbackName) {
     const footer = document.getElementById(containerId);
@@ -3573,54 +3571,86 @@ async function submitUpdate(e) {
     e.preventDefault(); 
     const id = document.getElementById('edit-id-hidden').value;
     
-    // Récupération des valeurs existantes
-    const statut = document.getElementById('edit-statut').value;
-    const role = document.getElementById('edit-role') ? document.getElementById('edit-role').value : 'EMPLOYEE';
-    const dept = document.getElementById('edit-dept') ? document.getElementById('edit-dept').value : '';
-    const typeContrat = document.getElementById('edit-type-contrat').value;
-    const typeActivité = document.getElementById('edit-type').value;
-    const newStartDate = document.getElementById('edit-start-date').value;
-    const forceInit = document.getElementById('edit-init-check').checked;
+    // 1. Récupération des valeurs actuelles du formulaire
+    const newVal = {
+        statut: document.getElementById('edit-statut').value,
+        role: document.getElementById('edit-role').value,
+        dept: document.getElementById('edit-dept').value,
+        limit: document.getElementById('edit-type-contrat').value,
+        employee_type: document.getElementById('edit-type').value,
+        start_date: document.getElementById('edit-start-date').value,
+        manager_id: document.getElementById('edit-manager').value || null,
+        salaire: document.getElementById('edit-salaire-fixe').value,
+        transport: document.getElementById('edit-indemnite-transport').value,
+        logement: document.getElementById('edit-indemnite-logement').value
+    };
 
-    // --- NOUVEAU : Récupération des données financières ---
-    const salaire = document.getElementById('edit-salaire-fixe').value;
-    const transport = document.getElementById('edit-indemnite-transport').value;
-    const logement = document.getElementById('edit-indemnite-logement').value;
+    // 2. Construction de l'objet de modifications (Delta)
+    const changes = {};
 
-    Swal.fire({title: 'Mise à jour...', text: 'Synchronisation...', allowOutsideClick: false, didOpen: () => Swal.showLoading()}); 
+    // Comparaison des champs de base
+    if (newVal.statut !== currentEditingOriginal.statut) changes.statut = newVal.statut;
+    if (newVal.role !== currentEditingOriginal.role) changes.role = newVal.role;
+    if (newVal.dept !== currentEditingOriginal.dept) changes.dept = newVal.dept;
+    if (newVal.employee_type !== currentEditingOriginal.employee_type) changes.employee_type = newVal.employee_type;
     
-    const managerId = document.getElementById('edit-manager').value;
+    // Comparaison du manager (attention au type null/string)
+    if (newVal.manager_id != currentEditingOriginal.manager_id) {
+        changes.manager_id = newVal.manager_id;
+    }
+
+    // Gestion de la hiérarchie (Scope)
     const scopeVal = document.getElementById('edit-scope').value;
     const scopeArray = scopeVal ? scopeVal.split(',').map(s=>s.trim()) : [];
+    if (JSON.stringify(scopeArray) !== JSON.stringify(currentEditingOriginal.scope || [])) {
+        changes.scope = JSON.stringify(scopeArray);
+    }
 
-    // Construction des paramètres pour Supabase
+    // --- LOGIQUE CONTRAT ---
+    // Si la date de début ou la durée change, on signale qu'il faut recalculer la date de fin
+    const originalDate = convertToInputDate(currentEditingOriginal.date);
+    if (newVal.start_date !== originalDate || newVal.limit !== currentEditingOriginal.limit) {
+        changes.start_date = newVal.start_date;
+        changes.limit = newVal.limit;
+        changes.recalculate_contract = "true"; // Signal pour le serveur
+    }
+
+    // --- LOGIQUE FINANCES ---
+    if (parseFloat(newVal.salaire) !== parseFloat(currentEditingOriginal.salaire_base_fixe))
+        changes.salaire_brut_fixe = newVal.salaire;
+    
+    if (parseFloat(newVal.transport) !== parseFloat(currentEditingOriginal.indemnite_transport))
+        changes.indemnite_transport = newVal.transport;
+
+    if (parseFloat(newVal.logement) !== parseFloat(currentEditingOriginal.indemnite_logement))
+        changes.indemnite_logement = newVal.logement;
+
+    // Checkbox spéciale
+    const forceInit = document.getElementById('edit-init-check').checked;
+
+    // 3. SÉCURITÉ : Si rien n'a changé, on arrête
+    if (Object.keys(changes).length === 0 && !forceInit) {
+        Swal.fire('Info', 'Aucune modification détectée.', 'info');
+        closeEditModal();
+        return;
+    }
+
+    // 4. ENVOI DES DONNÉES CIBLÉES
+    Swal.fire({title: 'Mise à jour...', text: 'Synchronisation...', allowOutsideClick: false, didOpen: () => Swal.showLoading()}); 
+
     const params = new URLSearchParams({
         id: id,
         agent: currentUser.nom,
-        statut: statut,
-        role: role,
-        dept: dept,
-        limit: typeContrat,
-        start_date: newStartDate,
-        employee_type: typeActivité, 
         force_init: forceInit,
-        manager_id: managerId,
-        scope: JSON.stringify(scopeArray),
-        // --- NOUVEAU : Envoi des montants financiers ---
-        salaire_brut_fixe: salaire,
-        indemnite_transport: transport,
-        indemnite_logement: logement
+        ...changes // On n'envoie que les clés présentes dans 'changes'
     });
 
     try {
         const response = await secureFetch(`${URL_UPDATE}?${params.toString()}`);
         if(response.ok) {
             closeEditModal(); 
-            await Swal.fire('Succès', 'Contrat et dossier mis à jour', 'success'); 
-
-            // Mise à jour globale (Liste + Graphiques + Stats)
+            await Swal.fire('Succès', 'Les modifications ont été enregistrées.', 'success'); 
             refreshAllData(true); 
-
         } else {
             throw new Error("Erreur serveur lors de la mise à jour");
         }
@@ -3628,7 +3658,11 @@ async function submitUpdate(e) {
         Swal.fire('Erreur', e.message, 'error'); 
     }
 }
-        
+
+
+
+
+
         function closeEditModal(){document.getElementById('edit-modal').classList.add('hidden');}
             
         async function printBadge(id) {
@@ -8022,6 +8056,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
