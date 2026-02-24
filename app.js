@@ -3031,9 +3031,9 @@ async function fetchMyActivityRecap() {
 
     try {
         const timeHack = Date.now();
-        const [visRes, daiRes] = await Promise.all([
-            secureFetch(`${SIRH_CONFIG.apiBaseUrl}/read-visit-reports?limit=1000&t=${timeHack}`), 
-            secureFetch(`${SIRH_CONFIG.apiBaseUrl}/read-daily-reports?limit=100&t=${timeHack}`)
+       const [visRes, daiRes] = await Promise.all([
+            secureFetch(`${SIRH_CONFIG.apiBaseUrl}/read-visit-reports?limit=1000&personal=true&t=${timeHack}`), 
+            secureFetch(`${SIRH_CONFIG.apiBaseUrl}/read-daily-reports?limit=100&personal=true&t=${timeHack}`)
         ]);
 
         const allVisits = await visRes.json();
@@ -8236,6 +8236,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
