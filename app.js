@@ -1884,7 +1884,10 @@ async function fetchData(forceUpdate = false, page = 1) {
 
     const CACHE_KEY = 'sirh_data_v1';
     const limit = 10; 
-    
+
+    if (forceUpdate) {
+        localStorage.removeItem('sirh_data_v1'); // On vide le vieux cache
+    }
     // --- NOUVEAU : Récupération centralisée des filtres ---
     // On utilise l'objet activeFilters (ou des valeurs par défaut si pas encore défini)
     const filters = typeof activeFilters !== 'undefined' ? activeFilters : {
@@ -3567,16 +3570,26 @@ async function openEditModal(id) {
         document.getElementById('edit-type').value = e.employee_type || 'OFFICE';
         document.getElementById('edit-statut').value = e.statut || 'Actif';
         
-        // 3. RÔLE (FORÇAGE)
-        if (roleSelect) {
-            const roleToSet = String(e.role || '').trim();
-            roleSelect.value = roleToSet;
+            // 3. RÔLE (FORÇAGE ET SÉCURITÉ)
+            if (roleSelect) {
+            // On récupère la valeur propre
+            const dbRole = String(e.role || '').trim().toUpperCase();
             
-            // Si ça n'a pas marché (valeur vide), on force via l'index
-            if (!roleSelect.value) {
-                const options = Array.from(roleSelect.options);
-                const index = options.findIndex(opt => opt.value.toUpperCase() === roleToSet.toUpperCase());
-                if (index !== -1) roleSelect.selectedIndex = index;
+            // On essaie de trouver le match exact dans les options du menu
+            let matchFound = false;
+            for (let i = 0; i < roleSelect.options.length; i++) {
+                if (roleSelect.options[i].value.toUpperCase() === dbRole) {
+                    roleSelect.selectedIndex = i;
+                    matchFound = true;
+                    break;
+                }
+            }
+
+            // Si le rôle de la BDD n'est pas trouvé dans la liste des options
+            if (!matchFound) {
+                console.warn("⚠️ Le rôle " + dbRole + " n'existe pas dans la config des permissions.");
+                // On peut décider de mettre une option vide pour forcer le choix
+                roleSelect.value = ""; 
             }
         }
 
@@ -8122,6 +8135,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
