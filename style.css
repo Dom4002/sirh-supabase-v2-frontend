@@ -119,50 +119,66 @@ button, .nav-btn {
 
 button:active { transform: scale(0.96); }
 
+
 /* ============================================================
-   5. COMPOSANTS (CARDS, MODALS, INPUTS)
+   5. COMPOSANTS (MODALS & SWEETALERT REVISITÉS PRO)
 ============================================================ */
 
-/* Modals & SweetAlert */
+/* Conteneur principal de la modale */
 .swal2-popup {
-    border-radius: var(--radius-xl) !important;
-    padding: 2.5rem !important;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
+    border-radius: 1.25rem !important; /* 20px : Arrondi élégant mais professionnel */
+    padding: 1.5rem !important;        /* 24px : Respire sans écraser le contenu */
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1) !important;
+    font-family: var(--font-main) !important;
 }
 
-/* Protéger les petites notifications (Toasts) de la taille géante */
-.swal2-toast {
-    padding: 1rem !important;          
-    border-radius: 0.75rem !important; 
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1) !important;
-    font-size: 0.85rem !important;     
-    width: auto !important;
+/* Le titre de la modale */
+.swal2-title {
+    font-size: 1.25rem !important; /* Un peu plus petit et subtil */
+    font-weight: 800 !important;
+    color: var(--primary) !important;
+    padding-top: 0 !important;
+    margin-bottom: 0.5rem !important;
 }
 
-/* Style des cartes */
-.bg-white { 
-    border-radius: var(--radius-lg); 
-    box-shadow: var(--shadow-lg);
-    border: 1px solid rgba(226, 232, 240, 0.6);
+/* Le contenu HTML (pour éviter que ça déborde) */
+.swal2-html-container {
+    margin: 1rem 0 0 0 !important;
+    overflow-x: hidden !important; /* Empêche le scroll horizontal accidentel */
 }
 
-/* Inputs & Selects */
-input, select, textarea {
-    border-radius: var(--radius-md) !important;
-    transition: var(--transition-smooth) !important;
+/* Standardiser les inputs SweetAlert pour qu'ils matchent avec le fond */
+.swal2-input, .swal2-textarea, .swal2-select, .swal2-file {
+    border-radius: 0.75rem !important; /* 12px */
+    border: 1px solid #e2e8f0 !important;
+    background-color: #f8fafc !important;
+    box-shadow: none !important;
+    font-size: 0.875rem !important; /* 14px - Lisible */
+    padding: 0.75rem 1rem !important;
+    width: 100% !important;
+    margin-top: 0.5rem !important;
+    margin-bottom: 1rem !important;
 }
 
-input:focus, select:focus, textarea:focus {
-    outline: 2px solid var(--accent);
-    outline-offset: -1px;
+.swal2-input:focus, .swal2-textarea:focus, .swal2-select:focus {
     border-color: var(--accent) !important;
+    background-color: #ffffff !important;
+    outline: none !important;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1) !important;
 }
 
-/* Glassmorphism */
-.glass {
-    background: rgba(255, 255, 255, 0.8);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+/* Actions (Boutons SweetAlert) */
+.swal2-actions {
+    margin-top: 1.5rem !important;
+    gap: 0.75rem !important;
+}
+
+.swal2-confirm, .swal2-cancel, .swal2-deny {
+    border-radius: 0.75rem !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.025em !important;
+    text-transform: none !important;
+    padding: 0.75rem 1.5rem !important;
 }
 
 /* ============================================================
@@ -314,4 +330,5 @@ button[type="submit"] {
 #login-screen {
     z-index: 9000; 
 }
+
 
