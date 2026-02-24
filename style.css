@@ -265,3 +265,44 @@ button[type="submit"] {
 #login-screen button {
     box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1) !important;
 }
+
+
+/* 1. État initial de l'application (Totalement invisible) */
+#app-layout {
+    opacity: 0;
+    transform: translateY(10px); /* Petit décalage vers le bas pour l'effet d'entrée */
+    transition: opacity 0.8s ease-in-out, transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+    visibility: hidden;
+}
+
+/* 2. État quand le chargement est fini (La classe 'ready' est ajoutée par le JS) */
+#app-layout.ready {
+    opacity: 1;
+    transform: translateY(0);
+    visibility: visible;
+}
+
+/* 3. Sécurité du Loader (Doit être au-dessus de TOUT) */
+#initial-loader {
+    position: fixed;
+    inset: 0;
+    z-index: 9999; /* Priorité maximale */
+    background-color: #0f172a; /* Ta couleur bleu nuit */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.6s ease-in-out, visibility 0.6s;
+}
+
+/* 4. Bloquer le scroll pendant que le loader est là */
+body.loading {
+    overflow: hidden !important;
+}
+
+/* 5. Animation de sortie du loader (Zoom arrière discret) */
+#initial-loader.fade-out {
+    opacity: 0;
+    transform: scale(1.1);
+    pointer-events: none;
+}
