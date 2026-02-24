@@ -149,6 +149,9 @@ button:active { transform: scale(0.96); }
 
 /* Standardiser les inputs SweetAlert pour qu'ils matchent avec le fond */
 .swal2-input, .swal2-textarea, .swal2-select, .swal2-file {
+    box-sizing: border-box !important; /* Gère le padding sans déborder */
+    height: auto !important;           /* Empêche d'écraser le texte des select */
+    line-height: 1.5 !important;       /* Donne de l'espace vertical aux lettres */
     border-radius: 0.75rem !important; /* 12px */
     border: 1px solid #e2e8f0 !important;
     background-color: #f8fafc !important;
@@ -158,6 +161,7 @@ button:active { transform: scale(0.96); }
     width: 100% !important;
     margin-top: 0.5rem !important;
     margin-bottom: 1rem !important;
+    color: #1e293b !important;
 }
 
 .swal2-input:focus, .swal2-textarea:focus, .swal2-select:focus {
@@ -330,5 +334,6 @@ button[type="submit"] {
 #login-screen {
     z-index: 9000; 
 }
+
 
 
