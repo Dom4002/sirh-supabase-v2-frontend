@@ -6329,6 +6329,11 @@ async function loadAccountingView() {
     const body = document.getElementById('accounting-table-body');
     if (!body) return;
 
+    // 0. Optionnel : Charger les taux fiscaux si pas encore fait
+    if (typeof fetchPayrollConstants === 'function' && Object.keys(payrollConstants).length === 0) {
+        await fetchPayrollConstants();
+    }
+
     // 1. Récupération des valeurs de TOUS les filtres
     const filters = {
         type: document.getElementById('filter-accounting-type').value,
@@ -6337,10 +6342,11 @@ async function loadAccountingView() {
         agent: currentUser.nom
     };
 
-    body.innerHTML = '<tr><td colspan="5" class="p-12 text-center"><i class="fa-solid fa-circle-notch fa-spin text-blue-600 text-3xl"></i><p class="text-[10px] font-black text-slate-400 uppercase mt-4">Filtrage des données en cours...</p></td></tr>';
+    // Note : On passe à colspan="6" car on a ajouté la colonne Indemnités
+    body.innerHTML = '<tr><td colspan="6" class="p-12 text-center"><i class="fa-solid fa-circle-notch fa-spin text-blue-600 text-3xl"></i><p class="text-[10px] font-black text-slate-400 uppercase mt-4">Filtrage des données en cours...</p></td></tr>';
 
     try {
-        // 2. Construction de l'URL de recherche (On utilise ta route /read déjà performante)
+        // 2. Construction de l'URL de recherche
         let url = `${SIRH_CONFIG.apiBaseUrl}/read?limit=1000&agent=${encodeURIComponent(filters.agent)}`;
         
         if (filters.type !== 'all') url += `&type=${filters.type}`;
@@ -6353,17 +6359,20 @@ async function loadAccountingView() {
 
         body.innerHTML = '';
         if (employeesToPay.length === 0) {
-            body.innerHTML = '<tr><td colspan="5" class="p-20 text-center text-slate-300 italic">Aucun collaborateur ne correspond à ces critères.</td></tr>';
+            body.innerHTML = '<tr><td colspan="6" class="p-20 text-center text-slate-300 italic">Aucun collaborateur ne correspond à ces critères.</td></tr>';
             return;
         }
 
-        // 3. Rendu du tableau (Même logique que précédemment)
+        // 3. Rendu du tableau
         employeesToPay.forEach((emp, index) => {
-        const totalIndemnites = (emp.indemnite_transport || 0) + (emp.indemnite_logement || 0);
+            // Calcul des indemnités contractuelles (Fixe)
+            const totalIndemnites = (parseFloat(emp.indemnite_transport) || 0) + (parseFloat(emp.indemnite_logement) || 0);
 
             body.innerHTML += `
                 <tr class="hover:bg-blue-50/50 transition-all accounting-row animate-fadeIn" 
                     data-search="${emp.nom.toLowerCase()} ${emp.matricule.toLowerCase()}">
+                    
+                    <!-- 1. COLLABORATEUR -->
                     <td class="px-6 py-5">
                         <div class="flex items-center gap-3">
                             <div class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-[10px] font-black text-slate-400">${emp.nom.charAt(0)}</div>
@@ -6373,38 +6382,57 @@ async function loadAccountingView() {
                             </div>
                         </div>
                     </td>
+
+                    <!-- 2. BASE (MODIFIABLE) -->
                     <td class="px-4 py-5 text-center">
-                        <input type="number" oninput="calculateRow(${index})" id="base-${index}" class="w-full p-2 bg-slate-50 border-none rounded-xl text-center font-black text-xs focus:bg-white focus:ring-2 focus:ring-blue-500" value="${emp.salaire_brut_fixe || 0}">
+                        <input type="number" oninput="calculateRow(${index})" id="base-${index}" 
+                               class="w-full p-2 bg-slate-50 border-none rounded-xl text-center font-black text-xs focus:ring-2 focus:ring-blue-500" 
+                               value="${emp.salaire_brut_fixe || 0}">
                     </td>
-                            <!-- NOUVELLE COLONNE : INDEMNITÉS (Automatique) -->
+
+                    <!-- 3. INDEMNITÉS FIXES (LECTURE SEULE - VIENT DU CONTRAT) -->
                     <td class="px-4 py-5 text-center">
-                        <div class="text-[11px] font-bold text-slate-500 bg-slate-100 rounded-lg py-2">
-                            <span id="indem-constante-${index}">${totalIndemnites}</span>
-                            <p class="text-[8px] opacity-50 uppercase">Transport + Log.</p>
+                        <div class="bg-indigo-50 border border-indigo-100 rounded-xl py-2 shadow-sm">
+                            <span id="indem-constante-${index}" class="text-indigo-700 font-black text-xs">${totalIndemnites}</span>
+                            <p class="text-[7px] text-indigo-400 font-bold uppercase tracking-tighter">Fixe (Transp+Log)</p>
                         </div>
                     </td>
                     
+                    <!-- 4. PRIMES VARIABLES (SAISIE) -->
                     <td class="px-4 py-5 text-center">
-                        <input type="number" oninput="calculateRow(${index})" id="prime-${index}" class="w-full p-2 bg-emerald-50 border-none rounded-xl text-center font-black text-xs text-emerald-600 focus:bg-white focus:ring-2 focus:ring-emerald-500" value="0">
+                        <input type="number" oninput="calculateRow(${index})" id="prime-${index}" 
+                               class="w-full p-2 bg-emerald-50 border-none rounded-xl text-center font-black text-xs text-emerald-600 focus:ring-2 focus:ring-emerald-500" 
+                               value="0">
                     </td>
+
+                    <!-- 5. RETENUES (AUTO-CALCULÉES) -->
                     <td class="px-4 py-5 text-center">
-                        <input type="number" oninput="calculateRow(${index})" id="tax-${index}" class="w-full p-2 bg-red-50 border-none rounded-xl text-center font-black text-xs text-red-600 focus:bg-white focus:ring-2 focus:ring-red-500" value="0">
+                        <input type="number" oninput="calculateRow(${index})" id="tax-${index}" 
+                               class="w-full p-2 bg-red-50 border-none rounded-xl text-center font-black text-xs text-red-600 focus:ring-2 focus:ring-red-500" 
+                               value="0">
                     </td>
+
+                    <!-- 6. NET À PAYER -->
                     <td class="px-6 py-5 text-right">
-                        <div class="text-sm font-black text-blue-600 sensitive-value" onclick="toggleSensitiveData(this)" id="net-${index}" data-id="${emp.id}" data-nom="${emp.nom}" data-poste="${emp.poste}" data-matricule="${emp.matricule}">0 CFA</div>
+                        <div class="text-sm font-black text-blue-600 sensitive-value" 
+                             onclick="toggleSensitiveData(this)" 
+                             id="net-${index}" 
+                             data-id="${emp.id}" 
+                             data-nom="${emp.nom}" 
+                             data-poste="${emp.poste}" 
+                             data-matricule="${emp.matricule}">0 CFA</div>
                     </td>
                 </tr>`;
         });
 
-        // 4. Calcul immédiat
+        // 4. Calcul immédiat pour chaque ligne pour afficher le NET correct dès le départ
         employeesToPay.forEach((_, i) => calculateRow(i));
 
     } catch (e) {
         console.error(e);
-        body.innerHTML = '<tr><td colspan="5" class="p-10 text-center text-red-500 font-bold uppercase text-xs">Erreur de connexion au serveur de paie</td></tr>';
+        body.innerHTML = '<tr><td colspan="6" class="p-10 text-center text-red-500 font-bold uppercase text-xs">Erreur de connexion au serveur de paie</td></tr>';
     }
 }
-
 
 
 // --- RESET DES FILTRES ---
@@ -7977,6 +8005,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
