@@ -7510,7 +7510,13 @@ async function fetchMobileReports(page = 1) {
                     
                     if (prods.length > 0) {
                         prodsHtml = `<div class="flex flex-wrap gap-1 mt-2">` + 
-                            prods.map(p => `<span class="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded text-[8px] font-black uppercase border border-indigo-100 shadow-sm">${p.name || p}</span>`).join('') + 
+                            prods.map(p => {
+                                // 👇 LA CORRECTION EST ICI :
+                                // On vérifie toutes les possibilités : name, NAME, Name, ou juste p si c'est du texte simple
+                                const nomAffiche = p.name || p.NAME || p.Name || p.label || p;
+                                
+                                return `<span class="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded text-[8px] font-black uppercase border border-indigo-100 shadow-sm">${nomAffiche}</span>`;
+                            }).join('') + 
                             `</div>`;
                     }
 
@@ -8211,6 +8217,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
