@@ -248,7 +248,70 @@ const PremiumUI = {
 
 
 
+// ============================================================
+// MOTEUR D'IMPORT / EXPORT INTELLIGENT (PAPAPARSE)
+// ============================================================
+const CSVManager = {
+    // 1. Générer et télécharger un fichier modèle vide
+    downloadTemplate: (headers, filename) => {
+        const csv = Papa.unparse([headers]); // Crée un CSV juste avec la ligne d'en-tête
+        CSVManager._triggerDownload(csv, filename);
+    },
 
+    // 2. Exporter un tableau de données JSON en CSV
+    exportData: (dataArray, filename) => {
+        if (!dataArray || dataArray.length === 0) {
+            return Swal.fire('Oups', 'Aucune donnée à exporter', 'warning');
+        }
+        const csv = Papa.unparse(dataArray);
+        CSVManager._triggerDownload(csv, filename);
+    },
+
+    // 3. Lire, parser et valider un fichier importé
+    parseAndValidate: (file, requiredColumns) => {
+        return new Promise((resolve, reject) => {
+            Papa.parse(file, {
+                header: true,          // La première ligne contient les noms de colonnes
+                skipEmptyLines: true,  // Ignore les lignes vides en fin de fichier
+                transformHeader: h => h.trim().toLowerCase(), // Normalise les en-têtes (insensible à la casse/espaces)
+                complete: (results) => {
+                    if (results.errors.length > 0 && results.errors[0].code !== "TooFewFields") {
+                        return reject("Le fichier est mal formaté ou corrompu.");
+                    }
+
+                    const data = results.data;
+                    if (data.length === 0) return reject("Le fichier est vide.");
+
+                    // Vérification intelligente des colonnes requises
+                    const actualHeaders = Object.keys(data[0]);
+                    const missingColumns = requiredColumns.filter(reqCol => 
+                        !actualHeaders.includes(reqCol.toLowerCase())
+                    );
+
+                    if (missingColumns.length > 0) {
+                        return reject(`Colonnes obligatoires manquantes : ${missingColumns.join(', ')}`);
+                    }
+
+                    resolve(data);
+                },
+                error: (err) => reject(err.message)
+            });
+        });
+    },
+
+    // Fonction interne pour forcer le téléchargement du fichier généré
+    _triggerDownload: (csvContent, filename) => {
+        // Ajout du BOM UTF-8 pour forcer Excel à lire correctement les accents (é, à, etc.)
+        const blob = new Blob(["\ufeff" + csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = filename;
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+};
 
 
 
@@ -4848,104 +4911,77 @@ async function handlePayrollImport(event) {
     const file = event.target.files[0];
     if (!file) return;
 
-    Swal.fire({ title: 'Analyse intelligente...', text: 'Lecture des entêtes du fichier', didOpen: () => Swal.showLoading() });
+    Swal.fire({ title: 'Analyse intelligente...', text: 'Lecture du fichier de Paie', didOpen: () => Swal.showLoading() });
 
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        const text = e.target.result;
-        const lines = text.split(/\r?\n/).filter(l => l.trim() !== "");
+    try {
+        // 1. On exige uniquement la colonne MATRICULE (les autres sont optionnelles pour la mise à jour)
+        const requiredColumns = ["matricule"];
         
-        if (lines.length < 2) {
-            Swal.fire('Erreur', 'Le fichier doit contenir au moins une ligne d\'entête et une ligne de données.', 'error');
-            return;
-        }
-
-        // 1. DÉTECTION DU DÉLIMITEUR ET DES ENTÊTES
-        const firstLine = lines[0];
-        const delimiter = firstLine.includes(';') ? ';' : ',';
-        const headers = firstLine.split(delimiter).map(h => h.trim().toUpperCase());
-
-        // 2. RECHERCHE DES POSITIONS DES COLONNES PAR NOM (Mapping)
-        const map = {
-            matricule: headers.indexOf("MATRICULE"),
-            base: headers.indexOf("SALAIRE_BASE"),
-            indem: headers.indexOf("INDEMNITES_FIXES"), // NOUVELLE COLONNE
-            primes: headers.indexOf("TOTAL_PRIMES"),
-            retenues: headers.indexOf("TOTAL_RETENUES")
-        };
-
-        // Vérification : La colonne MATRICULE est obligatoire
-        if (map.matricule === -1) {
-            Swal.fire('Format Incorrect', 'La colonne "MATRICULE" est introuvable.', 'error');
-            return;
-        }
+        // 2. Le moteur fait le nettoyage (gère les guillemets, les virgules dans les chiffres, etc.)
+        const parsedData = await CSVManager.parseAndValidate(file, requiredColumns);
 
         let updateCount = 0;
 
-        // 3. TRAITEMENT DES DONNÉES
-        for (let i = 1; i < lines.length; i++) {
-            const cols = lines[i].split(delimiter).map(c => c.replace(/"/g, '').trim());
-            
-            const matricule = cols[map.matricule] ? cols[map.matricule].replace(/\t/g, '') : null;
-            if (!matricule) continue;
+        // 3. Traitement des données
+        parsedData.forEach(row => {
+            const matricule = row['matricule'] ? row['matricule'].replace(/\t/g, '').trim() : null;
+            if (!matricule) return; // Passe à la ligne suivante si vide
 
+            // On cherche l'élément HTML correspondant à cet employé
             const netDisplay = document.querySelector(`div[data-matricule="${matricule}"]`);
             
             if (netDisplay) {
                 const index = netDisplay.id.split('-')[1];
                 
                 const inputBase = document.getElementById(`base-${index}`);
-                const displayIndem = document.getElementById(`indem-constante-${index}`); // Zone indemnités
+                const displayIndem = document.getElementById(`indem-constante-${index}`);
                 const inputPrime = document.getElementById(`prime-${index}`);
                 const inputTax = document.getElementById(`tax-${index}`);
 
                 let hasChanged = false;
 
-                // Mise à jour du Salaire de Base
-                if (map.base !== -1 && inputBase && cols[map.base] !== undefined) {
-                    inputBase.value = parseInt(cols[map.base]) || 0;
+                // On met à jour uniquement si la colonne existe dans le fichier Excel
+                if (row['salaire_base'] !== undefined && inputBase) {
+                    inputBase.value = parseInt(row['salaire_base']) || 0;
                     hasChanged = true;
                 }
 
-                // --- NOUVEAU : Mise à jour des Indemnités Fixes ---
-                if (map.indem !== -1 && displayIndem && cols[map.indem] !== undefined) {
-                    displayIndem.innerText = parseInt(cols[map.indem]) || 0;
+                if (row['indemnites_fixes'] !== undefined && displayIndem) {
+                    displayIndem.innerText = parseInt(row['indemnites_fixes']) || 0;
                     hasChanged = true;
                 }
 
-                // Mise à jour des Primes
-                if (map.primes !== -1 && inputPrime && cols[map.primes] !== undefined) {
-                    inputPrime.value = parseInt(cols[map.primes]) || 0;
+                if (row['total_primes'] !== undefined && inputPrime) {
+                    inputPrime.value = parseInt(row['total_primes']) || 0;
                     hasChanged = true;
                 }
 
-                // Mise à jour des Retenues
-                if (map.retenues !== -1 && inputTax && cols[map.retenues] !== undefined) {
-                    inputTax.value = parseInt(cols[map.retenues]) || 0;
-                    inputTax.dataset.auto = "false"; // On désactive le calcul auto car la valeur vient de l'Excel
+                if (row['total_retenues'] !== undefined && inputTax) {
+                    inputTax.value = parseInt(row['total_retenues']) || 0;
+                    inputTax.dataset.auto = "false"; // Désactive le calcul auto
                     hasChanged = true;
                 }
 
-                // 4. RECALCUL DU NET
+                // Si on a modifié au moins un chiffre, on recalcule le net en temps réel
                 if (hasChanged) {
                     calculateRow(index);
                     updateCount++;
                 }
             }
-        }
+        });
 
         if (updateCount > 0) {
-            Swal.fire('Succès', `${updateCount} collaborateur(s) mis à jour (Base, Indemnités, Primes, Taxes).`, 'success');
+            Swal.fire('Succès', `${updateCount} bulletin(s) mis à jour depuis le fichier.`, 'success');
         } else {
-            Swal.fire('Oups', 'Aucun matricule correspondant trouvé.', 'warning');
+            Swal.fire('Info', 'Aucun matricule correspondant trouvé à l\'écran.', 'warning');
         }
-    };
 
-    reader.readAsText(file);
-    event.target.value = "";
+    } catch (errMsg) {
+        Swal.fire('Erreur de format', errMsg, 'error');
+    } finally {
+        event.target.value = ""; // Réinitialise l'input
+    }
 }
-
-
 
 
 
@@ -7335,88 +7371,85 @@ function triggerCSVImport() {
 }
 
 
+// --- NOUVELLE GESTION DES IMPORTS/EXPORTS POUR LES LIEUX ---
 
+// 1. Télécharger le Modèle
+function downloadLocationsTemplate() {
+    // Ce sont les en-têtes exacts que le système cherchera
+    const headers =["Nom_Lieu", "Latitude", "Longitude", "Adresse", "Type"];
+    CSVManager.downloadTemplate(headers, "Modele_Import_Lieux.csv");
+}
+
+// 2. Exporter les lieux existants
+async function exportLocations() {
+    try {
+        const r = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/list-mobile-locations`);
+        const locs = await r.json();
+        
+        const cleanData = locs.map(l => ({
+            "Nom_Lieu": l.name,
+            "Latitude": l.latitude,
+            "Longitude": l.longitude,
+            "Adresse": l.address || "",
+            "Type": l.type_location || ""
+        }));
+
+        CSVManager.exportData(cleanData, `Export_Lieux_${new Date().toISOString().split('T')[0]}.csv`);
+    } catch(e) {
+        Swal.fire('Erreur', "Impossible d'exporter les données", 'error');
+    }
+}
+
+// 3. Gérer l'import du fichier
 async function handleCSVFile(event) {
     const file = event.target.files[0];
     if (!file) return;
 
-    Swal.fire({ title: 'Analyse intelligente...', text: 'Mappage des colonnes en cours', didOpen: () => Swal.showLoading() });
+    Swal.fire({ title: 'Analyse en cours...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-        const text = e.target.result;
-        const lines = text.split(/\r?\n/).filter(l => l.trim() !== "");
-        if (lines.length < 2) return Swal.fire('Erreur', 'Le fichier est vide ou mal formé.', 'error');
+    try {
+        // On exige uniquement que ces 3 colonnes soient présentes, peu importe leur position !
+        const requiredColumns =["nom_lieu", "latitude", "longitude"];
+        
+        // Le Moteur CSV fait le sale boulot
+        const parsedData = await CSVManager.parseAndValidate(file, requiredColumns);
 
-        // 1. Détection du délimiteur (; ou ,)
-        const firstLine = lines[0];
-        const delimiter = firstLine.includes(';') ? ';' : ',';
-        const headers = firstLine.split(delimiter).map(h => h.trim().toLowerCase());
+        // Mapping propre pour envoyer au serveur
+        const locationsToInsert = parsedData.map(row => ({
+            name: row['nom_lieu'],
+            latitude: parseFloat(row['latitude']?.replace(',', '.')), // Gère la virgule française
+            longitude: parseFloat(row['longitude']?.replace(',', '.')),
+            address: row['adresse'] || '',
+            type_location: row['type'] || 'PHARMACIE',
+            radius: 50,
+            is_active: true
+        })).filter(loc => !isNaN(loc.latitude) && !isNaN(loc.longitude)); // On vire les lignes où les GPS sont cassés
 
-        // 2. Mapping automatique (On cherche les index des colonnes)
-        const map = {
-            name: headers.findIndex(h => h.includes('nom') || h.includes('name') || h.includes('lieu') || h.includes('pharmacie')),
-            lat: headers.findIndex(h => h.includes('lat')),
-            lon: headers.findIndex(h => h.includes('lon') || h.includes('long')),
-            zone: headers.findIndex(h => h.includes('zone') || h.includes('secteur')),
-            addr: headers.findIndex(h => h.includes('adresse') || h.includes('addr'))
-        };
-
-        // Vérification minimale : il faut au moins Nom, Lat et Lon
-        if (map.name === -1 || map.lat === -1 || map.lon === -1) {
-            return Swal.fire('Erreur de format', 'Impossible de trouver les colonnes obligatoires (Nom, Latitude, Longitude).', 'error');
+        if (locationsToInsert.length === 0) {
+            throw new Error("Aucune donnée GPS valide trouvée dans le fichier.");
         }
 
-        const locations = [];
+        // Envoi au backend
+        const response = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/import-locations`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ locations: locationsToInsert })
+        });
 
-        // 3. Lecture des données
-        for (let i = 1; i < lines.length; i++) {
-            const cols = lines[i].split(delimiter);
-            if (cols.length < 3) continue;
-
-            const lat = parseFloat(cols[map.lat]?.replace(',', '.'));
-            const lon = parseFloat(cols[map.lon]?.replace(',', '.'));
-
-            if (!isNaN(lat) && !isNaN(lon)) {
-                locations.push({
-                    name: cols[map.name].trim(),
-                    latitude: lat,
-                    longitude: lon,
-                    zone_name: map.zone !== -1 ? (cols[map.zone]?.trim() || 'GENERALE') : 'GENERALE',
-                    address: map.addr !== -1 ? (cols[map.addr]?.trim() || '') : '',
-                    is_active: true,
-                    radius: 50 // Rayon par défaut
-                });
-            }
-        }
-
-        // 4. Envoi au serveur
-        if (locations.length > 0) {
-            try {
-                const response = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/import-locations`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ locations })
-                });
-
-                Swal.close();
-                if (response.ok) {
-                    Swal.fire('Succès !', `${locations.length} lieux importés avec succès.`, 'success');
-                    fetchMobileLocations(); // Rafraîchit la grille
-                }
-            } catch (err) {
-                Swal.fire('Échec', err.message, 'error');
-            }
+        if (response.ok) {
+            Swal.fire('Succès !', `${locationsToInsert.length} lieux importés.`, 'success');
+            fetchMobileLocations(); // Rafraîchit l'écran
         } else {
-            Swal.fire('Oups', 'Aucune donnée valide trouvée dans le fichier.', 'warning');
+            const err = await response.json();
+            throw new Error(err.error);
         }
-    };
-    reader.readAsText(file);
-    // On reset l'input pour pouvoir ré-importer le même fichier si besoin
-    event.target.value = "";
+
+    } catch (errMsg) {
+        Swal.fire('Échec de l\'import', errMsg, 'error');
+    } finally {
+        event.target.value = ""; // Reset l'input file pour pouvoir ré-uploader le même fichier
+    }
 }
-
-
 
 async function openDailyReportModal() {
     // On ajoute le champ pour la photo dans le HTML de l'alerte
@@ -7513,73 +7546,142 @@ function triggerZonesCSVImport() {
     document.getElementById('csv-zones-input').click();
 }
 
-async function handleZonesCSVFile(event) {
+
+
+
+// ============================================================
+// GESTION DES IMPORTS/EXPORTS : PRESCRIPTEURS
+// ============================================================
+
+function downloadPrescripteursTemplate() {
+    const headers =["Nom_Complet", "Fonction", "Telephone"];
+    CSVManager.downloadTemplate(headers, "Modele_Import_Prescripteurs.csv");
+}
+
+async function exportPrescripteurs() {
+    try {
+        const r = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/list-prescripteurs`);
+        const data = await r.json();
+        
+        const cleanData = data.map(p => ({
+            "Nom_Complet": p.nom_complet,
+            "Fonction": p.fonction || "Médecin",
+            "Telephone": p.telephone || ""
+        }));
+
+        CSVManager.exportData(cleanData, `Export_Prescripteurs_${new Date().toISOString().split('T')[0]}.csv`);
+    } catch(e) { Swal.fire('Erreur', "Impossible d'exporter les données", 'error'); }
+}
+
+async function handlePrescripteursCSV(event) {
     const file = event.target.files[0];
     if (!file) return;
 
-    Swal.fire({ title: 'Analyse...', text: 'Mappage des sièges en cours', didOpen: () => Swal.showLoading() });
+    Swal.fire({ title: 'Analyse en cours...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-        const text = e.target.result;
-        const lines = text.split(/\r?\n/).filter(l => l.trim() !== "");
-        if (lines.length < 2) return Swal.fire('Erreur', 'Fichier vide', 'error');
+    try {
+        const requiredColumns = ["nom_complet", "fonction"];
+        const parsedData = await CSVManager.parseAndValidate(file, requiredColumns);
 
-        const delimiter = lines[0].includes(';') ? ';' : ',';
-        const headers = lines[0].split(delimiter).map(h => h.trim().toLowerCase());
+        const dataToInsert = parsedData.map(row => ({
+            nom_complet: row['nom_complet'],
+            fonction: row['fonction'],
+            telephone: row['telephone'] || null,
+            is_active: true
+        })).filter(p => p.nom_complet); // On ignore les lignes sans nom
 
-        // Mapping des colonnes
-        const map = {
-            nom: headers.findIndex(h => h.includes('nom') || h.includes('siege') || h.includes('office')),
-            lat: headers.findIndex(h => h.includes('lat')),
-            lon: headers.findIndex(h => h.includes('lon') || h.includes('long')),
-            rayon: headers.findIndex(h => h.includes('rayon') || h.includes('radius'))
-        };
+        if (dataToInsert.length === 0) throw new Error("Aucune donnée valide trouvée.");
 
-        if (map.nom === -1 || map.lat === -1 || map.lon === -1) {
-            return Swal.fire('Format incorrect', 'Colonnes Nom, Latitude et Longitude obligatoires.', 'error');
+        const response = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/import-prescripteurs`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prescripteurs: dataToInsert })
+        });
+
+        if (response.ok) {
+            Swal.fire('Succès !', `${dataToInsert.length} contacts importés.`, 'success');
+            fetchPrescripteursManagement();
+        } else {
+            const err = await response.json();
+            throw new Error(err.error);
         }
+    } catch (errMsg) {
+        Swal.fire('Échec de l\'import', errMsg, 'error');
+    } finally {
+        event.target.value = "";
+    }
+}
 
-        const zones = [];
-        for (let i = 1; i < lines.length; i++) {
-            const cols = lines[i].split(delimiter);
-            if (cols.length < 3) continue;
+// ============================================================
+// MISE A JOUR DES IMPORTS/EXPORTS : SIÈGES (ZONES)
+// ============================================================
 
-            zones.push({
-                nom: cols[map.nom].trim(),
-                latitude: parseFloat(cols[map.lat].replace(',', '.')),
-                longitude: parseFloat(cols[map.lon].replace(',', '.')),
-                rayon: map.rayon !== -1 ? parseInt(cols[map.rayon]) : 100,
-                actif: true
-            });
-        }
+function downloadZonesTemplate() {
+    const headers =["Nom_Siege", "Latitude", "Longitude", "Rayon"];
+    CSVManager.downloadTemplate(headers, "Modele_Import_Sieges.csv");
+}
 
-        if (zones.length > 0) {
-            try {
-                const response = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/import-zones`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ zones })
-                });
-
-                if (response.ok) {
-                    Swal.fire('Succès !', `${zones.length} sièges importés.`, 'success');
-                    fetchZones(); // Rafraîchit la grille
-                }
-            } catch (err) {
-                Swal.fire('Échec', err.message, 'error');
-            }
-        }
-    };
-    reader.readAsText(file);
-    event.target.value = ""; // Reset input
+async function exportZones() {
+    try {
+        const r = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/list-zones`);
+        const data = await r.json();
+        const cleanData = data.map(z => ({ "Nom_Siege": z.nom, "Latitude": z.latitude, "Longitude": z.longitude, "Rayon": z.rayon }));
+        CSVManager.exportData(cleanData, `Export_Sieges_${new Date().toISOString().split('T')[0]}.csv`);
+    } catch(e) { Swal.fire('Erreur', "Export impossible", 'error'); }
 }
 
 
 
+// --- NOUVELLE GESTION DES IMPORTS POUR LES SIÈGES (ZONES) ---
+async function handleZonesCSVFile(event) {
+    const file = event.target.files[0];
+    if (!file) return;
 
+    Swal.fire({ title: 'Analyse en cours...', text: 'Validation des données...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
+    try {
+        // 1. Définition des colonnes strictement requises (basées sur le modèle)
+        const requiredColumns =["nom_siege", "latitude", "longitude"];
+        
+        // 2. Le Moteur CSV fait le parsing, vérifie les colonnes et gère les erreurs
+        const parsedData = await CSVManager.parseAndValidate(file, requiredColumns);
 
+        // 3. Mapping propre avec conversion sécurisée des chiffres
+        const zones = parsedData.map(row => ({
+            nom: row['nom_siege'],
+            latitude: parseFloat(row['latitude']?.replace(',', '.')), // Remplace la virgule FR par un point US
+            longitude: parseFloat(row['longitude']?.replace(',', '.')),
+            rayon: row['rayon'] ? parseInt(row['rayon']) : 100, // Rayon par défaut à 100m si vide
+            actif: true
+        })).filter(z => !isNaN(z.latitude) && !isNaN(z.longitude)); // On rejette silencieusement les lignes sans GPS valide
+
+        // 4. Sécurité finale avant envoi
+        if (zones.length === 0) {
+            throw new Error("Aucune donnée GPS valide n'a été trouvée dans le fichier.");
+        }
+
+        // 5. Envoi au serveur
+        const response = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/import-zones`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ zones })
+        });
+
+        if (response.ok) {
+            Swal.fire('Succès !', `${zones.length} sièges importés avec succès.`, 'success');
+            fetchZones();         // Rafraîchit le tableau à l'écran
+            fetchCompanyConfig(); // Met à jour le périmètre GPS global de l'app
+        } else {
+            const err = await response.json();
+            throw new Error(err.error || "Erreur lors de l'enregistrement serveur.");
+        }
+
+    } catch (errMsg) {
+        Swal.fire('Échec de l\'import', errMsg, 'error');
+    } finally {
+        event.target.value = ""; // Réinitialise l'input pour pouvoir cliquer à nouveau sur le même fichier
+    }
+}
 
 
 
@@ -8437,6 +8539,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
