@@ -181,20 +181,31 @@ let currentWizardStep = 1;
 
 // 1. GESTION DE LA NAVIGATION WIZARD
 function moveStep(delta) {
-    if (delta > 0) { // On va vers l'étape suivante : VALIDATION
+    if (delta > 0) { 
+        // Validation Étape 1
         if (currentWizardStep === 1) {
             const nom = document.getElementById('f-nom').value.trim();
             const email = document.getElementById('f-email').value.trim();
-            if (!nom || !email) return Swal.fire('Attention', 'Nom et Email sont obligatoires.', 'warning');
+            if (!nom || !email) {
+                Swal.fire('Champ manquant', 'Le nom et l\'email sont obligatoires.', 'warning');
+                return;
+            }
         }
+        
+        // VALIDATION ÉTAPE 2 (C'est ici que ça règle ton bug)
         if (currentWizardStep === 2) {
             const poste = document.getElementById('f-poste').value.trim();
-            const salaire = document.getElementById('f-salaire-fixe').value;
-            if (!poste || !salaire) return Swal.fire('Attention', 'Veuillez remplir les infos de poste et salaire.', 'warning');
+            const dateEmbauche = document.getElementById('f-date').value; // Le fameux f-date
+            
+            if (!poste || !dateEmbauche) {
+                PremiumUI.vibrate('error');
+                Swal.fire('Données du contrat', 'Le poste et la date d\'embauche sont obligatoires pour générer le contrat.', 'warning');
+                return;
+            }
         }
     }
 
-    const nextStep = currentWizardStep + delta;
+            const nextStep = currentWizardStep + delta;
     if (nextStep < 1 || nextStep > 3) return;
 
     // Mise à jour visuelle
@@ -9014,6 +9025,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
