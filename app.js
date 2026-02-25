@@ -3393,6 +3393,8 @@ async function openEditProductModal(id) {
 
 
 
+
+
 function viewProductDetail(id) {
     const p = window.allProductsData.find(item => item.id == id);
     if (!p) return;
@@ -3400,50 +3402,96 @@ function viewProductDetail(id) {
     const photos = p.photo_urls || [];
     let currentIndex = 0;
 
+    // Fonction de mise à jour du carrousel interne
     const updateCarousel = () => {
-        const imgEl = document.getElementById('carousel-img');
+        const imgEl = document.getElementById('modal-carousel-img');
         const counterEl = document.getElementById('carousel-counter');
         if (imgEl) imgEl.src = photos[currentIndex];
         if (counterEl) counterEl.innerText = `${currentIndex + 1} / ${photos.length}`;
     };
 
-    // On définit les fonctions de navigation en global pour le clic
-    window.nextPhoto = () => { currentIndex = (currentIndex + 1) % photos.length; updateCarousel(); };
-    window.prevPhoto = () => { currentIndex = (currentIndex - 1 + photos.length) % photos.length; updateCarousel(); };
+    // On attache les fonctions au window pour qu'elles soient cliquables dans le HTML de Swal
+    window.movePhoto = (dir) => {
+        currentIndex = (currentIndex + dir + photos.length) % photos.length;
+        updateCarousel();
+    };
 
     Swal.fire({
-        width: '900px',
+        width: '950px',
         padding: '0',
         showConfirmButton: false,
         showCloseButton: true,
-        customClass: { popup: 'rounded-[2rem] overflow-hidden' },
+        customClass: { popup: 'rounded-[2.5rem] overflow-hidden' },
         html: `
-            <div class="flex flex-col md:flex-row text-left bg-white h-auto md:h-[550px]">
-                <!-- GAUCHE : CARROUSEL (60%) -->
-                <div class="w-full md:w-[60%] bg-slate-900 relative group flex items-center justify-center">
-                    <img id="carousel-img" src="${photos[0] || ''}" class="w-full h-full object-contain">
+            <div class="flex flex-col md:flex-row text-left bg-white h-auto md:h-[600px]">
+                
+                <!-- GAUCHE : VISUEL PRODUIT (Carrousel) -->
+                <div class="w-full md:w-1/2 bg-slate-900 relative flex items-center justify-center group">
+                    <img id="modal-carousel-img" src="${photos[0] || 'https://via.placeholder.com/600x600?text=Pas+d\'image'}" 
+                         class="w-full h-full object-contain transition-all duration-500">
                     
+                    <!-- Contrôles du carrousel -->
                     ${photos.length > 1 ? `
-                        <button onclick="prevPhoto()" class="absolute left-4 w-10 h-10 bg-white/10 hover:bg-white/20 backdrop-blur rounded-full text-white transition-all"><i class="fa-solid fa-chevron-left"></i></button>
-                        <button onclick="nextPhoto()" class="absolute right-4 w-10 h-10 bg-white/10 hover:bg-white/20 backdrop-blur rounded-full text-white transition-all"><i class="fa-solid fa-chevron-right"></i></button>
-                        <div id="carousel-counter" class="absolute bottom-4 center bg-black/40 text-white text-[10px] px-3 py-1 rounded-full font-bold">1 / ${photos.length}</div>
+                        <button onclick="movePhoto(-1)" class="absolute left-4 w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md text-white transition-all">
+                            <i class="fa-solid fa-chevron-left"></i>
+                        </button>
+                        <button onclick="movePhoto(1)" class="absolute right-4 w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md text-white transition-all">
+                            <i class="fa-solid fa-chevron-right"></i>
+                        </button>
+                        <div id="carousel-counter" class="absolute bottom-6 left-1/2 -translate-x-1/2 bg-black/50 backdrop-blur-xl text-white text-[10px] font-black px-4 py-1.5 rounded-full border border-white/20">
+                            1 / ${photos.length}
+                        </div>
                     ` : ''}
                 </div>
 
-                <!-- DROITE : INFOS (40%) -->
-                <div class="w-full md:w-[40%] p-10 flex flex-col justify-between">
-                    <div>
-                        <h3 class="text-3xl font-black text-slate-800 uppercase tracking-tighter mb-6">${p.name}</h3>
-                        <p class="text-sm text-slate-500 leading-relaxed custom-scroll overflow-y-auto max-h-[250px] pr-2">
-                            ${p.description || 'Pas de description.'}
-                        </p>
+                <!-- DROITE : CONTENU TECHNIQUE -->
+                <div class="w-full md:w-1/2 p-10 flex flex-col">
+                    <div class="flex-1 overflow-y-auto custom-scroll pr-4">
+                        <div class="flex items-center gap-2 mb-4">
+                            <span class="bg-blue-600 text-white text-[9px] font-black px-2 py-1 rounded uppercase tracking-widest shadow-lg shadow-blue-500/20">Produit Officiel</span>
+                            <span class="text-[10px] font-bold text-slate-400 font-mono">ID: ${p.id.toString().substring(0,8)}</span>
+                        </div>
+                        
+                        <h3 class="text-3xl font-black text-slate-800 leading-tight mb-2 uppercase tracking-tighter">${p.name}</h3>
+                        <p class="text-blue-500 font-bold text-xs uppercase tracking-widest mb-8">Médicament Répertorié</p>
+
+                        <div class="space-y-8">
+                            <div>
+                                <h4 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                                    <i class="fa-solid fa-file-lines text-blue-500"></i> Description Technique
+                                </h4>
+                                <p class="text-sm text-slate-600 leading-relaxed italic bg-slate-50 p-4 rounded-2xl border border-slate-100 shadow-inner">
+                                    "${p.description || 'Aucune information technique renseignée pour le moment.'}"
+                                </p>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-4">
+                                <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                                    <p class="text-[9px] font-black text-slate-400 uppercase mb-1">Stock disponible</p>
+                                    <p class="text-sm font-black text-emerald-600">OUI ✓</p>
+                                </div>
+                                <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                                    <p class="text-[9px] font-black text-slate-400 uppercase mb-1">Dernière MAJ</p>
+                                    <p class="text-sm font-bold text-slate-700">${new Date().toLocaleDateString()}</p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <button onclick="Swal.close()" class="w-full py-4 bg-blue-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg active:scale-95">Quitter</button>
+
+                    <div class="mt-8 pt-6 border-t border-slate-100 flex gap-3">
+                        <button onclick="Swal.close()" class="flex-1 py-4 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl active:scale-95 transition-all">
+                            Fermer
+                        </button>
+                    </div>
                 </div>
             </div>
         `
     });
 }
+
+
+
+
 
 // Fonction de recherche instantanée (Local)
 function filterProductsLocally() {
@@ -3454,45 +3502,108 @@ function filterProductsLocally() {
     });
 }
 
-async function openAddProductModal() {
-    const { value: file } = await Swal.fire({
-        title: 'Nouveau Produit',
+
+
+
+
+
+async function openSaveProductModal(existingId = null) {
+    // 1. Si on est en mode édition, on récupère les données du produit
+    const p = existingId ? window.allProductsData.find(item => item.id == existingId) : null;
+    const title = p ? 'Modifier le Produit' : 'Nouveau Produit';
+
+    const { value: formValues } = await Swal.fire({
+        title: `<span class="text-xl font-black uppercase tracking-tight">${title}</span>`,
+        width: '800px',
+        customClass: { popup: 'rounded-[2rem]' },
         html: `
-            <input id="p-name" class="swal2-input" placeholder="Nom du médicament / produit">
-            <textarea id="p-desc" class="swal2-textarea" placeholder="Description courte..."></textarea>
-            <p class="text-[10px] font-black text-slate-400 uppercase mt-4">Photo du produit</p>
+            <div class="text-left space-y-6 p-2">
+                <!-- LIGNE 1 : NOM ET CATEGORIE -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Nom du produit / Médicament</label>
+                        <input id="p-name" class="swal2-input !mt-1" placeholder="Ex: Paracétamol 500mg" value="${p ? p.name : ''}">
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Catégorie</label>
+                        <select id="p-category" class="swal2-input !mt-1">
+                            <option value="ANTALGIQUE" ${p?.category === 'ANTALGIQUE' ? 'selected' : ''}>Antalgique</option>
+                            <option value="ANTIBIOTIQUE" ${p?.category === 'ANTIBIOTIQUE' ? 'selected' : ''}>Antibiotique</option>
+                            <option value="MATERIEL" ${p?.category === 'MATERIEL' ? 'selected' : ''}>Matériel Médical</option>
+                            <option value="AUTRE" ${p?.category === 'AUTRE' ? 'selected' : ''}>Autre</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- LIGNE 2 : DESCRIPTION ET INFOS TECHNIQUES -->
+                <div>
+                    <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Description Commerciale</label>
+                    <textarea id="p-desc" class="swal2-textarea !mt-1" style="height:100px" placeholder="Arguments de vente, présentation...">${p ? p.description : ''}</textarea>
+                </div>
+
+                <!-- LIGNE 3 : PHOTOS MULTIPLES -->
+                <div class="p-5 bg-blue-50 rounded-2xl border-2 border-dashed border-blue-100">
+                    <label class="flex flex-col items-center justify-center cursor-pointer">
+                        <i class="fa-solid fa-images text-2xl text-blue-400 mb-2"></i>
+                        <span class="text-xs font-bold text-blue-600">Sélectionner plusieurs photos</span>
+                        <input type="file" id="p-files" class="hidden" multiple accept="image/*" onchange="updateFileCountFeedback(this)">
+                        <p id="file-count-label" class="text-[9px] text-blue-400 mt-1 uppercase font-black"></p>
+                    </label>
+                </div>
+                
+                ${p ? `<p class="text-[9px] text-orange-500 font-bold italic text-center">Note : Les nouvelles photos seront ajoutées à celles déjà existantes.</p>` : ''}
+            </div>
         `,
-        input: 'file',
-        inputAttributes: { 'accept': 'image/*', 'aria-label': 'Photo du produit' },
         showCancelButton: true,
-        confirmButtonText: 'Enregistrer',
-        preConfirm: (file) => {
+        confirmButtonText: 'Enregistrer la fiche',
+        confirmButtonColor: '#2563eb',
+        preConfirm: () => {
+            const name = document.getElementById('p-name').value;
+            if (!name) return Swal.showValidationMessage("Le nom est obligatoire");
             return {
-                name: document.getElementById('p-name').value,
+                id: existingId,
+                name: name,
                 description: document.getElementById('p-desc').value,
-                photo: file
+                files: document.getElementById('p-files').files
             }
         }
     });
 
-    if (file && file.name) {
+    if (formValues) {
         Swal.fire({ title: 'Enregistrement...', didOpen: () => Swal.showLoading() });
+        
         const fd = new FormData();
-        fd.append('name', file.name);
-        fd.append('description', file.description);
-        fd.append('photo', file.photo);
-        await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/add-product`, { method: 'POST', body: fd });
-        fetchProducts();
-        Swal.fire('Succès', 'Produit ajouté au catalogue', 'success');
+        if (formValues.id) fd.append('id', formValues.id);
+        fd.append('name', formValues.name);
+        fd.append('description', formValues.description);
+        fd.append('agent', currentUser.nom);
+
+        // On boucle sur les fichiers (c'est ça qui permet le multi-photo)
+        for (let i = 0; i < formValues.files.length; i++) {
+            fd.append('photos', formValues.files[i]);
+        }
+
+        try {
+            const r = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/save-product`, {
+                method: 'POST',
+                body: fd
+            });
+            if (r.ok) {
+                Swal.fire('Succès', 'Fiche produit enregistrée', 'success');
+                fetchProducts(); // On rafraîchit la grille
+            }
+        } catch (e) {
+            Swal.fire('Erreur', e.message, 'error');
+        }
     }
 }
 
-
-
-
-
-
-
+// Petit utilitaire pour le feedback visuel du nombre de fichiers choisis
+window.updateFileCountFeedback = (input) => {
+    const label = document.getElementById('file-count-label');
+    const count = input.files.length;
+    label.innerText = count > 1 ? `${count} PHOTOS SÉLECTIONNÉES` : `${count} PHOTO SÉLECTIONNÉE`;
+};
 
 
 
@@ -8806,6 +8917,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
