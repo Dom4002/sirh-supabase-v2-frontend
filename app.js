@@ -4071,24 +4071,35 @@ async function triggerRobotCheck() {
 
 async function syncAllRoleSelects() {
     try {
-        const response = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/list-roles`);
-        const roles = await response.json();
+        let roles;
+        // 1. Vérification du cache
+        const cached = sessionStorage.getItem('sirh_cache_roles');
 
+        if (cached) {
+            roles = JSON.parse(cached);
+            console.log("✅ Rôles chargés depuis le cache (Instant)");
+        } else {
+            // 2. Appel serveur
+            const response = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/list-roles`);
+            roles = await response.json();
+            // 3. Sauvegarde cache
+            sessionStorage.setItem('sirh_cache_roles', JSON.stringify(roles));
+        }
+
+        window.activeRolesList = roles; 
         const optionsHtml = roles.map(r => `<option value="${r.role_name}">${r.role_name}</option>`).join('');
 
-        // Pour les formulaires de Création/Édition (Pas d'option "Tous")
+        // Mise à jour des formulaires
         ['f-role', 'edit-role'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.innerHTML = `<option value="">-- Sélectionner un rôle --</option>` + optionsHtml;
         });
 
-        // Pour les Filtres (Option "Tous les rôles" par défaut)
-       ['filter-role-select', 'filter-accounting-role'].forEach(id => {
+        // Mise à jour des filtres (Correction de ton ancienne erreur d'accolade ici aussi)
+        ['filter-role-select', 'filter-accounting-role'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.innerHTML = `<option value="all">Tous les rôles</option>` + optionsHtml;
         });
-
-        window.activeRolesList = roles; 
 
     } catch (e) {
         console.error("Erreur synchro rôles", e);
@@ -4675,24 +4686,33 @@ async function generateDraftContract(id) {
 
 async function fetchAndPopulateDepartments() {
     try {
-        const response = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/list-departments`);
-        const depts = await response.json();
-
-        // On prépare le HTML
-        const defaultOpt = `<option value="">-- Choisir un département --</option>`;
-            const acctDept = document.getElementById('filter-accounting-dept');
-            const optionsHtml = depts.map(d => `<option value="${d.code}">${d.label}</option>`).join('');
-            if (acctDept) acctDept.innerHTML = `<option value="all">Tous les Départements</option>` + optionsHtml;
-
-        // On remplit les deux selects (Création et Edition)
-        const fDept = document.getElementById('f-dept');
-        const editDept = document.getElementById('edit-dept');
-                
-
-        if (fDept) fDept.innerHTML = defaultOpt + optionsHtml;
-        if (editDept) editDept.innerHTML = defaultOpt + optionsHtml;
+        let depts;
+        // 1. On vérifie le cache du navigateur
+        const cached = sessionStorage.getItem('sirh_cache_depts');
         
-        console.log("✅ Départements synchronisés");
+        if (cached) {
+            depts = JSON.parse(cached);
+            console.log("✅ Départements chargés depuis le cache (Instant)");
+        } else {
+            // 2. Si pas en cache, on appelle le serveur
+            const response = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/list-departments`);
+            depts = await response.json();
+            // 3. On sauvegarde pour la prochaine fois
+            sessionStorage.setItem('sirh_cache_depts', JSON.stringify(depts));
+        }
+
+        const defaultOpt = `<option value="">-- Choisir un département --</option>`;
+        const optionsHtml = depts.map(d => `<option value="${d.code}">${d.label}</option>`).join('');
+
+        // Mise à jour de l'interface
+        const acctDept = document.getElementById('filter-accounting-dept');
+        if (acctDept) acctDept.innerHTML = `<option value="all">Tous les Départements</option>` + optionsHtml;
+
+        ['f-dept', 'edit-dept'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.innerHTML = defaultOpt + optionsHtml;
+        });
+
     } catch (e) {
         console.error("Erreur chargement départements", e);
     }
@@ -8417,6 +8437,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
