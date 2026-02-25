@@ -407,50 +407,104 @@ async function downloadMyBadge() {
 // ============================================================
 // MODULE MOBILE : LOGIQUE FRONTEND
 // ============================================================
-
 async function fetchMobileLocations() {
-    const grid = document.getElementById('locations-grid');
-    if (!grid) return;
+    const container = document.getElementById('locations-grid');
+    if (!container) return;
+    
+    // On lit la préférence de l'utilisateur (Par défaut : grille)
+    const mode = localStorage.getItem('sirh_view_pref_locations') || 'grid';
+    // On s'assure que les boutons reflètent la bonne couleur au chargement
+    changeViewMode('locations', mode);
     
     try {
         const r = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/list-mobile-locations`);
         const data = await r.json();
         
-        grid.innerHTML = '';
-        if (data.length === 0) grid.innerHTML = '<div class="col-span-full text-center text-slate-400 py-10">Aucun lieu configuré.</div>';
+        container.innerHTML = '';
+        if (data.length === 0) {
+            container.className = ""; // Nettoie les classes
+            container.innerHTML = '<div class="col-span-full text-center text-slate-400 py-10">Aucun lieu configuré.</div>';
+            return;
+        }
 
-        // --- NOUVEAU : Vérification de la permission de gestion des sites ---
         const canManage = currentUser.permissions?.can_manage_mobile_locations;
 
-        data.forEach(loc => {
-            grid.innerHTML += `
-                <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all group relative">
-                    
-                    <!-- BOUTON SUPPRIMER SÉCURISÉ -->
-                    ${canManage ? `
-                    <button onclick="deleteMobileLocation('${loc.id}')" class="absolute top-4 right-4 text-slate-300 hover:text-red-500 transition-colors">
-                        <i class="fa-solid fa-trash"></i>
-                    </button>
-                    ` : ''}
-
-                    <div class="flex items-center gap-3 mb-3">
-                        <div class="w-10 h-10 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center text-lg"><i class="fa-solid fa-location-dot"></i></div>
-                        <div>
-                            <h3 class="font-bold text-slate-800">${loc.name}</h3>
-                            <p class="text-[10px] font-black text-slate-400 uppercase">${loc.type_location}</p>
+        if (mode === 'grid') {
+            // --- VUE GRILLE (CARTES) ---
+            container.className = "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6";
+            data.forEach(loc => {
+                container.innerHTML += `
+                    <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all relative">
+                        ${canManage ? `
+                        <button onclick="deleteMobileLocation('${loc.id}')" class="absolute top-4 right-4 text-slate-300 hover:text-red-500 transition-colors">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>` : ''}
+                        <div class="flex items-center gap-3 mb-3">
+                            <div class="w-10 h-10 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center text-lg"><i class="fa-solid fa-location-dot"></i></div>
+                            <div>
+                                <h3 class="font-bold text-slate-800">${loc.name}</h3>
+                                <p class="text-[10px] font-black text-slate-400 uppercase">${loc.type_location}</p>
+                            </div>
                         </div>
-                    </div>
-                    <p class="text-xs text-slate-500 mb-2"><i class="fa-solid fa-map-pin mr-1"></i> ${loc.address || 'Coordonnées GPS'}</p>
-                    <div class="flex gap-2 text-[10px] font-mono bg-slate-50 p-2 rounded-lg text-slate-500">
-                        <span>Lat: ${loc.latitude.toFixed(4)}</span>
-                        <span>Lon: ${loc.longitude.toFixed(4)}</span>
-                        <span>Rayon: ${loc.radius}m</span>
-                    </div>
-                </div>
-            `;
-        });
+                        <p class="text-xs text-slate-500 mb-2"><i class="fa-solid fa-map-pin mr-1"></i> ${loc.address || 'Non renseignée'}</p>
+                        <div class="flex gap-2 text-[10px] font-mono bg-slate-50 p-2 rounded-lg text-slate-500">
+                            <span>Lat: ${loc.latitude.toFixed(4)}</span>
+                            <span>Lon: ${loc.longitude.toFixed(4)}</span>
+                            <span>Rayon: ${loc.radius}m</span>
+                        </div>
+                    </div>`;
+            });
+        } else {
+            // --- VUE LISTE (TABLEAU B2B) ---
+            container.className = "bg-white rounded-xl shadow-xl border border-slate-200 overflow-x-auto";
+            
+            let html = `
+                <table class="w-full text-left whitespace-nowrap">
+                    <thead class="bg-slate-900 text-white text-[10px] uppercase font-bold">
+                        <tr>
+                            <th class="px-6 py-4">Nom du Lieu</th>
+                            <th class="px-6 py-4">Adresse</th>
+                            <th class="px-6 py-4">Coordonnées GPS</th>
+                            ${canManage ? '<th class="px-6 py-4 text-right">Actions</th>' : ''}
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">`;
+            
+            data.forEach(loc => {
+                html += `
+                    <tr class="hover:bg-slate-50 transition-colors">
+                        <td class="px-6 py-4">
+                            <div class="flex items-center gap-3">
+                                <i class="fa-solid fa-location-dot text-blue-500 bg-blue-50 p-2 rounded-lg"></i>
+                                <div>
+                                    <div class="font-bold text-slate-800">${loc.name}</div>
+                                    <div class="text-[9px] font-black text-slate-400 uppercase">${loc.type_location}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 text-xs text-slate-500">${loc.address || '<span class="italic opacity-50">Non renseignée</span>'}</td>
+                        <td class="px-6 py-4">
+                            <div class="text-[10px] font-mono bg-slate-50 px-2 py-1 rounded inline-block text-slate-500">
+                                Lat: ${loc.latitude.toFixed(4)} | Lon: ${loc.longitude.toFixed(4)} | R: ${loc.radius}m
+                            </div>
+                        </td>
+                        ${canManage ? `
+                        <td class="px-6 py-4 text-right">
+                            <button onclick="deleteMobileLocation('${loc.id}')" class="p-2 bg-slate-50 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </td>` : ''}
+                    </tr>`;
+            });
+            html += `</tbody></table>`;
+            container.innerHTML = html;
+        }
     } catch (e) { console.error(e); }
 }
+
+
+
+
 
 async function openAddLocationModal() {
     // On demande la position actuelle pour faciliter la saisie
@@ -1591,6 +1645,9 @@ async function fetchPrescripteursManagement() {
     const container = document.getElementById('prescripteurs-grid');
     if (!container) return;
 
+    const mode = localStorage.getItem('sirh_view_pref_prescripteurs') || 'grid';
+    changeViewMode('prescripteurs', mode);
+
     container.innerHTML = '<div class="col-span-full text-center p-10"><i class="fa-solid fa-circle-notch fa-spin text-blue-500 text-2xl"></i></div>';
 
     try {
@@ -1601,64 +1658,82 @@ async function fetchPrescripteursManagement() {
 
         const prescripteurs = await presRes.json();
         const locations = await locRes.json();
-        
-        // On sauvegarde la liste en mémoire pour l'édition
         window.allPrescripteurs = prescripteurs;
 
         const locMap = {};
         locations.forEach(l => locMap[l.id] = l.name);
 
         container.innerHTML = '';
-        
         if (prescripteurs.length === 0) {
-            container.innerHTML = '<div class="col-span-full text-center text-slate-400 py-10 italic border-2 border-dashed rounded-xl">Répertoire vide. Ajoutez votre premier contact.</div>';
+            container.className = ""; 
+            container.innerHTML = '<div class="text-center text-slate-400 py-10 italic">Répertoire vide.</div>';
             return;
         }
 
-        // --- NOUVEAU : Vérification de la permission de gestion ---
         const canManage = currentUser.permissions.can_manage_prescripteurs;
 
-        prescripteurs.forEach(p => {
-            const lieuNom = p.location_id ? locMap[p.location_id] : 'Non assigné';
+        if (mode === 'grid') {
+            // --- VUE GRILLE ---
+            container.className = "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6";
+            prescripteurs.forEach(p => {
+                const lieuNom = p.location_id ? locMap[p.location_id] : 'Non assigné';
+                container.innerHTML += `
+                    <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all relative search-item-prescripteur" data-name="${p.nom_complet.toLowerCase()}">
+                        ${canManage ? `
+                        <div class="absolute top-4 right-4 flex gap-2">
+                            <button onclick="openEditPrescripteurModal('${p.id}')" class="text-slate-300 hover:text-blue-600 bg-slate-50 p-1.5 rounded-lg"><i class="fa-solid fa-pen"></i></button>
+                            <button onclick="deletePrescripteur('${p.id}')" class="text-slate-300 hover:text-red-500 bg-slate-50 p-1.5 rounded-lg"><i class="fa-solid fa-trash-can"></i></button>
+                        </div>` : ''}
+                        <div class="flex items-center gap-4 mb-3">
+                            <div class="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center font-bold border border-blue-100">${p.nom_complet.charAt(0)}</div>
+                            <div>
+                                <h3 class="font-black text-slate-800 text-sm">${p.nom_complet}</h3>
+                                <p class="text-[10px] font-bold text-blue-500 uppercase mt-0.5">${p.fonction || 'Santé'}</p>
+                            </div>
+                        </div>
+                        <div class="space-y-2 mt-4 text-xs text-slate-500">
+                            <div class="bg-slate-50 p-2 rounded-lg"><i class="fa-solid fa-hospital text-slate-400 mr-2"></i> ${lieuNom}</div>
+                            <div class="bg-slate-50 p-2 rounded-lg font-mono"><i class="fa-solid fa-phone text-slate-400 mr-2"></i> ${p.telephone || '---'}</div>
+                        </div>
+                    </div>`;
+            });
+        } else {
+            // --- VUE TABLEAU ---
+            container.className = "bg-white rounded-xl shadow-xl border border-slate-200 overflow-x-auto";
+            let html = `
+                <table class="w-full text-left whitespace-nowrap">
+                    <thead class="bg-slate-900 text-white text-[10px] uppercase font-bold">
+                        <tr>
+                            <th class="px-6 py-4">Identité</th>
+                            <th class="px-6 py-4">Fonction</th>
+                            <th class="px-6 py-4">Lieu d'exercice</th>
+                            <th class="px-6 py-4">Contact</th>
+                            ${canManage ? '<th class="px-6 py-4 text-right">Actions</th>' : ''}
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">`;
             
-            container.innerHTML += `
-                <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all group relative animate-fadeIn search-item-prescripteur" data-name="${p.nom_complet.toLowerCase()}">
-                    
-                    <!-- BOUTONS ACTIONS SÉCURISÉS -->
-                    ${canManage ? `
-                    <div class="absolute top-4 right-4 flex gap-2">
-                        <button onclick="openEditPrescripteurModal('${p.id}')" class="text-slate-300 hover:text-blue-600 transition-colors bg-slate-50 hover:bg-blue-50 p-2 rounded-lg" title="Modifier">
-                            <i class="fa-solid fa-pen"></i>
-                        </button>
-                        <button onclick="deletePrescripteur('${p.id}')" class="text-slate-300 hover:text-red-500 transition-colors bg-slate-50 hover:bg-red-50 p-2 rounded-lg" title="Supprimer">
-                            <i class="fa-solid fa-trash-can"></i>
-                        </button>
-                    </div>
-                    ` : ''}
-
-                    <div class="flex items-center gap-4 mb-3">
-                        <div class="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center text-lg font-bold border border-blue-100">
-                            ${p.nom_complet.charAt(0)}
-                        </div>
-                        <div>
-                            <h3 class="font-black text-slate-800 uppercase text-sm leading-tight max-w-[150px] truncate">${p.nom_complet}</h3>
-                            <p class="text-[10px] font-bold text-blue-500 uppercase tracking-wide mt-0.5">${p.fonction || 'Santé'}</p>
-                        </div>
-                    </div>
-                    
-                    <div class="space-y-2 mt-4">
-                        <div class="flex items-center gap-2 text-xs text-slate-500 bg-slate-50 p-2 rounded-lg">
-                            <i class="fa-solid fa-hospital text-slate-400"></i>
-                            <span class="font-medium truncate">${lieuNom}</span>
-                        </div>
-                        <div class="flex items-center gap-2 text-xs text-slate-500 bg-slate-50 p-2 rounded-lg">
-                            <i class="fa-solid fa-phone text-slate-400"></i>
-                            <span class="font-mono font-bold">${p.telephone || '---'}</span>
-                        </div>
-                    </div>
-                </div>
-            `;
-        });
+            prescripteurs.forEach(p => {
+                const lieuNom = p.location_id ? locMap[p.location_id] : '<span class="italic text-slate-300">Non assigné</span>';
+                html += `
+                    <tr class="hover:bg-slate-50 transition-colors search-item-prescripteur" data-name="${p.nom_complet.toLowerCase()}">
+                        <td class="px-6 py-4 flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center text-xs font-bold">${p.nom_complet.charAt(0)}</div>
+                            <span class="font-bold text-slate-800 text-sm uppercase">${p.nom_complet}</span>
+                        </td>
+                        <td class="px-6 py-4 text-[10px] font-black text-blue-500 uppercase tracking-widest">${p.fonction || 'Santé'}</td>
+                        <td class="px-6 py-4 text-xs font-medium text-slate-600">${lieuNom}</td>
+                        <td class="px-6 py-4 text-xs font-mono text-slate-500">${p.telephone || '---'}</td>
+                        ${canManage ? `
+                        <td class="px-6 py-4 text-right">
+                            <button onclick="openEditPrescripteurModal('${p.id}')" class="p-2 text-slate-400 hover:text-blue-600 bg-slate-50 hover:bg-blue-50 rounded-lg mr-1"><i class="fa-solid fa-pen"></i></button>
+                            <button onclick="deletePrescripteur('${p.id}')" class="p-2 text-slate-400 hover:text-red-500 bg-slate-50 hover:bg-red-50 rounded-lg"><i class="fa-solid fa-trash-can"></i></button>
+                        </td>` : ''}
+                    </tr>`;
+            });
+            html += `</tbody></table>`;
+            container.innerHTML = html;
+        }
 
     } catch (e) { console.error(e); }
 }
@@ -2601,6 +2676,33 @@ function renderPersonalReport(reports, container) {
             Swal.fire('Échec', "Impossible d'envoyer le fichier : " + error.message, 'error');
         }
     }
+}
+
+
+
+
+
+// ============================================================
+// GESTION DU DOUBLE AFFICHAGE (GRILLE / LISTE)
+// ============================================================
+function changeViewMode(section, mode) {
+    // 1. Sauvegarde du choix dans le navigateur
+    localStorage.setItem(`sirh_view_pref_${section}`, mode);
+    
+    // 2. Mise à jour visuelle des boutons (Bouton actif en bleu)
+    document.querySelectorAll(`.view-toggle-${section}`).forEach(btn => {
+        if(btn.dataset.mode === mode) {
+            btn.classList.add('bg-blue-600', 'text-white');
+            btn.classList.remove('bg-white', 'text-slate-600', 'hover:bg-slate-50');
+        } else {
+            btn.classList.remove('bg-blue-600', 'text-white');
+            btn.classList.add('bg-white', 'text-slate-600', 'hover:bg-slate-50');
+        }
+    });
+
+    // 3. Rechargement des données avec le bon format
+    if (section === 'locations') fetchMobileLocations();
+    if (section === 'prescripteurs') fetchPrescripteursManagement();
 }
 
 
@@ -8539,6 +8641,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
