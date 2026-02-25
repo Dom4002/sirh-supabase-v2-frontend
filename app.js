@@ -228,6 +228,8 @@ function moveStep(delta) {
     document.getElementById('main-scroll-container').scrollTo(0,0);
 }
 
+
+
 // 2. LOGIQUE DES SIGNAUX DE MANAGEMENT (Dashboard)
 async function updateManagementSignals() {
     const container = document.getElementById('signals-container');
@@ -258,6 +260,23 @@ async function updateManagementSignals() {
         const stockAlerts = (dailies.data || dailies).filter(rp => rp.needs_restock).length;
         if (stockAlerts > 0) signals.push({ title: "Logistique", desc: `${stockAlerts} alertes réappro.`, icon: "fa-box-open", color: "orange", action: "switchView('mobile-reports')" });
     } catch(e) {}
+
+
+
+            // --- SIGNAL : MAINTENANCE SYSTÈME ---
+    const lastMaint = localStorage.getItem('sirh_last_maint');
+    const threeMonthsAgo = new Date();
+    threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+
+    if (!lastMaint || new Date(lastMaint) < threeMonthsAgo) {
+        signals.push({
+            title: "Maintenance",
+            desc: "Nettoyage du stockage conseillé.",
+            icon: "fa-screwdriver-wrench",
+            color: "slate",
+            action: "runArchivingJob()" // Appelle ta fonction de maintenance
+        });
+    }
 
     // Rendu
     if (signals.length === 0) {
@@ -5959,6 +5978,7 @@ async function runArchivingJob() {
         try {
             const r = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/run-archiving-job`, { method: 'POST' });
             const data = await r.json();
+            localStorage.setItem('sirh_last_maint', new Date().toISOString());
             
             Swal.fire({
                 title: 'Terminé !',
@@ -9025,6 +9045,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
