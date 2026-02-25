@@ -234,7 +234,7 @@
             <i class="fa-solid fa-calendar-days w-5"></i> <span class="font-semibold">Plannings & Missions</span>
         </button>
 
-        <button data-perm="can_see_catalog" onclick="switchView('catalog')" class="nav-btn w-full flex items-center gap-4 p-4 rounded-xl transition-all hover:text-white group">
+        <button data-module="MOD_CATALOG" data-perm="can_see_catalog" onclick="switchView('catalog')" class="nav-btn w-full flex items-center gap-4 p-4 rounded-xl transition-all hover:text-white group">
             <i class="fa-solid fa-box-archive w-5 text-emerald-400"></i> 
             <span class="font-semibold">Catalogue Produits</span>
         </button>
@@ -802,35 +802,37 @@
 </section>
 
 
-        <!-- DANS LA SECTION id="view-catalog" -->
-        <section id="view-catalog" class="view-section">
-            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 px-1">
-                <div>
-                    <h2 class="text-2xl font-black text-slate-800 uppercase tracking-tighter">Catalogue Produits</h2>
-                    <p class="text-xs text-slate-400 font-bold uppercase tracking-widest mt-1">Référentiel Médicaments & Matériels</p>
-                </div>
-                
-                <div class="flex flex-1 max-w-md w-full gap-2">
-                    <!-- BARRE DE RECHERCHE PRODUITS -->
-                    <div class="relative flex-1">
-                        <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-                        <input type="text" id="search-product-input" onkeyup="filterProductsLocally()" 
-                               placeholder="Rechercher un produit..." 
-                               class="w-full pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-2xl text-xs font-bold outline-none focus:ring-2 focus:ring-blue-500 shadow-sm transition-all">
-                    </div>
+      <!-- RECHERCHE : id="view-catalog" -->
+<section id="view-catalog" class="view-section">
+    <!-- On ajoute data-module pour pouvoir désactiver le catalogue selon l'entreprise -->
+    <div data-module="MOD_CATALOG" class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 px-1">
+        <div>
+            <h2 class="text-2xl font-black text-slate-800 uppercase tracking-tighter">Catalogue Produits</h2>
+            <p class="text-xs text-slate-400 font-bold uppercase tracking-widest mt-1">Référentiel Médicaments & Matériels</p>
+        </div>
         
-                    <!-- BOUTON AJOUT (Si Admin) -->
-                    <button data-perm="can_manage_config" onclick="openAddProductModal()" class="bg-blue-600 text-white h-[46px] px-6 rounded-2xl font-black text-[10px] uppercase shadow-lg shadow-blue-900/20 active:scale-95 transition-all shrink-0">
-                        <i class="fa-solid fa-plus mr-2"></i> Ajouter
-                    </button>
-                </div>
+        <div class="flex flex-1 max-w-md w-full gap-2">
+            <!-- BARRE DE RECHERCHE PRODUITS -->
+            <div class="relative flex-1">
+                <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                <input type="text" id="search-product-input" onkeyup="filterProductsLocally()" 
+                       placeholder="Rechercher un produit..." 
+                       class="w-full pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-2xl text-xs font-bold outline-none focus:ring-2 focus:ring-blue-500 shadow-sm transition-all">
             </div>
+
+            <!-- BOUTON AJOUT (Correction du onclick vers openSaveProductModal) -->
+            <button data-perm="can_manage_config" onclick="openSaveProductModal()" class="bg-blue-600 text-white h-[46px] px-6 rounded-2xl font-black text-[10px] uppercase shadow-lg shadow-blue-900/20 active:scale-95 transition-all shrink-0">
+                <i class="fa-solid fa-plus mr-2"></i> Ajouter
+            </button>
+        </div>
+    </div>
+
+    <!-- Grille des produits (Gérée par JS) -->
+    <div id="products-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+    </div>
+</section>
+
         
-            <!-- Grille des produits -->
-            <div id="products-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                <!-- Rempli par JS -->
-            </div>
-        </section>
       <!-- VUE 7: RECRUTEMENT / ATS -->
                     <section id="view-recruitment" class="view-section">
                         <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
@@ -2122,6 +2124,7 @@
     </body>
 
     </html>
+
 
 
 
