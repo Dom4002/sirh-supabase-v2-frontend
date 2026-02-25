@@ -170,6 +170,77 @@ let chatSubscription = null;
             const REFRESH_THRESHOLD = 300000;
 
 
+
+// ============================================================
+// MOTEUR D'IMPORT / EXPORT INTELLIGENT (PAPAPARSE)
+// ============================================================
+// ============================================================
+// MOTEUR D'IMPORT / EXPORT INTELLIGENT (PAPAPARSE) - CORRIGÉ EXCEL FR
+// ============================================================
+const CSVManager = {
+    // 1. Générer et télécharger un fichier modèle vide
+    downloadTemplate: (headers, filename) => {
+        // AJOUT ICI : { delimiter: ";" } pour forcer le point-virgule
+        const csv = Papa.unparse([headers], { delimiter: ";" }); 
+        CSVManager._triggerDownload(csv, filename);
+    },
+
+    // 2. Exporter un tableau de données JSON en CSV
+    exportData: (dataArray, filename) => {
+        if (!dataArray || dataArray.length === 0) {
+            return Swal.fire('Oups', 'Aucune donnée à exporter', 'warning');
+        }
+        // AJOUT ICI : { delimiter: ";" } pour forcer le point-virgule
+        const csv = Papa.unparse(dataArray, { delimiter: ";" });
+        CSVManager._triggerDownload(csv, filename);
+    },
+
+    // 3. Lire, parser et valider un fichier importé
+    parseAndValidate: (file, requiredColumns) => {
+        return new Promise((resolve, reject) => {
+            Papa.parse(file, {
+                header: true,
+                skipEmptyLines: true,
+                transformHeader: h => h.trim().toLowerCase(),
+                // PapaParse détecte automatiquement le séparateur en lecture, 
+                // donc pas besoin de forcer ici, il lira aussi bien , que ;
+                complete: (results) => {
+                    if (results.errors.length > 0 && results.errors[0].code !== "TooFewFields") {
+                        return reject("Le fichier est mal formaté ou corrompu.");
+                    }
+
+                    const data = results.data;
+                    if (data.length === 0) return reject("Le fichier est vide.");
+
+                    const actualHeaders = Object.keys(data[0]);
+                    const missingColumns = requiredColumns.filter(reqCol => 
+                        !actualHeaders.includes(reqCol.toLowerCase())
+                    );
+
+                    if (missingColumns.length > 0) {
+                        return reject(`Colonnes obligatoires manquantes : ${missingColumns.join(', ')}`);
+                    }
+
+                    resolve(data);
+                },
+                error: (err) => reject(err.message)
+            });
+        });
+    },
+
+    // Fonction interne (Inchangée mais cruciale pour les accents)
+    _triggerDownload: (csvContent, filename) => {
+        // Le \ufeff (BOM) est OBLIGATOIRE pour qu'Excel lise les accents (é, è, à)
+        const blob = new Blob(["\ufeff" + csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = filename;
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+};
             // Variable globale qui stockera les infos du bureau
             let companyConfig = {
                 latitude: null,      
@@ -248,70 +319,6 @@ const PremiumUI = {
 
 
 
-// ============================================================
-// MOTEUR D'IMPORT / EXPORT INTELLIGENT (PAPAPARSE)
-// ============================================================
-const CSVManager = {
-    // 1. Générer et télécharger un fichier modèle vide
-    downloadTemplate: (headers, filename) => {
-        const csv = Papa.unparse([headers]); // Crée un CSV juste avec la ligne d'en-tête
-        CSVManager._triggerDownload(csv, filename);
-    },
-
-    // 2. Exporter un tableau de données JSON en CSV
-    exportData: (dataArray, filename) => {
-        if (!dataArray || dataArray.length === 0) {
-            return Swal.fire('Oups', 'Aucune donnée à exporter', 'warning');
-        }
-        const csv = Papa.unparse(dataArray);
-        CSVManager._triggerDownload(csv, filename);
-    },
-
-    // 3. Lire, parser et valider un fichier importé
-    parseAndValidate: (file, requiredColumns) => {
-        return new Promise((resolve, reject) => {
-            Papa.parse(file, {
-                header: true,          // La première ligne contient les noms de colonnes
-                skipEmptyLines: true,  // Ignore les lignes vides en fin de fichier
-                transformHeader: h => h.trim().toLowerCase(), // Normalise les en-têtes (insensible à la casse/espaces)
-                complete: (results) => {
-                    if (results.errors.length > 0 && results.errors[0].code !== "TooFewFields") {
-                        return reject("Le fichier est mal formaté ou corrompu.");
-                    }
-
-                    const data = results.data;
-                    if (data.length === 0) return reject("Le fichier est vide.");
-
-                    // Vérification intelligente des colonnes requises
-                    const actualHeaders = Object.keys(data[0]);
-                    const missingColumns = requiredColumns.filter(reqCol => 
-                        !actualHeaders.includes(reqCol.toLowerCase())
-                    );
-
-                    if (missingColumns.length > 0) {
-                        return reject(`Colonnes obligatoires manquantes : ${missingColumns.join(', ')}`);
-                    }
-
-                    resolve(data);
-                },
-                error: (err) => reject(err.message)
-            });
-        });
-    },
-
-    // Fonction interne pour forcer le téléchargement du fichier généré
-    _triggerDownload: (csvContent, filename) => {
-        // Ajout du BOM UTF-8 pour forcer Excel à lire correctement les accents (é, à, etc.)
-        const blob = new Blob(["\ufeff" + csvContent], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement("a");
-        link.href = URL.createObjectURL(blob);
-        link.download = filename;
-        link.style.display = 'none';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    }
-};
 
 
 
@@ -8641,6 +8648,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
