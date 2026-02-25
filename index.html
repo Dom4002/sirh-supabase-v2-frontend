@@ -580,223 +580,175 @@
 
                     <!-- VUE 3: AJOUT -->
                   
-        <section id="view-add-new" class="view-section">
-    <div class="max-w-4xl mx-auto bg-white rounded-xl shadow-2xl overflow-hidden border">
-        <div class="bg-slate-900 px-10 py-6 text-white flex justify-between items-center">
-            <h2 class="text-xl font-bold">Nouveau Profil</h2>
-            <i class="fa-solid fa-user-plus opacity-20 text-3xl"></i>
-        </div>
-        <form id="form-onboarding" onsubmit="handleOnboarding(event)" class="p-6 grid grid-cols-1 md:grid-cols-3 gap-5">
-<!-- 1. SECTION IDENTITÉ GÉNÉRALE -->
-<div class="md:col-span-2 space-y-4">
-    <!-- Ligne Civilité + Nom -->
-<div class="grid grid-cols-3 gap-4">
-    <div>
-        <label class="block text-[9px] font-bold text-slate-400 uppercase mb-1">Civilité</label>
-        <select id="f-civilite" class="w-full p-4 bg-slate-50 border rounded-xl font-medium outline-none">
-            <option value="Monsieur">Monsieur</option>
-            <option value="Madame">Madame</option>
-        </select>
-    </div>
-    <div class="col-span-2">
-        <label class="block text-[9px] font-bold text-slate-400 uppercase mb-1">Nom Complet</label>
-        <input type="text" id="f-nom" class="w-full p-4 bg-slate-50 border rounded-xl outline-none" placeholder="Ex: Damien HABIB" required>
-    </div>
-</div>
-
-    <input type="email" id="f-email" class="w-full p-4 bg-slate-50 border rounded-xl outline-none" placeholder="Email Pro" required>
-    
-    <div class="grid grid-cols-2 gap-4">
-        <input type="tel" id="f-phone" class="w-full p-4 bg-slate-50 border rounded-xl outline-none" placeholder="Téléphone">
-        <input type="date" id="f-dob" class="w-full p-4 bg-slate-50 border rounded-xl outline-none" title="Date de naissance">
-    </div>
-    
-    <input type="text" id="f-address" class="w-full p-4 bg-slate-50 border rounded-xl outline-none" placeholder="Adresse de résidence">
-
-    <!-- 2. SECTION AFFECTATION (Département / Type / Rôle) -->
-    <div class="grid grid-cols-2 gap-4 pt-2">
-        <div>
-            <label class="block text-[9px] font-bold text-slate-400 uppercase mb-1">Département</label>
-            <select id="f-dept" class="w-full p-4 bg-slate-50 border rounded-xl font-medium">
-                <option value="">Chargement...</option>
-            </select>
-        </div>
-        <div>
-            <label class="block text-[9px] font-bold text-slate-400 uppercase mb-1">Poste occupé</label>
-            <input type="text" id="f-poste" class="w-full p-4 bg-slate-50 border rounded-xl outline-none" placeholder="Ex: Délégué Médical" required>
-        </div>
-        <div>
-            <label class="block text-[9px] font-bold text-slate-400 uppercase mb-1">Type d'Activité</label>
-            <select id="f-type" class="w-full p-4 bg-indigo-50 border border-indigo-100 rounded-xl font-bold text-indigo-700">
-                <option value="OFFICE">🏢 Bureau (Fixe)</option>
-                <option value="FIXED">🏠 Agent Site (Fixe)</option>
-                <option value="MOBILE">🚗 Délégué (Nomade)</option>
-            </select>
-        </div>
-        <div>
-            <label class="block text-[9px] font-bold text-slate-400 uppercase mb-1">Rôle Système</label>
-            <select id="f-role" class="w-full p-4 bg-blue-50 border border-blue-200 rounded-xl font-bold text-blue-700">
-                <!-- Rempli par syncAllRoleSelects() dans app.js -->
-            </select>
-        </div>
-    </div>
-
-
-
-    
-    <!-- 3. SECTION CONTRAT & FINANCES (Le nouveau bloc intelligent) -->
-    <div class="md:col-span-2 bg-green-50 p-6 rounded-xl border-2 border-dashed border-green-200 space-y-6">
-        <p class="text-[10px] font-black text-green-600 uppercase tracking-widest flex items-center gap-2">
-            <i class="fa-solid fa-file-signature text-lg"></i> Conditions Contractuelles & Modèle
-        </p>
-
-        <!-- Sélecteur de Modèle Google Docs -->
-        <div>
-            <label class="block text-[9px] font-black text-slate-500 uppercase mb-1">Quel modèle Google Doc utiliser pour ce contrat ?</label>
-            <select id="f-contract-template-selector" class="w-full p-3 bg-white border border-green-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-green-500">
-                <option value="">-- Choisir un modèle Docx --</option>
-                <!-- Rempli par fetchContractTemplatesForSelection() -->
-            </select>
-        </div>
-
-        <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
-            <div>
-                <label class="block text-[9px] font-bold text-slate-500 uppercase mb-1">Date d'embauche</label>
-                <input type="date" id="f-date" class="w-full p-3 bg-white border border-green-100 rounded-xl text-sm outline-none" required>
+<section id="view-add-new" class="view-section">
+    <div class="max-w-4xl mx-auto bg-white rounded-[2.5rem] shadow-2xl overflow-hidden border border-slate-100">
+        
+        <!-- BARRE DE PROGRESSION WIZARD -->
+        <div class="bg-slate-900 px-10 py-8 text-white">
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h2 class="text-2xl font-black uppercase tracking-tighter">Nouveau Profil</h2>
+                    <p id="wizard-subtitle" class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Étape 1 : Identité & Photo</p>
+                </div>
+                <div class="h-10 w-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-900/20">
+                    <i class="fa-solid fa-user-plus text-xl"></i>
+                </div>
             </div>
-            <div>
-                <label class="block text-[9px] font-bold text-slate-500 uppercase mb-1">Durée (Type)</label>
-                <select id="f-limit" class="w-full p-3 bg-white border border-green-100 rounded-xl text-sm outline-none">
-                    <option value="365">CDI (1 an+)</option>
-                    <option value="180">CDD (6 mois)</option>
-                    <option value="90">Essai (3 mois)</option>
-                </select>
-            </div>
-            <div>
-                <label class="block text-[9px] font-bold text-slate-500 uppercase mb-1">Période d'essai</label>
-                <input type="text" id="f-duree-essai" class="w-full p-3 bg-white border border-green-100 rounded-xl text-sm outline-none" placeholder="Ex: 3 mois" value="3 mois">
-            </div>
-            <div>
-                <label class="block text-[9px] font-bold text-slate-500 uppercase mb-1">Salaire de Base (CFA)</label>
-                <input type="number" id="f-salaire-fixe" class="w-full p-3 bg-white border border-green-100 rounded-xl text-sm font-black text-blue-600 outline-none" value="0">
-            </div>
-            <div>
-                <label class="block text-[9px] font-bold text-slate-500 uppercase mb-1">Temps de travail</label>
-                <input type="text" id="f-temps-travail" class="w-full p-3 bg-white border border-green-100 rounded-xl text-sm outline-none" value="40 Heures">
-            </div>
-            <div>
-                <label class="block text-[9px] font-bold text-slate-500 uppercase mb-1">Lieu de signature</label>
-                <input type="text" id="f-lieu-signature" class="w-full p-3 bg-white border border-green-100 rounded-xl text-sm outline-none" value="Cotonou">
+            <div class="flex gap-2">
+                <div id="step-dot-1" class="h-1.5 flex-1 bg-blue-600 rounded-full transition-all duration-500"></div>
+                <div id="step-dot-2" class="h-1.5 flex-1 bg-white/10 rounded-full transition-all duration-500"></div>
+                <div id="step-dot-3" class="h-1.5 flex-1 bg-white/10 rounded-full transition-all duration-500"></div>
             </div>
         </div>
 
-        <!-- Champs spécifiques (Visible uniquement si Type d'activité = MOBILE) -->
-        <div data-employee-type="MOBILE" class="field-group-contract grid grid-cols-2 gap-4 pt-2 border-t border-green-100 hidden">
-            <div>
-                <label class="block text-[9px] font-bold text-green-700 uppercase mb-1">Indemnité Transport (Mobile)</label>
-                <input type="number" id="f-indemnite-transport" class="w-full p-3 bg-white border border-green-200 rounded-xl text-sm outline-none" value="0">
-            </div>
-            <div>
-                <label class="block text-[9px] font-bold text-green-700 uppercase mb-1">Indemnité Logement (Mobile)</label>
-                <input type="number" id="f-indemnite-logement" class="w-full p-3 bg-white border border-green-200 rounded-xl text-sm outline-none" value="0">
-            </div>
-        </div>
-
-        <!-- Infos naissance -->
-        <div class="grid grid-cols-2 gap-4 pt-2 border-t border-green-100">
-            <div>
-                <label class="block text-[9px] font-bold text-slate-500 uppercase mb-1">Lieu de Naissance</label>
-                <input type="text" id="f-lieu-naissance" class="w-full p-3 bg-white border border-green-100 rounded-xl text-sm outline-none" placeholder="Ville, Pays">
-            </div>
-            <div>
-                <label class="block text-[9px] font-bold text-slate-500 uppercase mb-1">Nationalité</label>
-                <input type="text" id="f-nationalite" class="w-full p-3 bg-white border border-green-100 rounded-xl text-sm outline-none" value="Béninoise">
-            </div>
-        </div>
-    </div>
-
-    <!-- 4. HIÉRARCHIE -->
-    <div class="col-span-2 bg-slate-50 p-4 rounded-xl border border-slate-200">
-        <p class="text-[10px] font-black text-slate-500 uppercase mb-3 tracking-widest">Hiérarchie & Équipe</p>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-                <label class="block text-[9px] font-bold text-slate-500 uppercase mb-1">Responsable Direct (N+1)</label>
-                <select id="f-manager" class="w-full p-3 bg-white border border-slate-200 rounded-lg text-sm outline-none">
-                    <option value="">-- Aucun / Autonome --</option>
-                </select>
-            </div>
-            <div>
-                <label class="block text-[9px] font-bold text-slate-500 uppercase mb-1">Zone/Dép. Géré (Scope)</label>
-                <input type="text" id="f-scope" class="w-full p-3 bg-white border border-slate-200 rounded-lg text-sm outline-none" placeholder="Ex: Commercial, Cotonou...">
-            </div>
-        </div>
-    </div>
-</div>
-
-
+        <form id="form-onboarding" onsubmit="handleOnboarding(event)" class="p-8 md:p-12">
             
-<!-- 5. PHOTO DE PROFIL (COLONNE DROITE) -->
-<div class="flex flex-col items-center justify-start p-4 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
-    <div class="w-full h-44 bg-slate-200 rounded-xl mb-4 overflow-hidden flex items-center justify-center">
-        <video id="video-stream" class="w-full h-full object-cover hidden" autoplay playsinline></video>
-        <img id="captured-image" class="w-full h-full object-cover hidden">
-        <i class="fa-solid fa-image text-slate-400 text-3xl" id="photo-placeholder"></i>
-    </div>
-    <div id="initial-controls" class="flex flex-col w-full gap-2 mt-auto">
-        <button type="button" onclick="startCameraFeed()" class="w-full text-[10px] font-bold text-slate-500 uppercase bg-white border py-2.5 rounded-lg shadow-sm">Caméra</button>
-        <button type="button" onclick="document.getElementById('file-upload').click()" class="w-full text-[10px] font-bold text-blue-600 uppercase bg-blue-50 border border-blue-200 py-2.5 rounded-lg">Téléverser</button>
-    </div>
-    <canvas id="camera-canvas" class="hidden"></canvas>
-    <input type="file" id="file-upload" accept="image/*" class="hidden" onchange="handleFileUpload(event)">
-    <button type="button" id="btn-capture" onclick="takeSnapshot()" class="hidden bg-blue-600 text-white py-2.5 rounded-lg w-full mt-2 font-bold text-xs">Prendre</button>
-    <button type="button" id="btn-retake" onclick="resetCamera()" class="hidden bg-slate-400 text-white py-2.5 rounded-lg w-full mt-2 font-bold text-xs">Refaire</button>
-</div>
-
-<!-- 6. DOCUMENTS KYC -->
-<div class="md:col-span-3 grid grid-cols-1 md:grid-cols-4 gap-4 p-6 bg-slate-100 rounded-2xl border-2 border-dashed border-slate-200 mt-4">
-    <p class="md:col-span-4 text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Dossier Numérique Obligatoire</p>
-
-
-<div class="space-y-2">
-                    <label class="block text-[9px] font-bold text-slate-400 uppercase">Pièce d'Identité</label>
-                    <div id="btn-id_card" class="h-20 bg-white rounded-lg border flex items-center justify-center overflow-hidden cursor-pointer hover:bg-slate-50 transition-all" onclick="openDocCamera('id_card')">
-                        <img id="preview-id_card" class="hidden h-full w-full object-cover">
-                        <i id="icon-id_card" class="fa-solid fa-id-card text-slate-300 text-2xl"></i>
+            <!-- ÉTAPE 1 : IDENTITÉ GÉNÉRALE -->
+            <div id="step-1" class="wizard-step space-y-6 animate-fadeIn">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    <div class="md:col-span-2 space-y-4">
+                        <p class="text-[11px] font-black text-blue-600 uppercase tracking-[0.2em] mb-4">Informations Personnelles</p>
+                        <div class="grid grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-[9px] font-bold text-slate-400 uppercase mb-1">Civilité</label>
+                                <select id="f-civilite" class="w-full p-4 bg-slate-50 border rounded-xl font-medium outline-none">
+                                    <option value="Monsieur">Monsieur</option>
+                                    <option value="Madame">Madame</option>
+                                </select>
+                            </div>
+                            <div class="col-span-2">
+                                <label class="block text-[9px] font-bold text-slate-400 uppercase mb-1">Nom Complet</label>
+                                <input type="text" id="f-nom" class="w-full p-4 bg-slate-50 border rounded-xl outline-none" placeholder="Ex: Damien HABIB" required>
+                            </div>
+                        </div>
+                        <input type="email" id="f-email" class="w-full p-4 bg-slate-50 border rounded-xl outline-none" placeholder="Email Pro" required>
+                        <div class="grid grid-cols-2 gap-4">
+                            <input type="tel" id="f-phone" class="w-full p-4 bg-slate-50 border rounded-xl outline-none" placeholder="Téléphone">
+                            <input type="date" id="f-dob" class="w-full p-4 bg-slate-50 border rounded-xl outline-none" title="Date de naissance">
+                        </div>
+                        <input type="text" id="f-address" class="w-full p-4 bg-slate-50 border rounded-xl outline-none" placeholder="Adresse de résidence">
                     </div>
-                    <input type="file" id="f-id_card" class="hidden" onchange="previewDocFile(event, 'id_card'); updateFileFeedback('f-id_card', 'btn-id_card')">
+                    
+                    <!-- PHOTO DE PROFIL (Ton bloc original conservé) -->
+                    <div class="flex flex-col items-center justify-start p-4 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
+                        <div class="w-full h-44 bg-slate-200 rounded-xl mb-4 overflow-hidden flex items-center justify-center">
+                            <video id="video-stream" class="w-full h-full object-cover hidden" autoplay playsinline></video>
+                            <img id="captured-image" class="w-full h-full object-cover hidden">
+                            <i class="fa-solid fa-image text-slate-400 text-3xl" id="photo-placeholder"></i>
+                        </div>
+                        <div id="initial-controls" class="flex flex-col w-full gap-2 mt-auto">
+                            <button type="button" onclick="startCameraFeed()" class="w-full text-[10px] font-bold text-slate-500 uppercase bg-white border py-2.5 rounded-lg shadow-sm">Caméra</button>
+                            <button type="button" onclick="document.getElementById('file-upload').click()" class="w-full text-[10px] font-bold text-blue-600 uppercase bg-blue-50 border border-blue-200 py-2.5 rounded-lg">Téléverser</button>
+                        </div>
+                        <canvas id="camera-canvas" class="hidden"></canvas>
+                        <input type="file" id="file-upload" accept="image/*" class="hidden" onchange="handleFileUpload(event)">
+                        <button type="button" id="btn-capture" onclick="takeSnapshot()" class="hidden bg-blue-600 text-white py-2.5 rounded-lg w-full mt-2 font-bold text-xs">Prendre</button>
+                        <button type="button" id="btn-retake" onclick="resetCamera()" class="hidden bg-slate-400 text-white py-2.5 rounded-lg w-full mt-2 font-bold text-xs">Refaire</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ÉTAPE 2 : CONTRAT & FINANCES -->
+            <div id="step-2" class="wizard-step hidden space-y-6 animate-fadeIn">
+                <p class="text-[11px] font-black text-blue-600 uppercase tracking-[0.2em] mb-4">Poste & Conditions Contractuelles</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <select id="f-dept" class="w-full p-4 bg-slate-50 border rounded-xl font-medium"><option value="">Chargement...</option></select>
+                    <input type="text" id="f-poste" class="w-full p-4 bg-slate-50 border rounded-xl outline-none" placeholder="Poste occupé" required>
+                    <select id="f-type" onchange="toggleContractFieldsVisibility()" class="w-full p-4 bg-indigo-50 border border-indigo-100 rounded-xl font-bold text-indigo-700">
+                        <option value="OFFICE">🏢 Bureau (Fixe)</option>
+                        <option value="FIXED">🏠 Agent Site (Fixe)</option>
+                        <option value="MOBILE">🚗 Délégué (Nomade)</option>
+                    </select>
+                    <select id="f-role" class="w-full p-4 bg-blue-50 border border-blue-200 rounded-xl font-bold text-blue-700"></select>
                 </div>
 
-                <div class="space-y-2">
-                    <label class="block text-[9px] font-bold text-slate-400 uppercase">Curriculum Vitae</label>
-                    <div id="btn-cv" class="h-20 bg-white rounded-lg border flex items-center justify-center overflow-hidden cursor-pointer hover:bg-slate-50 transition-all" onclick="openDocCamera('cv')">
-                        <img id="preview-cv" class="hidden h-full w-full object-cover">
-                        <i id="icon-cv" class="fa-solid fa-file-pdf text-slate-300 text-2xl"></i>
+                <div class="bg-green-50 p-6 rounded-[2rem] border-2 border-dashed border-green-200 space-y-6">
+                    <select id="f-contract-template-selector" class="w-full p-3 bg-white border border-green-200 rounded-xl text-sm font-bold text-slate-700 outline-none"></select>
+                    <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        <input type="date" id="f-date" class="w-full p-3 bg-white border border-green-100 rounded-xl text-sm outline-none" required title="Date d'embauche">
+                        <select id="f-limit" class="w-full p-3 bg-white border border-green-100 rounded-xl text-sm outline-none">
+                            <option value="365">CDI (1 an+)</option>
+                            <option value="180">CDD (6 mois)</option>
+                            <option value="90">Essai (3 mois)</option>
+                        </select>
+                        <input type="text" id="f-duree-essai" class="w-full p-3 bg-white border border-green-100 rounded-xl text-sm outline-none" placeholder="Période d'essai" value="3 mois">
+                        <input type="number" id="f-salaire-fixe" class="w-full p-3 bg-white border border-green-100 rounded-xl text-sm font-black text-blue-600 outline-none" placeholder="Salaire Base (CFA)">
+                        <input type="text" id="f-temps-travail" class="w-full p-3 bg-white border border-green-100 rounded-xl text-sm outline-none" value="40 Heures">
+                        <input type="text" id="f-lieu-signature" class="w-full p-3 bg-white border border-green-100 rounded-xl text-sm outline-none" value="Cotonou">
                     </div>
-                    <input type="file" id="f-cv" class="hidden" onchange="previewDocFile(event, 'cv'); updateFileFeedback('f-cv', 'btn-cv')">
+                    <div data-employee-type="MOBILE" class="field-group-contract grid grid-cols-2 gap-4 pt-2 border-t border-green-100 hidden">
+                        <input type="number" id="f-indemnite-transport" class="w-full p-3 bg-white border border-green-200 rounded-xl text-sm outline-none" placeholder="Indemnité Transport">
+                        <input type="number" id="f-indemnite-logement" class="w-full p-3 bg-white border border-green-200 rounded-xl text-sm outline-none" placeholder="Indemnité Logement">
+                    </div>
+                    <div class="grid grid-cols-2 gap-4 pt-2 border-t border-green-100">
+                        <input type="text" id="f-lieu-naissance" class="w-full p-3 bg-white border border-green-100 rounded-xl text-sm outline-none" placeholder="Lieu de Naissance">
+                        <input type="text" id="f-nationalite" class="w-full p-3 bg-white border border-green-100 rounded-xl text-sm outline-none" value="Béninoise">
+                    </div>
+                </div>
+            </div>
+
+            <!-- ÉTAPE 3 : DOCUMENTS & HIÉRARCHIE -->
+            <div id="step-3" class="wizard-step hidden space-y-6 animate-fadeIn">
+                <p class="text-[11px] font-black text-blue-600 uppercase tracking-[0.2em] mb-4">Dossier Numérique & Hiérarchie</p>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <!-- Tes blocs de documents originaux KYC -->
+                    <div class="space-y-2">
+                        <label class="block text-[9px] font-bold text-slate-400 uppercase text-center">Pièce d'Identité</label>
+                        <div id="btn-id_card" class="h-24 bg-white rounded-2xl border-2 border-dashed border-slate-200 flex items-center justify-center overflow-hidden cursor-pointer hover:bg-slate-50 transition-all" onclick="openDocCamera('id_card')">
+                            <img id="preview-id_card" class="hidden h-full w-full object-cover">
+                            <i id="icon-id_card" class="fa-solid fa-id-card text-slate-300 text-2xl"></i>
+                        </div>
+                        <input type="file" id="f-id_card" class="hidden" onchange="previewDocFile(event, 'id_card'); updateFileFeedback('f-id_card', 'btn-id_card')">
+                    </div>
+                    <div class="space-y-2">
+                        <label class="block text-[9px] font-bold text-slate-400 uppercase text-center">CV</label>
+                        <div id="btn-cv" class="h-24 bg-white rounded-2xl border-2 border-dashed border-slate-200 flex items-center justify-center overflow-hidden cursor-pointer hover:bg-slate-50 transition-all" onclick="openDocCamera('cv')">
+                            <img id="preview-cv" class="hidden h-full w-full object-cover">
+                            <i id="icon-cv" class="fa-solid fa-file-pdf text-slate-300 text-2xl"></i>
+                        </div>
+                        <input type="file" id="f-cv" class="hidden" onchange="previewDocFile(event, 'cv'); updateFileFeedback('f-cv', 'btn-cv')">
+                    </div>
+                    <div class="space-y-2">
+                        <label class="block text-[9px] font-bold text-slate-400 uppercase text-center">Diplôme</label>
+                        <div id="btn-diploma" class="h-24 bg-white rounded-2xl border-2 border-dashed border-slate-200 flex items-center justify-center overflow-hidden cursor-pointer hover:bg-slate-50 transition-all" onclick="openDocCamera('diploma')">
+                            <img id="preview-diploma" class="hidden h-full w-full object-cover">
+                            <i id="icon-diploma" class="fa-solid fa-graduation-cap text-slate-300 text-2xl"></i>
+                        </div>
+                        <input type="file" id="f-diploma" class="hidden" onchange="previewDocFile(event, 'diploma'); updateFileFeedback('f-diploma', 'btn-diploma')">
+                    </div>
+                    <div class="space-y-2">
+                        <label class="block text-[9px] font-bold text-slate-400 uppercase text-center">Autre</label>
+                        <div id="btn-attestation" class="h-24 bg-white rounded-2xl border-2 border-dashed border-slate-200 flex items-center justify-center overflow-hidden cursor-pointer hover:bg-slate-50 transition-all" onclick="openDocCamera('attestation')">
+                            <img id="preview-attestation" class="hidden h-full w-full object-cover">
+                            <i id="icon-attestation" class="fa-solid fa-file-invoice text-slate-300 text-2xl"></i>
+                        </div>
+                        <input type="file" id="f-attestation" class="hidden" onchange="previewDocFile(event, 'attestation'); updateFileFeedback('f-attestation', 'btn-attestation')">
+                    </div>
                 </div>
 
-                <div class="space-y-2">
-                    <label class="block text-[9px] font-bold text-slate-400 uppercase">Dernier Diplôme</label>
-                    <div id="btn-diploma" class="h-20 bg-white rounded-lg border flex items-center justify-center overflow-hidden cursor-pointer hover:bg-slate-50 transition-all" onclick="openDocCamera('diploma')">
-                        <img id="preview-diploma" class="hidden h-full w-full object-cover">
-                        <i id="icon-diploma" class="fa-solid fa-graduation-cap text-slate-300 text-2xl"></i>
+                <div class="bg-slate-900 p-8 rounded-[2rem] border border-slate-800 space-y-4">
+                    <p class="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Affectation Hiérarchique</p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <select id="f-manager" class="w-full p-4 bg-white/5 border border-white/10 rounded-xl text-white outline-none text-sm font-bold"><option value="">-- Responsable N+1 --</option></select>
+                        <input type="text" id="f-scope" class="w-full p-4 bg-white/5 border border-white/10 rounded-xl text-white outline-none text-sm font-bold" placeholder="Scope géré (ex: Commercial, IT)">
                     </div>
-                    <input type="file" id="f-diploma" class="hidden" onchange="previewDocFile(event, 'diploma'); updateFileFeedback('f-diploma', 'btn-diploma')">
                 </div>
+            </div>
 
-                <div class="space-y-2">
-                    <label class="block text-[9px] font-bold text-slate-400 uppercase">Attestation / Autres</label>
-                    <div id="btn-attestation" class="h-20 bg-white rounded-lg border flex items-center justify-center overflow-hidden cursor-pointer hover:bg-slate-50 transition-all" onclick="openDocCamera('attestation')">
-                        <img id="preview-attestation" class="hidden h-full w-full object-cover">
-                        <i id="icon-attestation" class="fa-solid fa-file-invoice text-slate-300 text-2xl"></i>
-                    </div>
-                    <input type="file" id="f-attestation" class="hidden" onchange="previewDocFile(event, 'attestation'); updateFileFeedback('f-attestation', 'btn-attestation')">
-                </div>
-
-</div>
-
-<button type="submit" class="md:col-span-3 w-full bg-slate-900 text-white py-4 rounded-xl font-bold uppercase hover:bg-slate-800 tracking-widest transition-all shadow-xl">CRÉER ET GÉNÉRER LE CONTRAT</button>
-            
+            <!-- NAVIGATION BUTTONS -->
+            <div class="mt-12 pt-8 border-t border-slate-100 flex justify-between items-center">
+                <button type="button" id="btn-prev" onclick="moveStep(-1)" class="invisible text-slate-400 font-bold uppercase text-[10px] tracking-widest hover:text-slate-800 transition-all">
+                    <i class="fa-solid fa-arrow-left mr-2"></i> Précédent
+                </button>
+                
+                <button type="button" id="btn-next" onclick="moveStep(1)" class="bg-blue-600 text-white px-10 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-blue-500/20 active:scale-95 transition-all">
+                    Suivant <i class="fa-solid fa-arrow-right ml-2"></i>
+                </button>
+                
+                <button type="submit" id="btn-submit-wizard" class="hidden bg-slate-900 text-white px-10 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl active:scale-95 transition-all">
+                    VALIDER & CRÉER LE DOSSIER
+                </button>
+            </div>
         </form>
     </div>
 </section>
@@ -2124,6 +2076,7 @@
     </body>
 
     </html>
+
 
 
 
