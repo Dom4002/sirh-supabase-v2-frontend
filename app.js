@@ -6696,13 +6696,12 @@ function calculateRow(index) {
 
 
 
-
-// --- CHARGEMENT DYNAMIQUE AVEC MULTI-FILTRES ---
+// --- CHARGEMENT DYNAMIQUE AVEC MULTI-FILTRES (SÉCURISÉ) ---
 async function loadAccountingView() {
     const body = document.getElementById('accounting-table-body');
     if (!body) return;
 
-    // 0. Optionnel : Charger les taux fiscaux si pas encore fait
+    // 0. Charger les taux fiscaux si pas encore fait
     if (typeof fetchPayrollConstants === 'function' && Object.keys(payrollConstants).length === 0) {
         await fetchPayrollConstants();
     }
@@ -6715,7 +6714,6 @@ async function loadAccountingView() {
         agent: currentUser.nom
     };
 
-    // Note : On passe à colspan="6" car on a ajouté la colonne Indemnités
     body.innerHTML = '<tr><td colspan="6" class="p-12 text-center"><i class="fa-solid fa-circle-notch fa-spin text-blue-600 text-3xl"></i><p class="text-[10px] font-black text-slate-400 uppercase mt-4">Filtrage des données en cours...</p></td></tr>';
 
     try {
@@ -6736,22 +6734,31 @@ async function loadAccountingView() {
             return;
         }
 
-        // 3. Rendu du tableau
+        // 3. Rendu du tableau (AVEC SÉCURITÉ ANTI-CRASH)
         employeesToPay.forEach((emp, index) => {
-            // Calcul des indemnités contractuelles (Fixe)
+            // SÉCURITÉ : On s'assure que le nom et le matricule existent toujours
+            const safeNom = emp.nom || "Inconnu";
+            const safeMatricule = emp.matricule || "N/A";
+            const safePoste = emp.poste || "Non défini";
+            const initial = safeNom !== "Inconnu" ? safeNom.charAt(0).toUpperCase() : "?";
+            
+            // Chaîne de recherche sécurisée
+            const searchString = `${safeNom.toLowerCase()} ${safeMatricule.toLowerCase()}`;
+
+            // Calcul des indemnités
             const totalIndemnites = (parseFloat(emp.indemnite_transport) || 0) + (parseFloat(emp.indemnite_logement) || 0);
 
             body.innerHTML += `
                 <tr class="hover:bg-blue-50/50 transition-all accounting-row animate-fadeIn" 
-                    data-search="${emp.nom.toLowerCase()} ${emp.matricule.toLowerCase()}">
+                    data-search="${searchString}">
                     
                     <!-- 1. COLLABORATEUR -->
                     <td class="px-6 py-5">
                         <div class="flex items-center gap-3">
-                            <div class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-[10px] font-black text-slate-400">${emp.nom.charAt(0)}</div>
+                            <div class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-[10px] font-black text-slate-400">${initial}</div>
                             <div>
-                                <div class="font-black text-slate-800 text-[11px] uppercase">${emp.nom}</div>
-                                <div class="text-[9px] text-slate-400 font-bold">${emp.matricule} • ${emp.poste}</div>
+                                <div class="font-black text-slate-800 text-[11px] uppercase">${safeNom}</div>
+                                <div class="text-[9px] text-slate-400 font-bold">${safeMatricule} • ${safePoste}</div>
                             </div>
                         </div>
                     </td>
@@ -6763,7 +6770,7 @@ async function loadAccountingView() {
                                value="${emp.salaire_brut_fixe || 0}">
                     </td>
 
-                    <!-- 3. INDEMNITÉS FIXES (LECTURE SEULE - VIENT DU CONTRAT) -->
+                    <!-- 3. INDEMNITÉS FIXES -->
                     <td class="px-4 py-5 text-center">
                         <div class="bg-indigo-50 border border-indigo-100 rounded-xl py-2 shadow-sm">
                             <span id="indem-constante-${index}" class="text-indigo-700 font-black text-xs">${totalIndemnites}</span>
@@ -6771,14 +6778,14 @@ async function loadAccountingView() {
                         </div>
                     </td>
                     
-                    <!-- 4. PRIMES VARIABLES (SAISIE) -->
+                    <!-- 4. PRIMES VARIABLES -->
                     <td class="px-4 py-5 text-center">
                         <input type="number" oninput="calculateRow(${index})" id="prime-${index}" 
                                class="w-full p-2 bg-emerald-50 border-none rounded-xl text-center font-black text-xs text-emerald-600 focus:ring-2 focus:ring-emerald-500" 
                                value="0">
                     </td>
 
-                    <!-- 5. RETENUES (AUTO-CALCULÉES) -->
+                    <!-- 5. RETENUES -->
                     <td class="px-4 py-5 text-center">
                         <input type="number" oninput="calculateRow(${index})" id="tax-${index}" 
                                class="w-full p-2 bg-red-50 border-none rounded-xl text-center font-black text-xs text-red-600 focus:ring-2 focus:ring-red-500" 
@@ -6791,22 +6798,21 @@ async function loadAccountingView() {
                              onclick="toggleSensitiveData(this)" 
                              id="net-${index}" 
                              data-id="${emp.id}" 
-                             data-nom="${emp.nom}" 
-                             data-poste="${emp.poste}" 
-                             data-matricule="${emp.matricule}">0 CFA</div>
+                             data-nom="${safeNom}" 
+                             data-poste="${safePoste}" 
+                             data-matricule="${safeMatricule}">0 CFA</div>
                     </td>
                 </tr>`;
         });
 
-        // 4. Calcul immédiat pour chaque ligne pour afficher le NET correct dès le départ
+        // 4. Calcul immédiat
         employeesToPay.forEach((_, i) => calculateRow(i));
 
     } catch (e) {
-        console.error(e);
-        body.innerHTML = '<tr><td colspan="6" class="p-10 text-center text-red-500 font-bold uppercase text-xs">Erreur de connexion au serveur de paie</td></tr>';
+        console.error("Erreur de rendu paie:", e);
+        body.innerHTML = '<tr><td colspan="6" class="p-10 text-center text-red-500 font-bold uppercase text-xs">Erreur d\'affichage des données</td></tr>';
     }
 }
-
 
 // --- RESET DES FILTRES ---
 function resetAccountingFilters() {
@@ -8406,6 +8412,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
