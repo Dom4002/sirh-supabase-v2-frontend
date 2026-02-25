@@ -72,6 +72,60 @@ let activeFilters = {
 
 let searchTimeout = null; // Sert à attendre que l'utilisateur finisse de taper
 
+
+
+let currentWizardStep = 1;
+
+function moveStep(delta) {
+    const nextStep = currentWizardStep + delta;
+    if (nextStep < 1 || nextStep > 3) return;
+
+    // 1. Masquer l'étape actuelle et afficher la suivante
+    document.getElementById(`step-${currentWizardStep}`).classList.add('hidden');
+    document.getElementById(`step-${nextStep}`).classList.remove('hidden');
+
+    // 2. Mettre à jour la barre de progression (Dots)
+    for (let i = 1; i <= 3; i++) {
+        const dot = document.getElementById(`step-dot-${i}`);
+        if (i <= nextStep) {
+            dot.classList.replace('bg-white/10', 'bg-blue-600');
+        } else {
+            dot.classList.replace('bg-blue-600', 'bg-white/10');
+        }
+    }
+
+    // 3. Gérer la visibilité des boutons de navigation
+    const btnPrev = document.getElementById('btn-prev');
+    const btnNext = document.getElementById('btn-next');
+    const btnSubmit = document.getElementById('btn-submit-wizard');
+    const subtitle = document.getElementById('wizard-subtitle');
+
+    // Bouton Précédent
+    btnPrev.style.visibility = (nextStep === 1) ? 'hidden' : 'visible';
+
+    // Bouton Suivant VS Submit
+    if (nextStep === 3) {
+        btnNext.classList.add('hidden');
+        btnSubmit.classList.remove('hidden');
+    } else {
+        btnNext.classList.remove('hidden');
+        btnSubmit.classList.add('hidden');
+    }
+
+    // Mise à jour du sous-titre
+    const titles = {
+        1: "Étape 1 : Identité & Photo",
+        2: "Étape 2 : Poste & Finances",
+        3: "Étape 3 : Dossier & Hiérarchie"
+    };
+    subtitle.innerText = titles[nextStep];
+
+    currentWizardStep = nextStep;
+    
+    // Scroll en haut du formulaire pour confort mobile
+    document.getElementById('main-scroll-container').scrollTo(0, 0);
+}
+
     // ==========================================
 // CONFIGURATION DE PERSONNALISATION (SAAS)
 // ==========================================
@@ -8917,6 +8971,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
