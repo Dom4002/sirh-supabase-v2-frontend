@@ -141,20 +141,28 @@ button:active { transform: scale(0.96); }
     margin-bottom: 0.5rem !important;
 }
 
-/* Fix pour les modales qui dépassent (Priorité Mobile) */
+/* ============================================================
+   GESTION INTELLIGENTE DU SCROLL DES MODALES
+============================================================ */
+/* 1. Comportement par défaut (Formulaires et vues standards) */
 .swal2-html-container {
-    max-height: 70vh !important;
+    max-height: 75vh !important;
     overflow-y: auto !important;
     overflow-x: hidden !important;
+    padding-right: 5px !important;
 }
 
-/* SUR ORDINATEUR : On fait sauter la barre de scroll pour les documents */
+/* 2. Sur PC : On donne plus d'espace aux formulaires sans bloquer le scroll */
 @media (min-width: 768px) {
     .swal2-html-container {
-        max-height: 85vh !important; /* Laisse assez de place pour ton iFrame de 75vh */
-        overflow-y: hidden !important; /* Cache la double barre de scroll */
-        padding-right: 0 !important;
+        max-height: 85vh !important;
     }
+}
+
+/* 3. CLASSE MAGIQUE : Uniquement pour les visionneuses de documents (PDF/CV) */
+.swal2-popup.viewer-modal .swal2-html-container {
+    overflow-y: hidden !important;
+    padding-right: 0 !important;
 }
 
 /* Standardiser les inputs SweetAlert pour qu'ils matchent avec le fond */
@@ -390,12 +398,7 @@ button[type="submit"] {
     border-radius: 1rem;
 }
 
-/* Fix pour les modales qui dépassent de l'écran en hauteur */
-.swal2-html-container {
-    max-height: 70vh !important;
-    overflow-y: auto !important;
-    padding-right: 5px !important;
-}
+
 
 /* Personnalisation du scroll pour les tableaux */
 .table-container::-webkit-scrollbar {
@@ -488,3 +491,4 @@ button.flex-1, button.md\:flex-none {
 button i {
     font-size: 0.9rem !important;
 }
+
