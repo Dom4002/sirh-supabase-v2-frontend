@@ -587,13 +587,16 @@ async function deleteMobileLocation(id) {
 // ============================================================
 // VUE AGENDA (TIMELINE) - ADAPTATIVE (Délégué vs Manager)
 // ============================================================
+// ============================================================
+// VUE AGENDA (DESIGN COMPACT & GRILLE)
+// ============================================================
 
 async function fetchMobileSchedules() {
     const container = document.getElementById('planning-timeline-container');
     if (!container) return;
 
-    // Loader propre
-    container.innerHTML = '<div class="flex flex-col items-center justify-center py-20 space-y-4"><div class="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div><p class="text-xs font-bold text-slate-400 uppercase tracking-widest">Synchronisation Agenda...</p></div>';
+    // Loader discret
+    container.innerHTML = '<div class="flex flex-col items-center justify-center py-10"><i class="fa-solid fa-circle-notch fa-spin text-blue-500 text-2xl"></i><p class="text-xs text-slate-400 mt-2 font-bold uppercase">Chargement...</p></div>';
 
     try {
         const r = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/list-schedules`);
@@ -604,12 +607,11 @@ async function fetchMobileSchedules() {
         // Message si vide
         if (data.length === 0) {
             container.innerHTML = `
-                <div class="flex flex-col items-center justify-center py-16 text-slate-300">
-                    <div class="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-4">
-                        <i class="fa-regular fa-calendar-check text-4xl"></i>
+                <div class="text-center py-16 border-2 border-dashed border-slate-200 rounded-2xl">
+                    <div class="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-3 mx-auto text-slate-300">
+                        <i class="fa-regular fa-calendar text-2xl"></i>
                     </div>
-                    <h3 class="text-lg font-black text-slate-700">Aucune mission</h3>
-                    <p class="text-xs font-medium">Votre agenda est vide pour le moment.</p>
+                    <p class="text-sm font-bold text-slate-500">Aucune mission planifiée.</p>
                 </div>`;
             return;
         }
@@ -622,145 +624,138 @@ async function fetchMobileSchedules() {
             grouped[dateKey].push(s);
         });
 
-        const sortedDates = Object.keys(grouped).sort(); // Trie les dates
+        // On trie les dates (les plus récentes en haut, ou l'inverse selon ton besoin. Ici: Chronologique)
+        const sortedDates = Object.keys(grouped).sort(); 
 
         let html = '';
 
         sortedDates.forEach(date => {
             const dateObj = new Date(date);
-            // Formatage pro de la date (Lundi 24 Février)
+            // Format : Lundi 24 Février
             const dateStr = dateObj.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
             
             const todayStr = new Date().toISOString().split('T')[0];
             const isToday = (todayStr === date);
-            const isPast = (date < todayStr);
+            
+            // Badge "Aujourd'hui"
+            const badgeToday = isToday ? `<span class="bg-blue-600 text-white text-[9px] px-2 py-0.5 rounded uppercase font-black tracking-wider ml-2">Aujourd'hui</span>` : '';
+            const headerColor = isToday ? 'text-slate-800' : 'text-slate-500';
 
-            // Style de l'en-tête de date
-            let headerStyle = isToday ? 'text-blue-600' : (isPast ? 'text-slate-400' : 'text-slate-800');
-            let badgeToday = isToday ? `<span class="ml-2 bg-blue-600 text-white text-[9px] px-2 py-1 rounded-md uppercase font-black tracking-widest shadow-sm">Aujourd'hui</span>` : '';
-
+            // DÉBUT BLOC DATE
             html += `
-                <div class="mb-10 relative">
-                    <!-- EN-TÊTE JOUR -->
-                    <div class="sticky top-0 z-20 bg-[#f8fafc]/95 backdrop-blur-sm py-3 mb-6 border-b border-slate-200/60 flex items-center">
-                        <h3 class="text-xl font-black capitalize ${headerStyle} flex items-center">
-                            ${dateStr} ${badgeToday}
+                <div class="mb-8 animate-fadeIn">
+                    <div class="flex items-center mb-4 px-1">
+                        <i class="fa-regular fa-calendar-check mr-2 ${isToday ? 'text-blue-600' : 'text-slate-300'}"></i>
+                        <h3 class="font-black text-sm uppercase tracking-wide ${headerColor}">
+                            ${dateStr}
                         </h3>
+                        ${badgeToday}
                     </div>
                     
-                    <!-- LIGNE DE TEMPS VERTICALE -->
-                    <div class="space-y-0 relative border-l-[3px] border-slate-200 ml-3.5 md:ml-6 pb-2">
+                    <!-- GRILLE DES CARTES (Responsive: 1 col mobile, 2 col tablette, 3 col PC) -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             `;
 
             grouped[date].forEach(mission => {
-                // Détection : Est-ce MOI ou un autre ?
                 const isMe = (String(mission.employee_id) === String(currentUser.id));
-                const isManager = (currentUser.role !== 'EMPLOYEE');
-
-                // Couleurs dynamiques selon statut
-                let cardClass = 'bg-white border-slate-100';
-                let iconStatus = '<div class="w-4 h-4 bg-slate-300 rounded-full border-4 border-[#f8fafc]"></div>';
-                let timeClass = 'text-slate-800';
+                
+                // --- LOGIQUE VISUELLE (COULEURS & STATUTS) ---
+                let borderClass = 'border-l-slate-300'; // Gris (En attente)
+                let bgClass = 'bg-white';
+                let iconStatus = '<i class="fa-regular fa-circle text-slate-300"></i>';
+                let timeClass = 'text-slate-600';
+                let statusBadge = '';
 
                 if (mission.status === 'COMPLETED') {
-                    cardClass = 'bg-emerald-50/50 border-emerald-100 opacity-80'; // Fait = un peu effacé
-                    iconStatus = '<div class="w-4 h-4 bg-emerald-500 rounded-full border-4 border-[#f8fafc] shadow-sm"></div>';
-                    timeClass = 'text-emerald-700 line-through';
+                    borderClass = 'border-l-emerald-500'; // Vert (Fait)
+                    bgClass = 'bg-emerald-50/30';
+                    iconStatus = '<i class="fa-solid fa-circle-check text-emerald-500"></i>';
+                    timeClass = 'text-emerald-700 line-through decoration-emerald-300';
+                    statusBadge = '<span class="text-[9px] font-black text-emerald-600 uppercase bg-emerald-100 px-1.5 py-0.5 rounded">Terminé</span>';
                 } 
-                else if (mission.status === 'MISSED') {
-                    cardClass = 'bg-red-50/50 border-red-100';
-                    iconStatus = '<div class="w-4 h-4 bg-red-500 rounded-full border-4 border-[#f8fafc]"></div>';
-                    timeClass = 'text-red-700';
-                }
                 else if (mission.status === 'CHECKED_IN') {
-                    cardClass = 'bg-white border-blue-200 shadow-md ring-1 ring-blue-100'; // En cours = Mis en avant
-                    iconStatus = '<div class="w-4 h-4 bg-blue-600 rounded-full border-4 border-[#f8fafc] animate-pulse"></div>';
-                    timeClass = 'text-blue-600';
+                    borderClass = 'border-l-blue-600'; // Bleu (En cours)
+                    bgClass = 'bg-white shadow-md ring-1 ring-blue-100';
+                    iconStatus = '<i class="fa-solid fa-spinner fa-spin text-blue-600"></i>';
+                    timeClass = 'text-blue-600 font-bold';
+                    statusBadge = '<span class="text-[9px] font-black text-blue-600 uppercase bg-blue-100 px-1.5 py-0.5 rounded animate-pulse">En cours</span>';
+                }
+                else if (mission.status === 'MISSED') {
+                    borderClass = 'border-l-red-500'; // Rouge (Raté)
+                    bgClass = 'bg-red-50/30';
+                    iconStatus = '<i class="fa-solid fa-circle-xmark text-red-500"></i>';
+                    statusBadge = '<span class="text-[9px] font-black text-red-600 uppercase bg-red-100 px-1.5 py-0.5 rounded">Manqué</span>';
                 }
 
-                // Heure (ex: 09:00)
+                // Heure propre (09:00)
                 const timeStr = mission.start_time.slice(0, 5);
 
-
+                // --- CARTE COMPACTE ---
                 html += `
-                    <div class="relative pl-8 pb-8 group">
+                    <div class="relative p-4 rounded-xl border border-slate-200 border-l-4 ${borderClass} ${bgClass} shadow-sm hover:shadow-md transition-all group flex flex-col justify-between min-h-[140px]">
                         
-                        <!-- POINT SUR LA LIGNE -->
-                        <div class="absolute -left-[9px] top-1 z-10">
-                            ${iconStatus}
+                        <!-- HAUT : HEURE & STATUT -->
+                        <div class="flex justify-between items-start mb-2">
+                            <div class="flex items-center gap-2">
+                                ${iconStatus}
+                                <span class="font-mono text-sm ${timeClass}">${timeStr}</span>
+                            </div>
+                            ${statusBadge}
                         </div>
 
-                        <!-- LA CARTE -->
-                        <div class="relative p-5 rounded-2xl border ${cardClass} shadow-sm transition-all hover:shadow-md bg-white">
+                        <!-- MILIEU : INFOS PRINCIPALES -->
+                        <div class="mb-3">
+                            <h4 class="font-extrabold text-slate-800 text-sm leading-tight mb-1 line-clamp-1" title="${mission.location_name}">
+                                ${mission.location_name}
+                            </h4>
                             
-                            <!-- LIGNE 1 : HEURE + STATUT -->
-                            <div class="flex items-center justify-between mb-3">
-                                <span class="font-mono font-black text-xl ${timeClass}">${timeStr}</span>
-                                ${mission.status === 'CHECKED_IN' ? '<span class="bg-blue-100 text-blue-700 text-[9px] font-black px-2 py-0.5 rounded uppercase animate-pulse">En cours</span>' : ''}
-                                ${mission.status === 'COMPLETED' ? '<span class="bg-emerald-100 text-emerald-700 text-[9px] font-black px-2 py-0.5 rounded uppercase">Terminé</span>' : ''}
+                            ${mission.prescripteur_nom ? `
+                                <div class="flex items-center gap-1.5 text-xs text-blue-600 font-bold mb-1">
+                                    <i class="fa-solid fa-user-doctor text-[10px]"></i>
+                                    <span class="truncate">${mission.prescripteur_nom}</span>
+                                </div>
+                            ` : '<div class="h-4"></div>'} <!-- Espace vide pour alignement si pas de médecin -->
+
+                            <p class="text-[10px] text-slate-400 truncate flex items-center gap-1">
+                                <i class="fa-solid fa-map-pin"></i> ${mission.location_address || 'Adresse standard'}
+                            </p>
+                        </div>
+
+                        <!-- BAS : ACTIONS (ICÔNES) -->
+                        <div class="flex items-center justify-between mt-auto pt-3 border-t border-slate-100/50">
+                            <!-- Notes (si présentes) -->
+                            <div class="flex-1">
+                                ${mission.notes ? `<i class="fa-regular fa-note-sticky text-slate-400 text-xs" title="${mission.notes}"></i>` : ''}
                             </div>
 
-                            <!-- LIGNE 2 : LIEU & MÉDECIN -->
-                            <div class="flex items-start gap-4 mb-3">
-                                <div class="w-12 h-12 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center text-2xl text-blue-600 shadow-sm shrink-0">
-                                    <i class="fa-solid fa-hospital"></i>
-                                </div>
-                                <div>
-                                    <h4 class="font-extrabold text-slate-800 text-base leading-tight mb-1">${mission.location_name}</h4>
-                                    
-                                    ${mission.prescripteur_nom ? `
-                                        <p class="text-xs font-black text-blue-600 uppercase tracking-tight mb-1">
-                                            <i class="fa-solid fa-user-doctor mr-1"></i> ${mission.prescripteur_nom}
-                                        </p>
-                                    ` : ''}
-
-                                    <p class="text-xs text-slate-500 font-medium flex items-center gap-1">
-                                        <i class="fa-solid fa-map-pin text-[10px] text-slate-400"></i> 
-                                        ${mission.location_address || 'Adresse standard'}
-                                    </p>
-                                </div>
-                            </div>
-
-                            <!-- NOTES (Si présentes) -->
-                            ${mission.notes ? `
-                                <div class="bg-yellow-50 p-2 rounded-lg border border-yellow-100 mb-3">
-                                    <p class="text-[10px] text-yellow-800 italic"><i class="fa-regular fa-note-sticky mr-1"></i> ${mission.notes}</p>
-                                </div>
-                            ` : ''}
-
-                            <!-- BARRE D'ACTIONS (Le délégué est maître à bord) -->
+                            <!-- BOUTONS D'ACTION (Seulement pour moi et si pas fini) -->
                             ${(isMe && mission.status !== 'COMPLETED') ? `
-                                <div class="pt-3 mt-2 border-t border-slate-100 flex items-center justify-end gap-3">
-                                    
-                                    <!-- BOUTON 1 : SUPPRIMER / ANNULER -->
-                                    <button onclick="deleteSchedule('${mission.id}')" class="text-slate-400 hover:text-red-500 px-3 py-2 rounded-lg text-[10px] font-bold uppercase transition-colors flex items-center gap-1">
-                                        <i class="fa-solid fa-trash-can"></i> Annuler
+                                <div class="flex gap-2">
+                                    <button onclick="deleteSchedule('${mission.id}')" 
+                                        class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors" title="Annuler">
+                                        <i class="fa-solid fa-trash-can text-xs"></i>
                                     </button>
 
-                                    <!-- BOUTON 2 : LANCER LA VISITE (VALIDER) -->
                                     <button onclick="startMissionFromAgenda('${mission.id}', '${mission.location_id}', '${mission.prescripteur_id || ''}', '${mission.notes ? mission.notes.replace(/'/g, "\\'") : ''}')" 
-                                        class="bg-slate-900 text-white px-4 py-2 rounded-xl text-[10px] font-bold uppercase shadow-lg active:scale-95 transition-transform flex items-center gap-2 hover:bg-blue-600">
-                                        🚀 Démarrer
+                                        class="px-3 h-8 bg-slate-900 text-white rounded-lg flex items-center gap-2 text-[10px] font-bold uppercase shadow-md hover:bg-blue-600 transition-all active:scale-95">
+                                        <i class="fa-solid fa-play"></i> Go
                                     </button>
                                 </div>
                             ` : ''}
-                            
-                            <!-- POUR LE MANAGER (Si ce n'est pas moi, je vois qui c'est) -->
+
+                            <!-- INFO MANAGER (Si ce n'est pas moi) -->
                             ${(!isMe) ? `
-                                <div class="pt-3 mt-2 border-t border-slate-100 flex justify-end">
-                                    <div class="flex items-center gap-2">
-                                        <div class="w-5 h-5 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-[9px] font-bold">${mission.employee_name.charAt(0)}</div>
-                                        <span class="text-[10px] font-bold text-slate-500 uppercase">${mission.employee_name}</span>
-                                    </div>
+                                <div class="flex items-center gap-1.5 bg-slate-100 px-2 py-1 rounded text-[9px] font-bold text-slate-500">
+                                    <div class="w-4 h-4 bg-slate-300 rounded-full flex items-center justify-center text-[8px] text-white">${mission.employee_name.charAt(0)}</div>
+                                    <span class="uppercase truncate max-w-[80px]">${mission.employee_name}</span>
                                 </div>
                             ` : ''}
-
                         </div>
                     </div>
                 `;
             });
 
-            html += `</div></div>`;
+            html += `</div></div>`; // Fin Grille & Fin Bloc Date
         });
 
         container.innerHTML = html;
@@ -770,7 +765,6 @@ async function fetchMobileSchedules() {
         container.innerHTML = '<div class="text-center text-red-500 py-10 font-bold text-xs">Erreur connexion agenda.</div>';
     }
 }
-
 
 // FONCTION INTELLIGENTE : LANCE LE POINTAGE DIRECTEMENT DEPUIS L'AGENDA
 async function startMissionFromAgenda(missionId, locationId, presId, notes) {
@@ -8668,6 +8662,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
