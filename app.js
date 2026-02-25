@@ -2256,7 +2256,7 @@ function renderData() {
                 <td class="p-4 text-xs font-medium text-slate-500">${escapeHTML(e.poste)}</td>
                 <td class="p-4"><span class="px-3 py-1 border rounded-lg text-[10px] font-black uppercase ${bdgClass}">${escapeHTML(bdgLabel)}</span></td>
                 ${actionCell} 
-            </tr>`;; 
+            </tr>`;
     });
 
     // Mise à jour des compteurs UI
@@ -4082,7 +4082,8 @@ async function syncAllRoleSelects() {
             if (el) el.innerHTML = `<option value="">-- Sélectionner un rôle --</option>` + optionsHtml;
         });
 
-        // Pour les Filtres (Option "Tous les rôles" par défaut)['filter-role-select', 'filter-accounting-role'].forEach(id => {
+        // Pour les Filtres (Option "Tous les rôles" par défaut)
+       ['filter-role-select', 'filter-accounting-role'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.innerHTML = `<option value="all">Tous les rôles</option>` + optionsHtml;
         });
@@ -8416,6 +8417,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
