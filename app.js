@@ -62,12 +62,12 @@ async function compressImage(file, maxWidth = 1200, quality = 0.7) {
 let reportPage = 1;
 let reportTotalPages = 1;
 
-// On place ça en haut du fichier app.js
 let activeFilters = {
-    search: "",   // Ce qui est tapé dans la barre de recherche
-    status: "all", // Le bouton Statut cliqué
-    type: "all",   // Le bouton Activité cliqué
-    dept: "all"    // Le bouton Département cliqué
+    search: "",   
+    status: "all", 
+    type: "all",   
+    dept: "all",
+    role: "all"    
 };
 
 let searchTimeout = null; // Sert à attendre que l'utilisateur finisse de taper
@@ -1960,11 +1960,12 @@ async function fetchData(forceUpdate = false, page = 1) {
     };
 
     // 1. Construction de l'URL avec TOUS les paramètres de filtrage pro
-    let fetchUrl = `${URL_READ}?page=${page}&limit=${limit}` +
+let fetchUrl = `${URL_READ}?page=${page}&limit=${limit}` +
                    `&search=${encodeURIComponent(filters.search)}` +
                    `&status=${filters.status}` +
                    `&type=${filters.type}` +
                    `&dept=${filters.dept}` +
+                   `&role=${filters.role || 'all'}` +
                    `&agent=${encodeURIComponent(currentUser.nom)}`;
 
     if (currentUser.role === 'EMPLOYEE') {
@@ -4073,27 +4074,25 @@ async function syncAllRoleSelects() {
         const response = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/list-roles`);
         const roles = await response.json();
 
-        // On prépare le HTML des options
         const optionsHtml = roles.map(r => `<option value="${r.role_name}">${r.role_name}</option>`).join('');
-        const defaultOpt = `<option value="">-- Sélectionner un rôle --</option>`;
 
-        // Liste de tous les IDs de <select> qui doivent contenir les rôles
-        const roleSelectors = ['f-role', 'edit-role']; 
-
-        roleSelectors.forEach(id => {
+        // Pour les formulaires de Création/Édition (Pas d'option "Tous")
+        ['f-role', 'edit-role'].forEach(id => {
             const el = document.getElementById(id);
-            if (el) el.innerHTML = defaultOpt + optionsHtml;
+            if (el) el.innerHTML = `<option value="">-- Sélectionner un rôle --</option>` + optionsHtml;
         });
 
-        console.log("✅ Tous les menus de rôles sont à jour avec la BDD");
-        // On stocke les rôles en global pour les modales dynamiques (comme l'upload de template)
+        // Pour les Filtres (Option "Tous les rôles" par défaut)['filter-role-select', 'filter-accounting-role'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.innerHTML = `<option value="all">Tous les rôles</option>` + optionsHtml;
+        });
+
         window.activeRolesList = roles; 
 
     } catch (e) {
         console.error("Erreur synchro rôles", e);
     }
 }
-
 
     async function saveMyProfile() {
         Swal.fire({ title: 'Sauvegarde...', didOpen: () => Swal.showLoading() });
@@ -6711,6 +6710,7 @@ async function loadAccountingView() {
         type: document.getElementById('filter-accounting-type').value,
         dept: document.getElementById('filter-accounting-dept').value,
         status: document.getElementById('filter-accounting-status').value,
+        role: document.getElementById('filter-accounting-role') ? document.getElementById('filter-accounting-role').value : 'all', 
         agent: currentUser.nom
     };
 
@@ -6723,6 +6723,8 @@ async function loadAccountingView() {
         if (filters.type !== 'all') url += `&type=${filters.type}`;
         if (filters.dept !== 'all') url += `&dept=${encodeURIComponent(filters.dept)}`;
         if (filters.status !== 'all') url += `&status=${filters.status}`;
+        if (filters.role !== 'all') url += `&role=${encodeURIComponent(filters.role)}`;
+
 
         const r = await secureFetch(url);
         const result = await r.json();
@@ -6814,12 +6816,14 @@ async function loadAccountingView() {
     }
 }
 
+
 // --- RESET DES FILTRES ---
 function resetAccountingFilters() {
     document.getElementById('search-accounting').value = "";
     document.getElementById('filter-accounting-type').value = "all";
     document.getElementById('filter-accounting-status').value = "Actif";
     document.getElementById('filter-accounting-dept').value = "all";
+    if(document.getElementById('filter-accounting-role')) document.getElementById('filter-accounting-role').value = "all";
     loadAccountingView();
 }
 
@@ -8412,6 +8416,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
