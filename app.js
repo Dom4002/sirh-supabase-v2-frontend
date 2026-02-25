@@ -1316,6 +1316,7 @@ async function refreshAllData(force = false) {
 
         // --- ATTENTE DE TOUTES LES TÂCHES ---
         await Promise.all(tasks);
+        updateManagementSignals(); 
         
         // 8. Rendu final des graphiques (Si on est sur le Dashboard et qu'on a le droit)
         if (currentView === 'dash' && perms.can_see_dashboard) {
@@ -6103,6 +6104,90 @@ async function processLeave(recordId, decision, daysToDeduct = 0) {
 
 
 
+
+
+async function updateManagementSignals() {
+    const container = document.getElementById('signals-container');
+    if (!container || currentUser.role === 'EMPLOYEE') return;
+
+    let signals = [];
+    const today = new Date().toISOString().split('T')[0];
+
+    // --- SIGNAL 1 : LES CONGÉS EN ATTENTE ---
+    // On regarde dans la variable globale 'allLeaves' (si tu l'utilises)
+    const pendingLeaves = allLeaves.filter(l => l.statut.includes('attente')).length;
+    if (pendingLeaves > 0) {
+        signals.push({
+            title: "Absences",
+            desc: `${pendingLeaves} demande${pendingLeaves > 1 ? 's' : ''} à valider.`,
+            icon: "fa-plane-departure",
+            color: "blue", // Bleu = Tâche administrative
+            action: "switchView('dash')" // On reste sur le dash car le tableau de validation y est
+        });
+    }
+
+    // --- SIGNAL 2 : ALERTES DE RÉAPPROVISIONNEMENT (TERRAIN) ---
+    // On vérifie si un rapport journalier d'aujourd'hui a coché "Besoin de stock"
+    try {
+        const r = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/read-daily-reports?period=today`);
+        const dailies = await r.json();
+        const stockAlerts = (dailies.data || dailies).filter(rp => rp.needs_restock).length;
+        if (stockAlerts > 0) {
+            signals.push({
+                title: "Logistique",
+                desc: `${stockAlerts} alerte${stockAlerts > 1 ? 's' : ''} réappro. terrain.`,
+                icon: "fa-box-open",
+                color: "orange", // Orange = Attention requise
+                action: "switchView('mobile-reports')"
+            });
+        }
+    } catch(e) {}
+
+    // --- SIGNAL 3 : OUBLIS DE SORTIE (INTELLIGENCE DISCRÈTE) ---
+    const inPost = document.getElementById('live-presents-count')?.innerText || 0;
+    if (parseInt(inPost) > 5) { // Exemple : si plus de 5 personnes sont encore en poste à 18h
+        const hour = new Date().getHours();
+        if (hour >= 18) {
+            signals.push({
+                title: "Présences",
+                desc: `${inPost} agents encore en poste.`,
+                icon: "fa-clock",
+                color: "slate",
+                action: "switchView('dash')"
+            });
+        }
+    }
+
+    // --- RENDU FINAL ---
+    if (signals.length === 0) {
+        container.innerHTML = `
+            <div class="col-span-full py-4 px-6 bg-slate-50 border border-slate-100 rounded-2xl flex items-center gap-3">
+                <i class="fa-solid fa-circle-check text-emerald-500"></i>
+                <span class="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Aucune anomalie détectée • Système à jour</span>
+            </div>`;
+        return;
+    }
+
+    container.innerHTML = signals.map(s => `
+        <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between group hover:shadow-md transition-all">
+            <div class="flex items-center gap-4">
+                <div class="w-10 h-10 rounded-xl bg-${s.color}-50 text-${s.color}-600 flex items-center justify-center text-sm">
+                    <i class="fa-solid ${s.icon}"></i>
+                </div>
+                <div>
+                    <h4 class="font-black text-slate-800 text-[11px] uppercase">${s.title}</h4>
+                    <p class="text-[10px] text-slate-400 font-medium">${s.desc}</p>
+                </div>
+            </div>
+            <button onclick="${s.action}" class="p-2 text-slate-300 group-hover:text-blue-600 transition-colors">
+                <i class="fa-solid fa-arrow-right-long"></i>
+            </button>
+        </div>
+    `).join('');
+}
+
+
+
 async function fetchCandidates() {
     const body = document.getElementById('candidates-body');
     body.innerHTML = '<tr><td colspan="4" class="p-8 text-center"><i class="fa-solid fa-circle-notch fa-spin text-blue-600 text-2xl"></i><p class="text-xs text-slate-400 mt-2 font-bold uppercase">Chargement des talents...</p></td></tr>';
@@ -8971,6 +9056,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
