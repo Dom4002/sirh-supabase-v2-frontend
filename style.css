@@ -493,19 +493,27 @@ button i {
 }
 
 
-/* Fix pour la visibilité des menus déroulants (Wizard) */
-.wizard-step select option {
-    color: #1e293b !important;      /* Force le texte en bleu nuit */
-    background-color: #ffffff !important; /* Force le fond en blanc */
+
+/* Animation d'apparition fluide */
+.animate-fadeIn {
+    animation: fadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
 
-/* Style spécifique pour le champ manager dans le bloc noir */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Fix visibilité Select Wizard */
+.wizard-step select option {
+    color: #1e293b !important;
+    background-color: #ffffff !important;
+}
+
 #f-manager {
     color: white !important;
 }
 
 #f-manager option {
     color: #1e293b !important;
-    background-color: white !important;
 }
-
