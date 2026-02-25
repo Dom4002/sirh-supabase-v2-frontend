@@ -418,10 +418,20 @@ async function fetchMobileLocations() {
     const container = document.getElementById('locations-grid');
     if (!container) return;
     
-    // On lit la préférence de l'utilisateur (Par défaut : grille)
+    // 1. On lit la préférence
     const mode = localStorage.getItem('sirh_view_pref_locations') || 'grid';
-    // On s'assure que les boutons reflètent la bonne couleur au chargement
-    changeViewMode('locations', mode);
+
+    // 2. CORRECTION ANTI-BOUCLE : On met à jour les boutons MANUELLEMENT ici
+    // On n'appelle PLUS changeViewMode() pour éviter le crash.
+    document.querySelectorAll(`.view-toggle-locations`).forEach(btn => {
+        if(btn.dataset.mode === mode) {
+            btn.classList.add('bg-blue-600', 'text-white');
+            btn.classList.remove('bg-white', 'text-slate-600');
+        } else {
+            btn.classList.remove('bg-blue-600', 'text-white');
+            btn.classList.add('bg-white', 'text-slate-600');
+        }
+    });
     
     try {
         const r = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/list-mobile-locations`);
@@ -429,7 +439,7 @@ async function fetchMobileLocations() {
         
         container.innerHTML = '';
         if (data.length === 0) {
-            container.className = ""; // Nettoie les classes
+            container.className = ""; 
             container.innerHTML = '<div class="col-span-full text-center text-slate-400 py-10">Aucun lieu configuré.</div>';
             return;
         }
@@ -437,7 +447,7 @@ async function fetchMobileLocations() {
         const canManage = currentUser.permissions?.can_manage_mobile_locations;
 
         if (mode === 'grid') {
-            // --- VUE GRILLE (CARTES) ---
+            // --- VUE GRILLE ---
             container.className = "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6";
             data.forEach(loc => {
                 container.innerHTML += `
@@ -462,9 +472,8 @@ async function fetchMobileLocations() {
                     </div>`;
             });
         } else {
-            // --- VUE LISTE (TABLEAU B2B) ---
+            // --- VUE LISTE ---
             container.className = "bg-white rounded-xl shadow-xl border border-slate-200 overflow-x-auto";
-            
             let html = `
                 <table class="w-full text-left whitespace-nowrap">
                     <thead class="bg-slate-900 text-white text-[10px] uppercase font-bold">
@@ -508,7 +517,6 @@ async function fetchMobileLocations() {
         }
     } catch (e) { console.error(e); }
 }
-
 
 
 
@@ -1653,7 +1661,17 @@ async function fetchPrescripteursManagement() {
     if (!container) return;
 
     const mode = localStorage.getItem('sirh_view_pref_prescripteurs') || 'grid';
-    changeViewMode('prescripteurs', mode);
+    
+    // CORRECTION ANTI-BOUCLE : Mise à jour manuelle des boutons
+    document.querySelectorAll(`.view-toggle-prescripteurs`).forEach(btn => {
+        if(btn.dataset.mode === mode) {
+            btn.classList.add('bg-blue-600', 'text-white');
+            btn.classList.remove('bg-white', 'text-slate-600');
+        } else {
+            btn.classList.remove('bg-blue-600', 'text-white');
+            btn.classList.add('bg-white', 'text-slate-600');
+        }
+    });
 
     container.innerHTML = '<div class="col-span-full text-center p-10"><i class="fa-solid fa-circle-notch fa-spin text-blue-500 text-2xl"></i></div>';
 
@@ -1744,6 +1762,8 @@ async function fetchPrescripteursManagement() {
 
     } catch (e) { console.error(e); }
 }
+
+
 
 async function openAddPrescripteurModal() {
     // On charge les lieux pour le menu déroulant
@@ -8648,6 +8668,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
