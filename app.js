@@ -4524,7 +4524,7 @@ Swal.fire({
         width: '900px',
         showConfirmButton: false,
         padding: '1.5rem', // On garde un padding raisonnable
-        customClass: { popup: 'rounded-2xl' } // On force un radius raisonnable
+        customClass: { popup: 'rounded-2xl viewer-modal' }
     });
 }
 
@@ -5898,7 +5898,7 @@ function showCandidateDocs(safeNom, poste, cv, lm, dip, att, idCard) {
         showConfirmButton: false, 
         showCloseButton: false,
         padding: '1.5rem',
-        customClass: { popup: 'rounded-[1.5rem]', htmlContainer: '!m-0' },
+        customClass: { popup: 'rounded-[1.5rem] viewer-modal', htmlContainer: '!m-0' },
         didOpen: () => {
             const firstBtn = document.querySelector('.doc-btn');
             if(firstBtn) {
@@ -8412,6 +8412,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
