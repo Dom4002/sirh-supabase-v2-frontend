@@ -3288,15 +3288,21 @@ function formatGoogleLink(link) {
 
 
 
+// --- MISE À JOUR DU CATALOGUE PRODUITS ---
+
 async function fetchProducts() {
     const grid = document.getElementById('products-grid');
     if (!grid) return;
+    
     grid.innerHTML = '<div class="col-span-full text-center p-10"><i class="fa-solid fa-circle-notch fa-spin text-blue-500 text-3xl"></i></div>';
 
     try {
         const r = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/list-products`);
         const products = await r.json();
         
+        // On garde les produits en mémoire globale pour la recherche et le détail
+        window.allProductsData = products;
+
         grid.innerHTML = '';
         if (products.length === 0) {
             grid.innerHTML = '<div class="col-span-full text-center text-slate-400 py-10 italic border-2 border-dashed rounded-[2rem]">Catalogue vide.</div>';
@@ -3304,18 +3310,31 @@ async function fetchProducts() {
         }
 
         products.forEach(p => {
-            // Utilise p.photo_url car c'est le nom dans ta base Supabase
-            const img = p.photo_url ? p.photo_url : 'https://via.placeholder.com/150';
+            const img = p.photo_url ? p.photo_url : 'https://via.placeholder.com/300x200?text=Pas+d\'image';
             
+            // On ajoute la classe 'product-card' et le 'data-name' pour le filtrage local
             grid.innerHTML += `
-                <div class="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden group hover:shadow-xl transition-all">
-                    <div class="h-48 bg-slate-50 relative">
-                        <img src="${img}" class="w-full h-full object-cover">
-                        ${(currentUser.role === 'ADMIN') ? `<button onclick="deleteProduct('${p.id}')" class="absolute top-3 right-3 w-8 h-8 bg-white/90 text-red-500 rounded-full shadow-lg"><i class="fa-solid fa-trash"></i></button>` : ''}
+                <div class="product-card bg-white rounded-[1.5rem] border border-slate-100 shadow-sm overflow-hidden group hover:shadow-xl transition-all animate-fadeIn" 
+                     data-id="${p.id}" data-name="${p.name.toLowerCase()}">
+                    
+                    <div class="h-48 bg-slate-50 relative overflow-hidden">
+                        <img src="${img}" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">
+                        ${(currentUser.role === 'ADMIN') ? `
+                        <button onclick="deleteProduct('${p.id}')" class="absolute top-3 right-3 w-8 h-8 bg-white/90 text-red-500 rounded-full shadow-lg hover:bg-red-500 hover:text-white transition-all">
+                            <i class="fa-solid fa-trash-can text-xs"></i>
+                        </button>` : ''}
                     </div>
-                    <div class="p-6">
-                        <h4 class="font-black text-slate-800 uppercase text-sm">${p.name}</h4>
-                        <p class="text-[10px] text-slate-400 mt-2 line-clamp-3">${p.description || ''}</p>
+
+                    <div class="p-5">
+                        <div class="mb-4">
+                            <h4 class="font-black text-slate-800 uppercase text-xs tracking-tighter line-clamp-1">${p.name}</h4>
+                            <p class="text-[10px] text-slate-400 mt-1 line-clamp-2">${p.description || 'Aucune description disponible.'}</p>
+                        </div>
+                        
+                        <!-- BOUTON VOIR LA FICHE -->
+                        <button onclick="viewProductDetail('${p.id}')" class="w-full py-2.5 bg-slate-900 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-blue-600 transition-all active:scale-95">
+                            Voir la fiche
+                        </button>
                     </div>
                 </div>`;
         });
@@ -3323,6 +3342,74 @@ async function fetchProducts() {
 }
 
 
+
+
+function viewProductDetail(id) {
+    const p = window.allProductsData.find(item => item.id == id);
+    if (!p) return;
+
+    const img = p.photo_url ? p.photo_url : 'https://via.placeholder.com/600x400?text=Pas+d\'image';
+
+    Swal.fire({
+        width: '850px',
+        padding: '0',
+        showConfirmButton: false,
+        showCloseButton: true,
+        customClass: { popup: 'rounded-[2rem] overflow-hidden' },
+        html: `
+            <div class="flex flex-col md:flex-row text-left bg-white h-auto md:h-[500px]">
+                <!-- GAUCHE : IMAGE (60%) -->
+                <div class="w-full md:w-[55%] bg-slate-100 relative group overflow-hidden">
+                    <img src="${img}" class="w-full h-full object-cover">
+                    <!-- Si tu as plusieurs photos plus tard, on mettra les flèches ici -->
+                    <div class="absolute bottom-4 left-4 bg-black/20 backdrop-blur-md px-3 py-1.5 rounded-lg text-white text-[10px] font-bold">
+                        Réf: PROD-${p.id.substring(0,5).toUpperCase()}
+                    </div>
+                </div>
+
+                <!-- DROITE : CONTENU (40%) -->
+                <div class="w-full md:w-[45%] p-8 flex flex-col justify-between">
+                    <div>
+                        <span class="inline-block bg-blue-50 text-blue-600 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest mb-4">
+                            Détails Produit
+                        </span>
+                        <h3 class="text-3xl font-black text-slate-800 leading-tight mb-4 uppercase tracking-tighter">${p.name}</h3>
+                        
+                        <div class="h-[1px] w-12 bg-blue-500 mb-6"></div>
+                        
+                        <p class="text-sm text-slate-500 leading-relaxed italic mb-8 overflow-y-auto max-h-[180px] custom-scroll pr-2">
+                            "${p.description || 'Aucune description détaillée n\'a été renseignée pour ce produit.'}"
+                        </p>
+
+                        <!-- Infos Supplémentaires -->
+                        <div class="space-y-3">
+                            <div class="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
+                                <i class="fa-solid fa-box text-blue-500"></i>
+                                <span class="text-[10px] font-bold text-slate-700 uppercase">Stock : Disponible</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-8 pt-6 border-t border-slate-100">
+                        <button onclick="Swal.close()" class="w-full py-4 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl hover:bg-blue-600 transition-all">
+                            Fermer la fiche
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `
+    });
+}
+
+
+// Fonction de recherche instantanée (Local)
+function filterProductsLocally() {
+    const term = document.getElementById('search-product-input').value.toLowerCase();
+    document.querySelectorAll('.product-card').forEach(card => {
+        const name = card.dataset.name;
+        card.style.display = name.includes(term) ? '' : 'none';
+    });
+}
 
 async function openAddProductModal() {
     const { value: file } = await Swal.fire({
@@ -8676,6 +8763,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
