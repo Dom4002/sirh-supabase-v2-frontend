@@ -74,57 +74,7 @@ let searchTimeout = null; // Sert à attendre que l'utilisateur finisse de taper
 
 
 
-let currentWizardStep = 1;
 
-function moveStep(delta) {
-    const nextStep = currentWizardStep + delta;
-    if (nextStep < 1 || nextStep > 3) return;
-
-    // 1. Masquer l'étape actuelle et afficher la suivante
-    document.getElementById(`step-${currentWizardStep}`).classList.add('hidden');
-    document.getElementById(`step-${nextStep}`).classList.remove('hidden');
-
-    // 2. Mettre à jour la barre de progression (Dots)
-    for (let i = 1; i <= 3; i++) {
-        const dot = document.getElementById(`step-dot-${i}`);
-        if (i <= nextStep) {
-            dot.classList.replace('bg-white/10', 'bg-blue-600');
-        } else {
-            dot.classList.replace('bg-blue-600', 'bg-white/10');
-        }
-    }
-
-    // 3. Gérer la visibilité des boutons de navigation
-    const btnPrev = document.getElementById('btn-prev');
-    const btnNext = document.getElementById('btn-next');
-    const btnSubmit = document.getElementById('btn-submit-wizard');
-    const subtitle = document.getElementById('wizard-subtitle');
-
-    // Bouton Précédent
-    btnPrev.style.visibility = (nextStep === 1) ? 'hidden' : 'visible';
-
-    // Bouton Suivant VS Submit
-    if (nextStep === 3) {
-        btnNext.classList.add('hidden');
-        btnSubmit.classList.remove('hidden');
-    } else {
-        btnNext.classList.remove('hidden');
-        btnSubmit.classList.add('hidden');
-    }
-
-    // Mise à jour du sous-titre
-    const titles = {
-        1: "Étape 1 : Identité & Photo",
-        2: "Étape 2 : Poste & Finances",
-        3: "Étape 3 : Dossier & Hiérarchie"
-    };
-    subtitle.innerText = titles[nextStep];
-
-    currentWizardStep = nextStep;
-    
-    // Scroll en haut du formulaire pour confort mobile
-    document.getElementById('main-scroll-container').scrollTo(0, 0);
-}
 
     // ==========================================
 // CONFIGURATION DE PERSONNALISATION (SAAS)
@@ -225,9 +175,96 @@ let chatSubscription = null;
 
 
 
-// ============================================================
-// MOTEUR D'IMPORT / EXPORT INTELLIGENT (PAPAPARSE)
-// ============================================================
+
+
+let currentWizardStep = 1;
+
+// 1. GESTION DE LA NAVIGATION WIZARD
+function moveStep(delta) {
+    if (delta > 0) { // On va vers l'étape suivante : VALIDATION
+        if (currentWizardStep === 1) {
+            const nom = document.getElementById('f-nom').value.trim();
+            const email = document.getElementById('f-email').value.trim();
+            if (!nom || !email) return Swal.fire('Attention', 'Nom et Email sont obligatoires.', 'warning');
+        }
+        if (currentWizardStep === 2) {
+            const poste = document.getElementById('f-poste').value.trim();
+            const salaire = document.getElementById('f-salaire-fixe').value;
+            if (!poste || !salaire) return Swal.fire('Attention', 'Veuillez remplir les infos de poste et salaire.', 'warning');
+        }
+    }
+
+    const nextStep = currentWizardStep + delta;
+    if (nextStep < 1 || nextStep > 3) return;
+
+    // Mise à jour visuelle
+    document.getElementById(`step-${currentWizardStep}`).classList.add('hidden');
+    document.getElementById(`step-${nextStep}`).classList.remove('hidden');
+
+    for (let i = 1; i <= 3; i++) {
+        const dot = document.getElementById(`step-dot-${i}`);
+        dot.classList.toggle('bg-blue-600', i <= nextStep);
+        dot.classList.toggle('bg-white/10', i > nextStep);
+    }
+
+    document.getElementById('btn-prev').style.visibility = (nextStep === 1) ? 'hidden' : 'visible';
+    document.getElementById('btn-next').classList.toggle('hidden', nextStep === 3);
+    document.getElementById('btn-submit-wizard').classList.toggle('hidden', nextStep !== 3);
+    
+    const titles = { 1: "Identité & Photo", 2: "Poste & Finances", 3: "Dossier & Hiérarchie" };
+    document.getElementById('wizard-subtitle').innerText = `Étape ${nextStep} : ${titles[nextStep]}`;
+    currentWizardStep = nextStep;
+    document.getElementById('main-scroll-container').scrollTo(0,0);
+}
+
+// 2. LOGIQUE DES SIGNAUX DE MANAGEMENT (Dashboard)
+async function updateManagementSignals() {
+    const container = document.getElementById('signals-container');
+    if (!container || currentUser.role === 'EMPLOYEE') return;
+
+    let signals = [];
+
+    // SIGNAL : CONGÉS EN ATTENTE
+    if (typeof allLeaves !== 'undefined') {
+        const pending = allLeaves.filter(l => l.statut.includes('attente')).length;
+        if (pending > 0) signals.push({ title: "Absences", desc: `${pending} demande(s) à valider.`, icon: "fa-plane-departure", color: "blue", action: "switchView('dash')" });
+    }
+
+    // SIGNAL : CONTRATS EXPIRÉS (< 15 JOURS)
+    let contractAlerts = 0;
+    employees.forEach(e => {
+        if(e.date && !e.statut.toLowerCase().includes('sortie')) {
+            let eD = new Date(parseDateSmart(e.date)); eD.setDate(eD.getDate() + (parseInt(e.limit) || 365));
+            if (Math.ceil((eD - new Date()) / 86400000) <= 15) contractAlerts++;
+        }
+    });
+    if (contractAlerts > 0) signals.push({ title: "Contrats", desc: `${contractAlerts} fins imminentes.`, icon: "fa-file-circle-exclamation", color: "red", action: "switchView('employees')" });
+
+    // SIGNAL : STOCK TERRAIN (Rapport du jour)
+    try {
+        const r = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/read-daily-reports?period=today`);
+        const dailies = await r.json();
+        const stockAlerts = (dailies.data || dailies).filter(rp => rp.needs_restock).length;
+        if (stockAlerts > 0) signals.push({ title: "Logistique", desc: `${stockAlerts} alertes réappro.`, icon: "fa-box-open", color: "orange", action: "switchView('mobile-reports')" });
+    } catch(e) {}
+
+    // Rendu
+    if (signals.length === 0) {
+        container.innerHTML = '<div class="col-span-full p-4 bg-slate-50 border border-slate-100 rounded-2xl flex items-center gap-3"><i class="fa-solid fa-circle-check text-emerald-500"></i><span class="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Système à jour • Aucune anomalie</span></div>';
+        return;
+    }
+    container.innerHTML = signals.map(s => `
+        <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between group hover:shadow-md transition-all">
+            <div class="flex items-center gap-4">
+                <div class="w-10 h-10 rounded-xl bg-${s.color}-50 text-${s.color}-600 flex items-center justify-center text-sm"><i class="fa-solid ${s.icon}"></i></div>
+                <div><h4 class="font-black text-slate-800 text-[11px] uppercase">${s.title}</h4><p class="text-[10px] text-slate-400 font-medium">${s.desc}</p></div>
+            </div>
+            <button onclick="${s.action}" class="p-2 text-slate-300 group-hover:text-blue-600 transition-colors"><i class="fa-solid fa-arrow-right-long"></i></button>
+        </div>`).join('');
+}
+
+
+
 // ============================================================
 // MOTEUR D'IMPORT / EXPORT INTELLIGENT (PAPAPARSE) - CORRIGÉ EXCEL FR
 // ============================================================
@@ -4654,9 +4691,10 @@ async function handleOnboarding(e) {
                 console.log("Tentative de création de profil...");
 
                 // 1. Vérification de la photo de profil (Obligatoire)
-                if (!capturedBlob) {
-                    return Swal.fire('Attention', 'La photo de profil est obligatoire pour créer un compte.', 'warning');
-                }
+                    if (capturedBlob) {
+                        const compressed = await compressImage(capturedBlob);
+                        fd.append('photo', compressed, 'photo_profil.jpg');
+                    }
 
                 const fd = new FormData();
 
@@ -6105,86 +6143,6 @@ async function processLeave(recordId, decision, daysToDeduct = 0) {
 
 
 
-
-async function updateManagementSignals() {
-    const container = document.getElementById('signals-container');
-    if (!container || currentUser.role === 'EMPLOYEE') return;
-
-    let signals = [];
-    const today = new Date().toISOString().split('T')[0];
-
-    // --- SIGNAL 1 : LES CONGÉS EN ATTENTE ---
-    // On regarde dans la variable globale 'allLeaves' (si tu l'utilises)
-    const pendingLeaves = allLeaves.filter(l => l.statut.includes('attente')).length;
-    if (pendingLeaves > 0) {
-        signals.push({
-            title: "Absences",
-            desc: `${pendingLeaves} demande${pendingLeaves > 1 ? 's' : ''} à valider.`,
-            icon: "fa-plane-departure",
-            color: "blue", // Bleu = Tâche administrative
-            action: "switchView('dash')" // On reste sur le dash car le tableau de validation y est
-        });
-    }
-
-    // --- SIGNAL 2 : ALERTES DE RÉAPPROVISIONNEMENT (TERRAIN) ---
-    // On vérifie si un rapport journalier d'aujourd'hui a coché "Besoin de stock"
-    try {
-        const r = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/read-daily-reports?period=today`);
-        const dailies = await r.json();
-        const stockAlerts = (dailies.data || dailies).filter(rp => rp.needs_restock).length;
-        if (stockAlerts > 0) {
-            signals.push({
-                title: "Logistique",
-                desc: `${stockAlerts} alerte${stockAlerts > 1 ? 's' : ''} réappro. terrain.`,
-                icon: "fa-box-open",
-                color: "orange", // Orange = Attention requise
-                action: "switchView('mobile-reports')"
-            });
-        }
-    } catch(e) {}
-
-    // --- SIGNAL 3 : OUBLIS DE SORTIE (INTELLIGENCE DISCRÈTE) ---
-    const inPost = document.getElementById('live-presents-count')?.innerText || 0;
-    if (parseInt(inPost) > 5) { // Exemple : si plus de 5 personnes sont encore en poste à 18h
-        const hour = new Date().getHours();
-        if (hour >= 18) {
-            signals.push({
-                title: "Présences",
-                desc: `${inPost} agents encore en poste.`,
-                icon: "fa-clock",
-                color: "slate",
-                action: "switchView('dash')"
-            });
-        }
-    }
-
-    // --- RENDU FINAL ---
-    if (signals.length === 0) {
-        container.innerHTML = `
-            <div class="col-span-full py-4 px-6 bg-slate-50 border border-slate-100 rounded-2xl flex items-center gap-3">
-                <i class="fa-solid fa-circle-check text-emerald-500"></i>
-                <span class="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Aucune anomalie détectée • Système à jour</span>
-            </div>`;
-        return;
-    }
-
-    container.innerHTML = signals.map(s => `
-        <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between group hover:shadow-md transition-all">
-            <div class="flex items-center gap-4">
-                <div class="w-10 h-10 rounded-xl bg-${s.color}-50 text-${s.color}-600 flex items-center justify-center text-sm">
-                    <i class="fa-solid ${s.icon}"></i>
-                </div>
-                <div>
-                    <h4 class="font-black text-slate-800 text-[11px] uppercase">${s.title}</h4>
-                    <p class="text-[10px] text-slate-400 font-medium">${s.desc}</p>
-                </div>
-            </div>
-            <button onclick="${s.action}" class="p-2 text-slate-300 group-hover:text-blue-600 transition-colors">
-                <i class="fa-solid fa-arrow-right-long"></i>
-            </button>
-        </div>
-    `).join('');
-}
 
 
 
@@ -9056,6 +9014,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
