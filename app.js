@@ -230,6 +230,9 @@ function moveStep(delta) {
 
 
 
+
+
+
 // 2. LOGIQUE DES SIGNAUX DE MANAGEMENT (Dashboard)
 async function updateManagementSignals() {
     const container = document.getElementById('signals-container');
@@ -238,48 +241,50 @@ async function updateManagementSignals() {
     let signals = [];
 
     try {
-        // 1. On récupère les chiffres globaux du serveur (non limités par la pagination)
+        // 1. Chiffres globaux du serveur
         const rStats = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/get-dashboard-stats`);
         const globalData = await rStats.json();
 
-        // SIGNAL 1 : CONGÉS EN ATTENTE (Utilise le chiffre global du serveur)
+        // SIGNAL 1 : CONGÉS
         if (globalData.alertConges > 0) {
             signals.push({ 
-                title: "Absences", 
-                desc: `${globalData.alertConges} demande(s) à valider.`, 
-                icon: "fa-plane-departure", 
-                color: "blue", 
-                action: "switchView('dash')" 
+                title: "Absences", desc: `${globalData.alertConges} demande(s) à valider.`, 
+                icon: "fa-plane-departure", color: "blue", action: "switchView('dash')" 
             });
         }
 
-        // SIGNAL 2 : CONTRATS EXPIRÉS (Utilise le chiffre global du serveur)
+        // SIGNAL 2 : CONTRATS
         if (globalData.alertContrats > 0) {
             signals.push({ 
-                title: "Contrats", 
-                desc: `${globalData.alertContrats} fin(s) imminente(s).`, 
-                icon: "fa-file-circle-exclamation", 
-                color: "red", 
-                action: "switchView('employees')" 
+                title: "Contrats", desc: `${globalData.alertContrats} fin(s) imminente(s).`, 
+                icon: "fa-file-circle-exclamation", color: "red", action: "switchView('employees')" 
             });
         }
 
-        // SIGNAL 3 : STOCK TERRAIN (Ton code actuel, déjà fonctionnel)
+        // SIGNAL 3 : STOCK TERRAIN
         const rStock = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/read-daily-reports?period=today`);
         const dailies = await rStock.json();
         const stockAlerts = (dailies.data || dailies).filter(rp => rp.needs_restock).length;
-        
         if (stockAlerts > 0) {
             signals.push({ 
-                title: "Logistique", 
-                desc: `${stockAlerts} alerte(s) réappro. terrain.`, 
-                icon: "fa-box-open", 
-                color: "orange", 
-                action: "switchView('mobile-reports')" 
+                title: "Logistique", desc: `${stockAlerts} alerte(s) réappro. terrain.`, 
+                icon: "fa-box-open", color: "orange", action: "switchView('mobile-reports')" 
             });
         }
 
-        // --- RENDU FINAL (INTÉGRÉ) ---
+        // --- SIGNAL 4 : MAINTENANCE SYSTÈME ---
+        const lastMaint = localStorage.getItem('sirh_last_maint');
+        const threeMonthsAgo = new Date();
+        threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+
+        if (!lastMaint || new Date(lastMaint) < threeMonthsAgo) {
+            signals.push({
+                title: "Maintenance", desc: "Nettoyage du stockage conseillé.",
+                icon: "fa-screwdriver-wrench", color: "slate", action: "runArchivingJob()"
+            });
+        }
+
+        // --- RENDU FINAL ---
         if (signals.length === 0) {
             container.innerHTML = `
                 <div class="col-span-full py-4 px-6 bg-slate-50 border border-slate-100 rounded-2xl flex items-center gap-3">
@@ -312,39 +317,7 @@ async function updateManagementSignals() {
 }
 
 
-            // --- SIGNAL : MAINTENANCE SYSTÈME ---
-    const lastMaint = localStorage.getItem('sirh_last_maint');
-    const threeMonthsAgo = new Date();
-    threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
-
-    if (!lastMaint || new Date(lastMaint) < threeMonthsAgo) {
-        signals.push({
-            title: "Maintenance",
-            desc: "Nettoyage du stockage conseillé.",
-            icon: "fa-screwdriver-wrench",
-            color: "slate",
-            action: "runArchivingJob()" // Appelle ta fonction de maintenance
-        });
-    }
-
-    // Rendu
-    if (signals.length === 0) {
-        container.innerHTML = '<div class="col-span-full p-4 bg-slate-50 border border-slate-100 rounded-2xl flex items-center gap-3"><i class="fa-solid fa-circle-check text-emerald-500"></i><span class="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Système à jour • Aucune anomalie</span></div>';
-        return;
-    }
-    container.innerHTML = signals.map(s => `
-        <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between group hover:shadow-md transition-all">
-            <div class="flex items-center gap-4">
-                <div class="w-10 h-10 rounded-xl bg-${s.color}-50 text-${s.color}-600 flex items-center justify-center text-sm"><i class="fa-solid ${s.icon}"></i></div>
-                <div><h4 class="font-black text-slate-800 text-[11px] uppercase">${s.title}</h4><p class="text-[10px] text-slate-400 font-medium">${s.desc}</p></div>
-            </div>
-            <button onclick="${s.action}" class="p-2 text-slate-300 group-hover:text-blue-600 transition-colors"><i class="fa-solid fa-arrow-right-long"></i></button>
-        </div>`).join('');
-}
-
-
-
-// ============================================================
+//============================================================
 // MOTEUR D'IMPORT / EXPORT INTELLIGENT (PAPAPARSE) - CORRIGÉ EXCEL FR
 // ============================================================
 const CSVManager = {
@@ -9093,6 +9066,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
