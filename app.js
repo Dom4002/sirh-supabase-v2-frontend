@@ -4590,22 +4590,36 @@ async function fetchLiveAttendance() {
 
 
 
-
+// DANS app.js
 
 async function applyModulesUI() {
-    const response = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/read-modules`);
-    const modules = await response.json();
+    console.log("⚙️ Application de la configuration entreprise...");
+    try {
+        // 1. On récupère la config depuis Supabase
+        const response = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/read-modules`);
+        const modules = await response.json();
 
-    modules.forEach(mod => {
-        // On cherche tous les éléments liés au module (ex: MOD_MOBILE_WORKFORCE)
-        document.querySelectorAll(`[data-module="${mod.module_key}"]`).forEach(el => {
-            if (mod.is_active) {
-                el.style.display = ''; // Montre
-            } else {
-                el.remove(); // SUPPRIME carrément l'élément du menu (plus propre que 'none')
-            }
+        // 2. On parcourt chaque module de la base de données
+        modules.forEach(mod => {
+            // On cherche TOUS les éléments HTML qui portent cette étiquette
+            const elements = document.querySelectorAll(`[data-module="${mod.module_key}"]`);
+
+            elements.forEach(el => {
+                if (mod.is_active === true) {
+                    // Si le module est ACTIF, on ne fait rien (on laisse l'élément visible)
+                    // Sauf s'il était caché par une autre logique, on enlève 'hidden' au cas où
+                    el.classList.remove('hidden');
+                } else {
+                    // Si le module est INACTIF, on le SUPPRIME du DOM
+                    el.remove();
+                    console.log(`🚫 Module masqué : ${mod.module_key}`);
+                }
+            });
         });
-    });
+        
+    } catch (e) {
+        console.error("Erreur critique chargement modules:", e);
+    }
 }
 
 
@@ -8662,6 +8676,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
