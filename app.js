@@ -3288,51 +3288,50 @@ function formatGoogleLink(link) {
 
 
 
-// --- MISE À JOUR DU CATALOGUE PRODUITS ---
-
 async function fetchProducts() {
     const grid = document.getElementById('products-grid');
     if (!grid) return;
-    
-    grid.innerHTML = '<div class="col-span-full text-center p-10"><i class="fa-solid fa-circle-notch fa-spin text-blue-500 text-3xl"></i></div>';
+    grid.innerHTML = '<div class="col-span-full text-center py-20"><i class="fa-solid fa-circle-notch fa-spin text-blue-500 text-3xl"></i></div>';
 
     try {
         const r = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/list-products`);
         const products = await r.json();
-        
-        // On garde les produits en mémoire globale pour la recherche et le détail
         window.allProductsData = products;
 
         grid.innerHTML = '';
-        if (products.length === 0) {
-            grid.innerHTML = '<div class="col-span-full text-center text-slate-400 py-10 italic border-2 border-dashed rounded-[2rem]">Catalogue vide.</div>';
-            return;
-        }
+        // DROIT DE MODIFICATION : Un délégué n'a pas la permission 'can_manage_config'
+        const canManage = currentUser.permissions?.can_manage_config;
 
         products.forEach(p => {
-            const img = p.photo_url ? p.photo_url : 'https://via.placeholder.com/300x200?text=Pas+d\'image';
-            
-            // On ajoute la classe 'product-card' et le 'data-name' pour le filtrage local
+            // On prend la 1ère photo du tableau photo_urls, sinon placeholder
+            const photos = p.photo_urls || [];
+            const thumb = photos.length > 0 ? photos[0] : 'https://via.placeholder.com/300x200?text=Pas+d+image';
+
             grid.innerHTML += `
-                <div class="product-card bg-white rounded-[1.5rem] border border-slate-100 shadow-sm overflow-hidden group hover:shadow-xl transition-all animate-fadeIn" 
-                     data-id="${p.id}" data-name="${p.name.toLowerCase()}">
-                    
+                <div class="product-card bg-white rounded-[1.5rem] border border-slate-100 shadow-sm overflow-hidden group hover:shadow-xl transition-all" data-name="${p.name.toLowerCase()}">
                     <div class="h-48 bg-slate-50 relative overflow-hidden">
-                        <img src="${img}" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">
-                        ${(currentUser.role === 'ADMIN') ? `
-                        <button onclick="deleteProduct('${p.id}')" class="absolute top-3 right-3 w-8 h-8 bg-white/90 text-red-500 rounded-full shadow-lg hover:bg-red-500 hover:text-white transition-all">
-                            <i class="fa-solid fa-trash-can text-xs"></i>
-                        </button>` : ''}
+                        <img src="${thumb}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                        
+                        <!-- BADGE NOMBRE DE PHOTOS -->
+                        <div class="absolute top-3 left-3 bg-black/40 backdrop-blur text-white text-[8px] font-black px-2 py-1 rounded-lg">
+                            <i class="fa-solid fa-images mr-1"></i> ${photos.length}
+                        </div>
+
+                        <!-- ACTIONS ADMIN UNIQUEMENT -->
+                        ${canManage ? `
+                        <div class="absolute top-3 right-3 flex gap-2">
+                            <button onclick="openEditProductModal('${p.id}')" class="w-8 h-8 bg-white text-blue-600 rounded-full shadow-lg hover:bg-blue-600 hover:text-white transition-all">
+                                <i class="fa-solid fa-pen text-[10px]"></i>
+                            </button>
+                            <button onclick="deleteProduct('${p.id}')" class="w-8 h-8 bg-white text-red-500 rounded-full shadow-lg hover:bg-red-500 hover:text-white transition-all">
+                                <i class="fa-solid fa-trash-can text-[10px]"></i>
+                            </button>
+                        </div>` : ''}
                     </div>
 
                     <div class="p-5">
-                        <div class="mb-4">
-                            <h4 class="font-black text-slate-800 uppercase text-xs tracking-tighter line-clamp-1">${p.name}</h4>
-                            <p class="text-[10px] text-slate-400 mt-1 line-clamp-2">${p.description || 'Aucune description disponible.'}</p>
-                        </div>
-                        
-                        <!-- BOUTON VOIR LA FICHE -->
-                        <button onclick="viewProductDetail('${p.id}')" class="w-full py-2.5 bg-slate-900 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-blue-600 transition-all active:scale-95">
+                        <h4 class="font-black text-slate-800 uppercase text-xs mb-4 truncate">${p.name}</h4>
+                        <button onclick="viewProductDetail('${p.id}')" class="w-full py-3 bg-slate-900 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-blue-600 transition-all">
                             Voir la fiche
                         </button>
                     </div>
@@ -3344,63 +3343,107 @@ async function fetchProducts() {
 
 
 
+
+async function openEditProductModal(id) {
+    const p = window.allProductsData.find(item => item.id == id);
+    if (!p) return;
+
+    const { value: formValues } = await Swal.fire({
+        title: 'Modifier le produit',
+        html: `
+            <div class="text-left">
+                <label class="text-[10px] font-black text-slate-400 uppercase">Nom du produit</label>
+                <input id="edit-p-name" class="swal2-input !mt-1" value="${p.name}">
+                
+                <label class="text-[10px] font-black text-slate-400 uppercase mt-4 block">Description détaillée</label>
+                <textarea id="edit-p-desc" class="swal2-textarea !mt-1">${p.description || ''}</textarea>
+                
+                <label class="text-[10px] font-black text-slate-400 uppercase mt-4 block">Ajouter des photos (cumulatif)</label>
+                <input type="file" id="edit-p-files" class="swal2-file" multiple accept="image/*">
+            </div>
+        `,
+        showCancelButton: true,
+        confirmButtonText: 'Sauvegarder',
+        preConfirm: () => {
+            return {
+                name: document.getElementById('edit-p-name').value,
+                description: document.getElementById('edit-p-desc').value,
+                files: document.getElementById('edit-p-files').files
+            }
+        }
+    });
+
+    if (formValues) {
+        Swal.fire({ title: 'Mise à jour...', didOpen: () => Swal.showLoading() });
+        const fd = new FormData();
+        fd.append('id', id);
+        fd.append('name', formValues.name);
+        fd.append('description', formValues.description);
+        for (let i = 0; i < formValues.files.length; i++) {
+            fd.append('photos', formValues.files[i]);
+        }
+
+        const r = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/save-product`, { method: 'POST', body: fd });
+        if (r.ok) {
+            Swal.fire('Succès', 'Produit mis à jour', 'success');
+            fetchProducts();
+        }
+    }
+}
+
+
+
 function viewProductDetail(id) {
     const p = window.allProductsData.find(item => item.id == id);
     if (!p) return;
 
-    const img = p.photo_url ? p.photo_url : 'https://via.placeholder.com/600x400?text=Pas+d\'image';
+    const photos = p.photo_urls || [];
+    let currentIndex = 0;
+
+    const updateCarousel = () => {
+        const imgEl = document.getElementById('carousel-img');
+        const counterEl = document.getElementById('carousel-counter');
+        if (imgEl) imgEl.src = photos[currentIndex];
+        if (counterEl) counterEl.innerText = `${currentIndex + 1} / ${photos.length}`;
+    };
+
+    // On définit les fonctions de navigation en global pour le clic
+    window.nextPhoto = () => { currentIndex = (currentIndex + 1) % photos.length; updateCarousel(); };
+    window.prevPhoto = () => { currentIndex = (currentIndex - 1 + photos.length) % photos.length; updateCarousel(); };
 
     Swal.fire({
-        width: '850px',
+        width: '900px',
         padding: '0',
         showConfirmButton: false,
         showCloseButton: true,
         customClass: { popup: 'rounded-[2rem] overflow-hidden' },
         html: `
-            <div class="flex flex-col md:flex-row text-left bg-white h-auto md:h-[500px]">
-                <!-- GAUCHE : IMAGE (60%) -->
-                <div class="w-full md:w-[55%] bg-slate-100 relative group overflow-hidden">
-                    <img src="${img}" class="w-full h-full object-cover">
-                    <!-- Si tu as plusieurs photos plus tard, on mettra les flèches ici -->
-                    <div class="absolute bottom-4 left-4 bg-black/20 backdrop-blur-md px-3 py-1.5 rounded-lg text-white text-[10px] font-bold">
-                        Réf: PROD-${p.id.substring(0,5).toUpperCase()}
-                    </div>
+            <div class="flex flex-col md:flex-row text-left bg-white h-auto md:h-[550px]">
+                <!-- GAUCHE : CARROUSEL (60%) -->
+                <div class="w-full md:w-[60%] bg-slate-900 relative group flex items-center justify-center">
+                    <img id="carousel-img" src="${photos[0] || ''}" class="w-full h-full object-contain">
+                    
+                    ${photos.length > 1 ? `
+                        <button onclick="prevPhoto()" class="absolute left-4 w-10 h-10 bg-white/10 hover:bg-white/20 backdrop-blur rounded-full text-white transition-all"><i class="fa-solid fa-chevron-left"></i></button>
+                        <button onclick="nextPhoto()" class="absolute right-4 w-10 h-10 bg-white/10 hover:bg-white/20 backdrop-blur rounded-full text-white transition-all"><i class="fa-solid fa-chevron-right"></i></button>
+                        <div id="carousel-counter" class="absolute bottom-4 center bg-black/40 text-white text-[10px] px-3 py-1 rounded-full font-bold">1 / ${photos.length}</div>
+                    ` : ''}
                 </div>
 
-                <!-- DROITE : CONTENU (40%) -->
-                <div class="w-full md:w-[45%] p-8 flex flex-col justify-between">
+                <!-- DROITE : INFOS (40%) -->
+                <div class="w-full md:w-[40%] p-10 flex flex-col justify-between">
                     <div>
-                        <span class="inline-block bg-blue-50 text-blue-600 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest mb-4">
-                            Détails Produit
-                        </span>
-                        <h3 class="text-3xl font-black text-slate-800 leading-tight mb-4 uppercase tracking-tighter">${p.name}</h3>
-                        
-                        <div class="h-[1px] w-12 bg-blue-500 mb-6"></div>
-                        
-                        <p class="text-sm text-slate-500 leading-relaxed italic mb-8 overflow-y-auto max-h-[180px] custom-scroll pr-2">
-                            "${p.description || 'Aucune description détaillée n\'a été renseignée pour ce produit.'}"
+                        <h3 class="text-3xl font-black text-slate-800 uppercase tracking-tighter mb-6">${p.name}</h3>
+                        <p class="text-sm text-slate-500 leading-relaxed custom-scroll overflow-y-auto max-h-[250px] pr-2">
+                            ${p.description || 'Pas de description.'}
                         </p>
-
-                        <!-- Infos Supplémentaires -->
-                        <div class="space-y-3">
-                            <div class="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
-                                <i class="fa-solid fa-box text-blue-500"></i>
-                                <span class="text-[10px] font-bold text-slate-700 uppercase">Stock : Disponible</span>
-                            </div>
-                        </div>
                     </div>
-
-                    <div class="mt-8 pt-6 border-t border-slate-100">
-                        <button onclick="Swal.close()" class="w-full py-4 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl hover:bg-blue-600 transition-all">
-                            Fermer la fiche
-                        </button>
-                    </div>
+                    <button onclick="Swal.close()" class="w-full py-4 bg-blue-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg active:scale-95">Quitter</button>
                 </div>
             </div>
         `
     });
 }
-
 
 // Fonction de recherche instantanée (Local)
 function filterProductsLocally() {
@@ -8763,6 +8806,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
