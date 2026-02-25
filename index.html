@@ -590,19 +590,20 @@
 
 
 
-                    <!-- VUE 3: AJOUT -->
-                  
+<!-- ========================================================== -->
+<!-- 2. NOUVEAU WIZARD D'ONBOARDING (REMPLACE TOUTE LA SECTION) -->
+<!-- ========================================================== -->
 <section id="view-add-new" class="view-section">
     <div class="max-w-4xl mx-auto bg-white rounded-[2.5rem] shadow-2xl overflow-hidden border border-slate-100">
         
-        <!-- BARRE DE PROGRESSION WIZARD -->
+        <!-- EN-TETE & BARRE DE PROGRESSION -->
         <div class="bg-slate-900 px-10 py-8 text-white">
             <div class="flex justify-between items-center mb-6">
                 <div>
                     <h2 class="text-2xl font-black uppercase tracking-tighter">Nouveau Profil</h2>
                     <p id="wizard-subtitle" class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Étape 1 : Identité & Photo</p>
                 </div>
-                <div class="h-10 w-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-900/20">
+                <div class="h-10 w-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg">
                     <i class="fa-solid fa-user-plus text-xl"></i>
                 </div>
             </div>
@@ -615,7 +616,7 @@
 
         <form id="form-onboarding" onsubmit="handleOnboarding(event)" class="p-8 md:p-12">
             
-            <!-- ÉTAPE 1 : IDENTITÉ GÉNÉRALE -->
+            <!-- ÉTAPE 1 : IDENTITÉ & PHOTO (Facultative) -->
             <div id="step-1" class="wizard-step space-y-6 animate-fadeIn">
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
                     <div class="md:col-span-2 space-y-4">
@@ -641,28 +642,27 @@
                         <input type="text" id="f-address" class="w-full p-4 bg-slate-50 border rounded-xl outline-none" placeholder="Adresse de résidence">
                     </div>
                     
-                    <!-- PHOTO DE PROFIL (Ton bloc original conservé) -->
                     <div class="flex flex-col items-center justify-start p-4 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
-                        <div class="w-full h-44 bg-slate-200 rounded-xl mb-4 overflow-hidden flex items-center justify-center">
+                        <div class="w-32 h-32 bg-slate-200 rounded-full mb-4 overflow-hidden flex items-center justify-center border-4 border-white shadow-lg">
                             <video id="video-stream" class="w-full h-full object-cover hidden" autoplay playsinline></video>
                             <img id="captured-image" class="w-full h-full object-cover hidden">
-                            <i class="fa-solid fa-image text-slate-400 text-3xl" id="photo-placeholder"></i>
+                            <i class="fa-solid fa-camera text-slate-400 text-3xl" id="photo-placeholder"></i>
                         </div>
                         <div id="initial-controls" class="flex flex-col w-full gap-2 mt-auto">
-                            <button type="button" onclick="startCameraFeed()" class="w-full text-[10px] font-bold text-slate-500 uppercase bg-white border py-2.5 rounded-lg shadow-sm">Caméra</button>
-                            <button type="button" onclick="document.getElementById('file-upload').click()" class="w-full text-[10px] font-bold text-blue-600 uppercase bg-blue-50 border border-blue-200 py-2.5 rounded-lg">Téléverser</button>
+                            <button type="button" onclick="startCameraFeed()" class="text-[10px] font-black text-blue-600 uppercase tracking-widest hover:underline">Activer Caméra</button>
+                            <button type="button" onclick="document.getElementById('file-upload').click()" class="text-[10px] font-bold text-slate-500 uppercase bg-white border py-2.5 rounded-lg shadow-sm">Uploader</button>
                         </div>
                         <canvas id="camera-canvas" class="hidden"></canvas>
                         <input type="file" id="file-upload" accept="image/*" class="hidden" onchange="handleFileUpload(event)">
-                        <button type="button" id="btn-capture" onclick="takeSnapshot()" class="hidden bg-blue-600 text-white py-2.5 rounded-lg w-full mt-2 font-bold text-xs">Prendre</button>
+                        <button type="button" id="btn-capture" onclick="takeSnapshot()" class="hidden bg-blue-600 text-white py-2.5 rounded-lg w-full mt-2 font-bold text-xs">Capturer</button>
                         <button type="button" id="btn-retake" onclick="resetCamera()" class="hidden bg-slate-400 text-white py-2.5 rounded-lg w-full mt-2 font-bold text-xs">Refaire</button>
                     </div>
                 </div>
             </div>
 
-            <!-- ÉTAPE 2 : CONTRAT & FINANCES -->
+            <!-- ÉTAPE 2 : POSTE & CONTRAT -->
             <div id="step-2" class="wizard-step hidden space-y-6 animate-fadeIn">
-                <p class="text-[11px] font-black text-blue-600 uppercase tracking-[0.2em] mb-4">Poste & Conditions Contractuelles</p>
+                <p class="text-[11px] font-black text-blue-600 uppercase tracking-[0.2em] mb-4">Affectation & Conditions</p>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <select id="f-dept" class="w-full p-4 bg-slate-50 border rounded-xl font-medium"><option value="">Chargement...</option></select>
                     <input type="text" id="f-poste" class="w-full p-4 bg-slate-50 border rounded-xl outline-none" placeholder="Poste occupé" required>
@@ -675,95 +675,76 @@
                 </div>
 
                 <div class="bg-green-50 p-6 rounded-[2rem] border-2 border-dashed border-green-200 space-y-6">
+                    <label class="text-[10px] font-black text-green-700 uppercase ml-1">Modèle de contrat PDF</label>
                     <select id="f-contract-template-selector" class="w-full p-3 bg-white border border-green-200 rounded-xl text-sm font-bold text-slate-700 outline-none"></select>
+                    
                     <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
-                        <input type="date" id="f-date" class="w-full p-3 bg-white border border-green-100 rounded-xl text-sm outline-none" required title="Date d'embauche">
+                        <input type="date" id="f-date" class="w-full p-3 bg-white border border-green-100 rounded-xl text-sm outline-none" required>
                         <select id="f-limit" class="w-full p-3 bg-white border border-green-100 rounded-xl text-sm outline-none">
                             <option value="365">CDI (1 an+)</option>
                             <option value="180">CDD (6 mois)</option>
                             <option value="90">Essai (3 mois)</option>
                         </select>
-                        <input type="text" id="f-duree-essai" class="w-full p-3 bg-white border border-green-100 rounded-xl text-sm outline-none" placeholder="Période d'essai" value="3 mois">
                         <input type="number" id="f-salaire-fixe" class="w-full p-3 bg-white border border-green-100 rounded-xl text-sm font-black text-blue-600 outline-none" placeholder="Salaire Base (CFA)">
-                        <input type="text" id="f-temps-travail" class="w-full p-3 bg-white border border-green-100 rounded-xl text-sm outline-none" value="40 Heures">
-                        <input type="text" id="f-lieu-signature" class="w-full p-3 bg-white border border-green-100 rounded-xl text-sm outline-none" value="Cotonou">
                     </div>
+                    
                     <div data-employee-type="MOBILE" class="field-group-contract grid grid-cols-2 gap-4 pt-2 border-t border-green-100 hidden">
-                        <input type="number" id="f-indemnite-transport" class="w-full p-3 bg-white border border-green-200 rounded-xl text-sm outline-none" placeholder="Indemnité Transport">
-                        <input type="number" id="f-indemnite-logement" class="w-full p-3 bg-white border border-green-200 rounded-xl text-sm outline-none" placeholder="Indemnité Logement">
-                    </div>
-                    <div class="grid grid-cols-2 gap-4 pt-2 border-t border-green-100">
-                        <input type="text" id="f-lieu-naissance" class="w-full p-3 bg-white border border-green-100 rounded-xl text-sm outline-none" placeholder="Lieu de Naissance">
-                        <input type="text" id="f-nationalite" class="w-full p-3 bg-white border border-green-100 rounded-xl text-sm outline-none" value="Béninoise">
+                        <input type="number" id="f-indemnite-transport" class="w-full p-3 bg-white border border-green-200 rounded-xl text-sm outline-none" placeholder="Transport">
+                        <input type="number" id="f-indemnite-logement" class="w-full p-3 bg-white border border-green-200 rounded-xl text-sm outline-none" placeholder="Logement">
                     </div>
                 </div>
             </div>
 
-            <!-- ÉTAPE 3 : DOCUMENTS & HIÉRARCHIE -->
+            <!-- ÉTAPE 3 : DOCUMENTS & MANAGEMENT -->
             <div id="step-3" class="wizard-step hidden space-y-6 animate-fadeIn">
-                <p class="text-[11px] font-black text-blue-600 uppercase tracking-[0.2em] mb-4">Dossier Numérique & Hiérarchie</p>
+                <p class="text-[11px] font-black text-blue-600 uppercase tracking-[0.2em] mb-4">Dossier KYC & Hiérarchie</p>
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <!-- Tes blocs de documents originaux KYC -->
-                    <div class="space-y-2">
-                        <label class="block text-[9px] font-bold text-slate-400 uppercase text-center">Pièce d'Identité</label>
-                        <div id="btn-id_card" class="h-24 bg-white rounded-2xl border-2 border-dashed border-slate-200 flex items-center justify-center overflow-hidden cursor-pointer hover:bg-slate-50 transition-all" onclick="openDocCamera('id_card')">
-                            <img id="preview-id_card" class="hidden h-full w-full object-cover">
-                            <i id="icon-id_card" class="fa-solid fa-id-card text-slate-300 text-2xl"></i>
-                        </div>
-                        <input type="file" id="f-id_card" class="hidden" onchange="previewDocFile(event, 'id_card'); updateFileFeedback('f-id_card', 'btn-id_card')">
+                    <div class="p-4 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 text-center cursor-pointer" onclick="openDocCamera('id_card')">
+                        <i id="icon-id_card" class="fa-solid fa-id-card text-slate-300 text-xl mb-2"></i>
+                        <img id="preview-id_card" class="hidden h-10 w-full object-cover rounded">
+                        <p class="text-[9px] font-black uppercase text-slate-400">ID CARD</p>
                     </div>
-                    <div class="space-y-2">
-                        <label class="block text-[9px] font-bold text-slate-400 uppercase text-center">CV</label>
-                        <div id="btn-cv" class="h-24 bg-white rounded-2xl border-2 border-dashed border-slate-200 flex items-center justify-center overflow-hidden cursor-pointer hover:bg-slate-50 transition-all" onclick="openDocCamera('cv')">
-                            <img id="preview-cv" class="hidden h-full w-full object-cover">
-                            <i id="icon-cv" class="fa-solid fa-file-pdf text-slate-300 text-2xl"></i>
-                        </div>
-                        <input type="file" id="f-cv" class="hidden" onchange="previewDocFile(event, 'cv'); updateFileFeedback('f-cv', 'btn-cv')">
+                    <div class="p-4 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 text-center cursor-pointer" onclick="openDocCamera('cv')">
+                        <i id="icon-cv" class="fa-solid fa-file-pdf text-slate-300 text-xl mb-2"></i>
+                        <img id="preview-cv" class="hidden h-10 w-full object-cover rounded">
+                        <p class="text-[9px] font-black uppercase text-slate-400">CV</p>
                     </div>
-                    <div class="space-y-2">
-                        <label class="block text-[9px] font-bold text-slate-400 uppercase text-center">Diplôme</label>
-                        <div id="btn-diploma" class="h-24 bg-white rounded-2xl border-2 border-dashed border-slate-200 flex items-center justify-center overflow-hidden cursor-pointer hover:bg-slate-50 transition-all" onclick="openDocCamera('diploma')">
-                            <img id="preview-diploma" class="hidden h-full w-full object-cover">
-                            <i id="icon-diploma" class="fa-solid fa-graduation-cap text-slate-300 text-2xl"></i>
-                        </div>
-                        <input type="file" id="f-diploma" class="hidden" onchange="previewDocFile(event, 'diploma'); updateFileFeedback('f-diploma', 'btn-diploma')">
+                    <div class="p-4 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 text-center cursor-pointer" onclick="openDocCamera('diploma')">
+                        <i id="icon-diploma" class="fa-solid fa-graduation-cap text-slate-300 text-xl mb-2"></i>
+                        <img id="preview-diploma" class="hidden h-10 w-full object-cover rounded">
+                        <p class="text-[9px] font-black uppercase text-slate-400">DIPLÔME</p>
                     </div>
-                    <div class="space-y-2">
-                        <label class="block text-[9px] font-bold text-slate-400 uppercase text-center">Autre</label>
-                        <div id="btn-attestation" class="h-24 bg-white rounded-2xl border-2 border-dashed border-slate-200 flex items-center justify-center overflow-hidden cursor-pointer hover:bg-slate-50 transition-all" onclick="openDocCamera('attestation')">
-                            <img id="preview-attestation" class="hidden h-full w-full object-cover">
-                            <i id="icon-attestation" class="fa-solid fa-file-invoice text-slate-300 text-2xl"></i>
-                        </div>
-                        <input type="file" id="f-attestation" class="hidden" onchange="previewDocFile(event, 'attestation'); updateFileFeedback('f-attestation', 'btn-attestation')">
+                    <div class="p-4 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 text-center cursor-pointer" onclick="openDocCamera('attestation')">
+                        <i id="icon-attestation" class="fa-solid fa-file-invoice text-slate-300 text-xl mb-2"></i>
+                        <img id="preview-attestation" class="hidden h-10 w-full object-cover rounded">
+                        <p class="text-[9px] font-black uppercase text-slate-400">AUTRE</p>
                     </div>
                 </div>
 
                 <div class="bg-slate-900 p-8 rounded-[2rem] border border-slate-800 space-y-4">
-                    <p class="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Affectation Hiérarchique</p>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <select id="f-manager" class="w-full bg-slate-800 border border-slate-700 p-3 rounded-xl text-white outline-none text-sm font-bold">
-                        <input type="text" id="f-scope" class="w-full p-4 bg-white/5 border border-white/10 rounded-xl text-white outline-none text-sm font-bold" placeholder="Scope géré (ex: Commercial, IT)">
-                    </div>
+                    <p class="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Management</p>
+                    <select id="f-manager" class="w-full p-4 bg-slate-800 border border-slate-700 rounded-xl text-white outline-none text-sm font-bold">
+                        <option value="">-- Responsable N+1 --</option>
+                    </select>
                 </div>
             </div>
 
-            <!-- NAVIGATION BUTTONS -->
+            <!-- BOUTONS NAVIGATION -->
             <div class="mt-12 pt-8 border-t border-slate-100 flex justify-between items-center">
                 <button type="button" id="btn-prev" onclick="moveStep(-1)" class="invisible text-slate-400 font-bold uppercase text-[10px] tracking-widest hover:text-slate-800 transition-all">
                     <i class="fa-solid fa-arrow-left mr-2"></i> Précédent
                 </button>
-                
-                <button type="button" id="btn-next" onclick="moveStep(1)" class="bg-blue-600 text-white px-10 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-blue-500/20 active:scale-95 transition-all">
+                <button type="button" id="btn-next" onclick="moveStep(1)" class="bg-blue-600 text-white px-10 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl active:scale-95 transition-all">
                     Suivant <i class="fa-solid fa-arrow-right ml-2"></i>
                 </button>
-                
                 <button type="submit" id="btn-submit-wizard" class="hidden bg-slate-900 text-white px-10 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl active:scale-95 transition-all">
-                    VALIDER & CRÉER LE DOSSIER
+                    VALIDER & CRÉER
                 </button>
             </div>
         </form>
     </div>
-</section>
+</section>                  
+
 
 
       <!-- RECHERCHE : id="view-catalog" -->
@@ -2088,6 +2069,7 @@
     </body>
 
     </html>
+
 
 
 
