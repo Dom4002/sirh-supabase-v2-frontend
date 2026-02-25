@@ -524,16 +524,30 @@
     </div>
 
     <!-- Ligne 2 : Départements (Plus discret) -->
-    <div class="flex flex-wrap items-center gap-2 overflow-x-auto no-scrollbar pb-2">
-        <span class="text-[9px] font-black text-slate-400 uppercase mr-2"><i class="fa-solid fa-filter mr-1"></i> Départements :</span>
-        <div id="filter-group-dept" class="flex gap-2">
-            <button onclick="setEmployeeFilter('dept', 'all')" data-value="all" class="filter-chip px-3 py-1.5 rounded-full border border-blue-600 bg-blue-50 text-blue-700 text-[9px] font-black uppercase transition-all">Tous</button>
-            <button onclick="setEmployeeFilter('dept', 'IT & Tech')" data-value="IT & Tech" class="filter-chip px-3 py-1.5 rounded-full border border-slate-200 bg-white text-slate-500 text-[9px] font-black uppercase hover:border-blue-300 transition-all">IT</button>
-            <button onclick="setEmployeeFilter('dept', 'Commercial')" data-value="Commercial" class="filter-chip px-3 py-1.5 rounded-full border border-slate-200 bg-white text-slate-500 text-[9px] font-black uppercase hover:border-blue-300 transition-all">Commercial</button>
-            <button onclick="setEmployeeFilter('dept', 'Finance')" data-value="Finance" class="filter-chip px-3 py-1.5 rounded-full border border-slate-200 bg-white text-slate-500 text-[9px] font-black uppercase hover:border-blue-300 transition-all">Finance</button>
-            <button onclick="setEmployeeFilter('dept', 'RH')" data-value="RH" class="filter-chip px-3 py-1.5 rounded-full border border-slate-200 bg-white text-slate-500 text-[9px] font-black uppercase hover:border-blue-300 transition-all">RH</button>
+<!-- Ligne 2 : Départements et Rôles -->
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 w-full">
+        <!-- Départements -->
+        <div class="flex flex-wrap items-center gap-2 overflow-x-auto no-scrollbar pb-2">
+            <span class="text-[9px] font-black text-slate-400 uppercase mr-2"><i class="fa-solid fa-filter mr-1"></i> Départements :</span>
+            <div id="filter-group-dept" class="flex gap-2">
+                <button onclick="setEmployeeFilter('dept', 'all')" data-value="all" class="filter-chip px-3 py-1.5 rounded-full border border-blue-600 bg-blue-50 text-blue-700 text-[9px] font-black uppercase transition-all">Tous</button>
+                <button onclick="setEmployeeFilter('dept', 'IT & Tech')" data-value="IT & Tech" class="filter-chip px-3 py-1.5 rounded-full border border-slate-200 bg-white text-slate-500 text-[9px] font-black uppercase hover:border-blue-300 transition-all">IT</button>
+                <button onclick="setEmployeeFilter('dept', 'Commercial')" data-value="Commercial" class="filter-chip px-3 py-1.5 rounded-full border border-slate-200 bg-white text-slate-500 text-[9px] font-black uppercase hover:border-blue-300 transition-all">Commercial</button>
+                <button onclick="setEmployeeFilter('dept', 'Finance')" data-value="Finance" class="filter-chip px-3 py-1.5 rounded-full border border-slate-200 bg-white text-slate-500 text-[9px] font-black uppercase hover:border-blue-300 transition-all">Finance</button>
+                <button onclick="setEmployeeFilter('dept', 'RH')" data-value="RH" class="filter-chip px-3 py-1.5 rounded-full border border-slate-200 bg-white text-slate-500 text-[9px] font-black uppercase hover:border-blue-300 transition-all">RH</button>
+            </div>
+        </div>
+
+        <!-- NOUVEAU : Filtre Rôle -->
+        <div class="shrink-0 flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-2 shadow-sm w-full md:w-auto">
+            <i class="fa-solid fa-user-shield text-slate-400 text-xs"></i>
+            <select id="filter-role-select" onchange="setEmployeeFilter('role', this.value)" class="text-xs font-bold text-slate-600 uppercase bg-transparent outline-none cursor-pointer w-full md:w-auto">
+                <option value="all">Tous les Rôles</option>
+                <!-- Rempli automatiquement par JS -->
+            </select>
         </div>
     </div>
+</div>
 </div>
                 
                 
@@ -904,9 +918,10 @@
 
     <!-- 3. TABLEAU DES SALAIRES --><!-- BARRE DE FILTRES COMPTABILITÉ RESPONSIVE -->
 <div class="bg-white p-4 md:p-6 rounded-2xl border border-slate-100 mb-6 shadow-sm">
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+    
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
         
-        <!-- 1. Recherche (Prend 2 colonnes sur tablette pour rester lisible) -->
+        <!-- 1. Recherche -->
         <div class="sm:col-span-2 lg:col-span-1">
             <label class="text-[8px] font-black text-slate-400 uppercase ml-2 mb-1 block">Recherche</label>
             <div class="relative">
@@ -934,7 +949,16 @@
             </select>
         </div>
 
-        <!-- 4. Filtre Statut + Bouton Reset intégré -->
+        <!-- 4. Filtre Rôle (NOUVEAU) -->
+        <div>
+            <label class="text-[8px] font-black text-slate-400 uppercase ml-2 mb-1 block">Rôle Système</label>
+            <select id="filter-accounting-role" onchange="loadAccountingView()" class="w-full p-2.5 bg-slate-50 border-none rounded-xl text-xs font-bold outline-none cursor-pointer">
+                <option value="all">Tous les rôles</option>
+                <!-- Rempli par JS -->
+            </select>
+        </div>
+
+        <!-- 5. Filtre Statut + Bouton Reset -->
         <div class="flex items-end gap-2">
             <div class="flex-1">
                 <label class="text-[8px] font-black text-slate-400 uppercase ml-2 mb-1 block">Statut RH</label>
@@ -945,14 +969,13 @@
                 </select>
             </div>
             
-            <!-- Bouton Reset (Aligné avec le select) -->
             <button onclick="resetAccountingFilters()" class="bg-slate-100 text-slate-400 p-2.5 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all shadow-sm shrink-0" title="Réinitialiser les filtres">
                 <i class="fa-solid fa-filter-circle-xmark text-lg"></i>
             </button>
         </div>
-        
     </div>
 </div>
+    
     <div class="bg-white rounded-xl shadow-2xl border border-slate-200 overflow-hidden">
         <div class="max-h-[60vh] overflow-y-auto custom-scroll">
             <table class="w-full text-left border-collapse">
@@ -2034,6 +2057,7 @@
     </body>
 
     </html>
+
 
 
 
