@@ -237,30 +237,79 @@ async function updateManagementSignals() {
 
     let signals = [];
 
-    // SIGNAL : CONGÉS EN ATTENTE
-    if (typeof allLeaves !== 'undefined') {
-        const pending = allLeaves.filter(l => l.statut.includes('attente')).length;
-        if (pending > 0) signals.push({ title: "Absences", desc: `${pending} demande(s) à valider.`, icon: "fa-plane-departure", color: "blue", action: "switchView('dash')" });
-    }
-
-    // SIGNAL : CONTRATS EXPIRÉS (< 15 JOURS)
-    let contractAlerts = 0;
-    employees.forEach(e => {
-        if(e.date && !e.statut.toLowerCase().includes('sortie')) {
-            let eD = new Date(parseDateSmart(e.date)); eD.setDate(eD.getDate() + (parseInt(e.limit) || 365));
-            if (Math.ceil((eD - new Date()) / 86400000) <= 15) contractAlerts++;
-        }
-    });
-    if (contractAlerts > 0) signals.push({ title: "Contrats", desc: `${contractAlerts} fins imminentes.`, icon: "fa-file-circle-exclamation", color: "red", action: "switchView('employees')" });
-
-    // SIGNAL : STOCK TERRAIN (Rapport du jour)
     try {
-        const r = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/read-daily-reports?period=today`);
-        const dailies = await r.json();
-        const stockAlerts = (dailies.data || dailies).filter(rp => rp.needs_restock).length;
-        if (stockAlerts > 0) signals.push({ title: "Logistique", desc: `${stockAlerts} alertes réappro.`, icon: "fa-box-open", color: "orange", action: "switchView('mobile-reports')" });
-    } catch(e) {}
+        // 1. On récupère les chiffres globaux du serveur (non limités par la pagination)
+        const rStats = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/get-dashboard-stats`);
+        const globalData = await rStats.json();
 
+        // SIGNAL 1 : CONGÉS EN ATTENTE (Utilise le chiffre global du serveur)
+        if (globalData.alertConges > 0) {
+            signals.push({ 
+                title: "Absences", 
+                desc: `${globalData.alertConges} demande(s) à valider.`, 
+                icon: "fa-plane-departure", 
+                color: "blue", 
+                action: "switchView('dash')" 
+            });
+        }
+
+        // SIGNAL 2 : CONTRATS EXPIRÉS (Utilise le chiffre global du serveur)
+        if (globalData.alertContrats > 0) {
+            signals.push({ 
+                title: "Contrats", 
+                desc: `${globalData.alertContrats} fin(s) imminente(s).`, 
+                icon: "fa-file-circle-exclamation", 
+                color: "red", 
+                action: "switchView('employees')" 
+            });
+        }
+
+        // SIGNAL 3 : STOCK TERRAIN (Ton code actuel, déjà fonctionnel)
+        const rStock = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/read-daily-reports?period=today`);
+        const dailies = await rStock.json();
+        const stockAlerts = (dailies.data || dailies).filter(rp => rp.needs_restock).length;
+        
+        if (stockAlerts > 0) {
+            signals.push({ 
+                title: "Logistique", 
+                desc: `${stockAlerts} alerte(s) réappro. terrain.`, 
+                icon: "fa-box-open", 
+                color: "orange", 
+                action: "switchView('mobile-reports')" 
+            });
+        }
+
+        // --- RENDU FINAL (INTÉGRÉ) ---
+        if (signals.length === 0) {
+            container.innerHTML = `
+                <div class="col-span-full py-4 px-6 bg-slate-50 border border-slate-100 rounded-2xl flex items-center gap-3">
+                    <i class="fa-solid fa-circle-check text-emerald-500"></i>
+                    <span class="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Tout est sous contrôle • Aucun signal d'alerte</span>
+                </div>`;
+            return;
+        }
+
+        container.innerHTML = signals.map(s => `
+            <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between group hover:shadow-md transition-all">
+                <div class="flex items-center gap-4">
+                    <div class="w-10 h-10 rounded-xl bg-${s.color}-50 text-${s.color}-600 flex items-center justify-center text-sm">
+                        <i class="fa-solid ${s.icon}"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-black text-slate-800 text-[11px] uppercase">${s.title}</h4>
+                        <p class="text-[10px] text-slate-400 font-medium">${s.desc}</p>
+                    </div>
+                </div>
+                <button onclick="${s.action}" class="p-2 text-slate-300 group-hover:text-blue-600 transition-colors">
+                    <i class="fa-solid fa-arrow-right-long"></i>
+                </button>
+            </div>
+        `).join('');
+
+    } catch (e) {
+        console.error("Erreur lors de la mise à jour des signaux:", e);
+    }
+}
 
 
             // --- SIGNAL : MAINTENANCE SYSTÈME ---
@@ -7281,7 +7330,7 @@ async function loadAccountingView() {
 
     try {
         // 2. Construction de l'URL de recherche
-        let url = `${SIRH_CONFIG.apiBaseUrl}/read?limit=1000&agent=${encodeURIComponent(filters.agent)}`;
+        let url = `${SIRH_CONFIG.apiBaseUrl}/read-payroll-full?agent=${encodeURIComponent(filters.agent)}`;
         
         if (filters.type !== 'all') url += `&type=${filters.type}`;
         if (filters.dept !== 'all') url += `&dept=${encodeURIComponent(filters.dept)}`;
@@ -7289,9 +7338,8 @@ async function loadAccountingView() {
         if (filters.role !== 'all') url += `&role=${encodeURIComponent(filters.role)}`;
 
 
-        const r = await secureFetch(url);
-        const result = await r.json();
-        const employeesToPay = result.data || [];
+            const r = await secureFetch(url);
+            const employeesToPay = await r.json();
 
         body.innerHTML = '';
         if (employeesToPay.length === 0) {
@@ -9045,6 +9093,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
