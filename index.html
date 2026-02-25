@@ -328,7 +328,19 @@
 
 
 <!-- VUE 1: DASHBOARD -->
-<section id="view-dash" class="view-section active">             
+    <section id="view-dash" class="view-section active">  
+
+        <!-- DANS id="view-dash" -->
+    <div id="signals-area" class="mb-10 animate-fadeIn">
+        <!-- Le titre est très discret -->
+        <p class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4 ml-1">Analyse du jour</p>
+        
+        <!-- Conteneur des signaux -->
+        <div id="signals-container" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <!-- JS va injecter les cartes ici -->
+        </div>
+    </div>
+    
     <!-- EN-TÊTE RESPONSIVE (CORRIGÉ) - GARDÉ TEL QUEL -->
     <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
         <h2 class="text-2xl font-extrabold text-slate-800">Analyse de l'Effectif</h2>
@@ -2076,6 +2088,7 @@
     </body>
 
     </html>
+
 
 
 
