@@ -492,3 +492,20 @@ button i {
     font-size: 0.9rem !important;
 }
 
+
+/* Fix pour la visibilité des menus déroulants (Wizard) */
+.wizard-step select option {
+    color: #1e293b !important;      /* Force le texte en bleu nuit */
+    background-color: #ffffff !important; /* Force le fond en blanc */
+}
+
+/* Style spécifique pour le champ manager dans le bloc noir */
+#f-manager {
+    color: white !important;
+}
+
+#f-manager option {
+    color: #1e293b !important;
+    background-color: white !important;
+}
+
