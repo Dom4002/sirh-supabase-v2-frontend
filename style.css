@@ -517,3 +517,23 @@ button i {
 #f-manager option {
     color: #1e293b !important;
 }
+
+
+
+/* Rend l'en-tête du tableau de compta "collant" en haut de l'écran au scroll */
+#view-accounting thead {
+    position: sticky;
+    top: -20px; /* S'ajuste pour coller sous ton header principal */
+    z-index: 20;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+/* Optionnel : Améliore le confort de lecture sur mobile pour les longs tableurs */
+.accounting-row {
+    transition: background-color 0.2s;
+}
+
+/* Force le conteneur principal à laisser le contenu s'étendre */
+#view-accounting .bg-white.rounded-xl.shadow-2xl {
+    overflow: visible !important;
+}
