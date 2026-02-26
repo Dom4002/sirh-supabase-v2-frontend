@@ -110,7 +110,7 @@ const SIRH_CONFIG = {
     },
 
     // 5. SERVEUR (BASE API)
-    apiBaseUrl: "https://sirh-supabase-v2-t03q.onrender.com/api"
+    apiBaseUrl: "https://sirh-secure.onrender.com/api"
 };
 
     // --- GÉNÉRATION AUTOMATIQUE DES LIENS ---
@@ -9066,6 +9066,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
