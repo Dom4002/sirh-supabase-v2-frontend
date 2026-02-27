@@ -2609,36 +2609,14 @@ async function fetchAttendanceReport(mode = 'PERSONAL', period = 'monthly') {
     try {
         const url = `${URL_READ_REPORT}?agent=${encodeURIComponent(currentUser.nom)}&requester_id=${encodeURIComponent(currentUser.id)}&mode=${mode}&period=${period}`;
         const r = await secureFetch(url);
-        const rawReports = await r.json();
+        const cleanReports = await r.json(); // Le serveur envoie déjà des données propres
 
-        // --- NORMALISATION DES DONNÉES ---
-        const cleanReports = rawReports.map(rep => {
-            if (period === 'today') {
-                return {
-                    nom: rep.nom || 'Inconnu',
-                    matricule: rep.matricule || '-',
-                    statut: rep.statut || 'ABSENT',
-                    arrivee: rep.arrivee || '--:--',
-                    duree: rep.duree || '0h 00m',
-                    zone: rep.zone || '---'
-                };
-            } else {
-                return {
-                    mois: rep.mois || '-',
-                    nom: rep.nom || 'Inconnu',
-                    jours: rep.jours || 0,
-                    heures: rep.heures || '0h 00m',
-                    statut: 'Validé'
-                };
-            }
-        });
-        
         if (mode === 'GLOBAL') {
             Swal.close();
             let tableHtml = '';
             
             if (period === 'today') {
-                // --- RAPPORT JOURNALIER (IMPECCABLE) ---
+                // --- TON DESIGN RÉGIONAL / JOURNALIER ---
                 const nbPresents = cleanReports.filter(r => r.statut === 'PRÉSENT').length;
                 const nbPartis = cleanReports.filter(r => r.statut === 'PARTI').length;
                 const nbAbsents = cleanReports.filter(r => r.statut === 'ABSENT' || r.statut === 'CONGÉ').length;
@@ -2678,7 +2656,7 @@ async function fetchAttendanceReport(mode = 'PERSONAL', period = 'monthly') {
                 `;
 
                 cleanReports.forEach(item => {
-                    let badgeClass = "bg-rose-100 text-rose-700"; // Absent par défaut
+                    let badgeClass = "bg-rose-100 text-rose-700"; 
                     if (item.statut === 'PRÉSENT') badgeClass = "bg-emerald-100 text-emerald-700";
                     else if (item.statut === 'PARTI') badgeClass = "bg-blue-100 text-blue-700";
                     else if (item.statut === 'CONGÉ') badgeClass = "bg-amber-100 text-amber-700";
@@ -2701,11 +2679,8 @@ async function fetchAttendanceReport(mode = 'PERSONAL', period = 'monthly') {
                         </tr>
                     `;
                 });
-                
-                if(cleanReports.length === 0) tableHtml += `<tr><td colspan="5" class="p-10 text-center text-slate-400 italic">Aucune donnée pour ce jour.</td></tr>`;
-
             } else {
-                // --- RAPPORT MENSUEL (Impeccable par cumul amplitude) ---
+                // --- TON DESIGN RÉGIONAL / MENSUEL ---
                 tableHtml = `
                     <div class="flex justify-end mb-4">
                         <button onclick="downloadReportCSV('${period}')" class="bg-emerald-600 text-white px-4 py-2 rounded-lg text-xs font-bold uppercase shadow hover:bg-emerald-700 transition-all flex items-center gap-2"><i class="fa-solid fa-file-csv"></i> Télécharger Cumul</button>
@@ -2728,20 +2703,17 @@ async function fetchAttendanceReport(mode = 'PERSONAL', period = 'monthly') {
                             <td class="p-4 text-right"><span class="bg-emerald-50 text-emerald-600 px-2 py-1 rounded font-bold text-[9px]">Validé</span></td>
                         </tr>`;
                 });
-                if(cleanReports.length === 0) tableHtml += `<tr><td colspan="5" class="p-10 text-center text-slate-400 italic">Aucune donnée mensuelle.</td></tr>`;
             }
 
             tableHtml += `</tbody></table></div>`;
-            
             Swal.fire({
-                title: period === 'today' ? 'Analyse des Présences (Live)' : 'Cumul de Présence Mensuel',
+                title: period === 'today' ? 'Analyse des Présences' : 'Cumul Mensuel',
                 html: tableHtml,
                 width: '900px',
                 confirmButtonText: 'Fermer',
                 confirmButtonColor: '#0f172a',
                 customClass: { popup: 'rounded-2xl' }
             });
-            
             currentReportData = cleanReports; 
         } else {
             renderPersonalReport(cleanReports, container);
@@ -2751,7 +2723,6 @@ async function fetchAttendanceReport(mode = 'PERSONAL', period = 'monthly') {
         Swal.fire('Erreur', "Impossible de charger le rapport.", 'error');
     }
 }
-
 
 function renderPersonalReport(reports, container) {
     if (!container) return;
@@ -9157,6 +9128,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
