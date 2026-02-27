@@ -8297,6 +8297,7 @@ function changeReportTab(tab) {
 
  
 // --- FONCTION UTILITAIRE POUR NETTOYER ET FORMATER LES TAGS DE PRODUITS ---
+// --- FONCTION DE NETTOYAGE ULTIME POUR LES PRODUITS ---
 function formatProductTags(rawProducts) {
     let prods = [];
     try {
@@ -8308,19 +8309,32 @@ function formatProductTags(rawProducts) {
 
     return `<div class="flex flex-wrap gap-1 mt-2">` + 
         prods.map(p => {
-            let name = "Produit";
-            if (typeof p === 'string') {
-                if (p.startsWith('{')) { // C'est un JSON stringifié
-                    try { let obj = JSON.parse(p); name = obj.NAME || obj.name || "Produit"; } catch(e) { name = p; }
-                } else { name = p; }
-            } else if (typeof p === 'object' && p !== null) {
-                name = p.NAME || p.name || p.Name || "Produit";
+            let name = "";
+            // Si c'est un objet (ex: {id: 1, name: "X"})
+            if (typeof p === 'object' && p !== null) {
+                name = p.name || p.NAME || p.Name || "Produit";
+            } 
+            // Si c'est une chaîne qui ressemble à du JSON
+            else if (typeof p === 'string' && p.startsWith('{')) {
+                try { 
+                    const obj = JSON.parse(p); 
+                    name = obj.name || obj.NAME || "Produit";
+                } catch(e) { name = p; }
+            } 
+            // Si c'est juste du texte
+            else {
+                name = p || "Produit";
             }
+            
             return `<span class="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded text-[8px] font-black border border-indigo-100 uppercase">${name}</span>`;
         }).join('') + `</div>`;
 }
 
-// --- MODALE DE DÉTAIL POUR L'AUDIT (VOIR TOUT) ---
+
+
+
+
+
 // --- MODALE DE DÉTAIL POUR L'AUDIT (VOIR TOUT) ---
 function showAuditDetails(nom, type, contenu) {
     window.Swal.fire({
@@ -8598,12 +8612,14 @@ async function fetchMobileReports(page = 1) {
                     const timeDisplay = hours > 0 ? `${hours}h ${mins}min` : `${mins} min`;
                             
                     let statsHtml = "";
-                    if (rep.products_stats) {
+                    if (rep.products_stats && Object.keys(rep.products_stats).length > 0) {
                         statsHtml = `<div class="flex flex-wrap gap-1 mt-2">`;
-                        for (const [prodName, count] of Object.entries(rep.products_stats)) {
-                            // Nettoyage des noms si JSON
+                        for (let [prodName, count] of Object.entries(rep.products_stats)) {
+                            // On nettoie le nom si c'est un JSON
                             let cleanName = prodName;
-                            if(prodName.startsWith('{')) try { cleanName = JSON.parse(prodName).NAME; } catch(e){}
+                            if (typeof prodName === 'string' && prodName.startsWith('{')) {
+                                try { cleanName = JSON.parse(prodName).name || JSON.parse(prodName).NAME || "Produit"; } catch(e){}
+                            }
                             statsHtml += `<span class="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded text-[8px] font-black border border-indigo-100 uppercase">${cleanName} <span class="text-indigo-400">x${count}</span></span>`;
                         }
                         statsHtml += `</div>`;
@@ -8905,14 +8921,13 @@ async function fetchGlobalAudit() {
 
 
 
-// Mise à jour de la table pour inclure les produits
 function renderAuditTable(data) {
     const container = document.getElementById('reports-list-container');
     let html = `
     <div class="col-span-full bg-white rounded-[2.5rem] shadow-xl border overflow-hidden animate-fadeIn mb-10">
         <div class="p-6 border-b flex justify-between items-center bg-slate-50">
             <h3 class="font-black text-slate-800 uppercase text-sm">Audit d'Activité (Terrain)</h3>
-            <button onclick="exportAuditToExcel()" class="bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-bold text-xs shadow-lg active:scale-95">EXPORTER EXCEL</button>
+            <button onclick="exportAuditToExcel()" class="bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-bold text-xs shadow-lg">EXPORTER EXCEL</button>
         </div>
         <div class="overflow-x-auto">
             <table class="w-full text-left">
@@ -8930,7 +8945,7 @@ function renderAuditTable(data) {
     data.forEach(row => {
         // Préparation des listes pour le "Voir Plus"
         const lieuList = row.detail_lieux.split(',').join('<br> • ');
-        const prodsAffiche = row.total_produits > 0 ? `${row.total_produits} présentés` : 'Aucun';
+        const prodList = row.detail_produits.split(',').join('<br> • ');
 
         html += `
             <tr class="hover:bg-blue-50/50 transition-all">
@@ -8942,19 +8957,21 @@ function renderAuditTable(data) {
                     <span class="bg-blue-600 text-white px-3 py-1 rounded-full font-black text-xs shadow-sm">${row.total_visites}</span>
                 </td>
                 <td class="px-6 py-4 text-center">
-                    <button onclick="showAuditDetails('${row.nom}', 'PRODUITS', '${row.total_produits} produits au total')" 
+                    <!-- CLIC SUR LE NOMBRE : Affiche les noms des produits -->
+                    <button onclick="showAuditDetails('${row.nom}', 'PRODUITS PRÉSENTÉS', '• ${prodList}')" 
                             class="bg-indigo-50 text-indigo-600 border border-indigo-200 px-3 py-1 rounded-full font-black text-xs hover:bg-indigo-600 hover:text-white transition-all">
                         ${row.total_produits}
                     </button>
                 </td>
                 <td class="px-6 py-4">
+                    <!-- CLIC SUR LES LIEUX : Affiche la liste complète -->
                     <div class="text-[10px] text-slate-600 max-w-[200px] truncate cursor-pointer hover:text-blue-600 font-bold" 
-                         onclick="showAuditDetails('${row.nom}', 'LIEUX VISITES', '${lieuList}')">
+                         onclick="showAuditDetails('${row.nom}', 'LIEUX VISITES', '• ${lieuList}')">
                         <i class="fa-solid fa-eye mr-1 opacity-50"></i> ${row.detail_lieux}
                     </div>
                 </td>
                 <td class="px-6 py-4 text-[10px] text-slate-500 italic text-right">
-                    <div class="max-w-[150px] truncate" title="${row.dernier_rapport}">${row.dernier_rapport}</div>
+                    <div class="max-w-[150px] truncate">${row.dernier_rapport}</div>
                 </td>
             </tr>`;
     });
@@ -9206,6 +9223,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
