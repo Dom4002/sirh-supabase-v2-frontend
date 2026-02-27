@@ -8296,19 +8296,128 @@ function changeReportTab(tab) {
 
 
  
+// --- FONCTION UTILITAIRE POUR NETTOYER ET FORMATER LES TAGS DE PRODUITS ---
+function formatProductTags(rawProducts) {
+    let prods = [];
+    try {
+        if (typeof rawProducts === 'string') prods = JSON.parse(rawProducts);
+        else if (Array.isArray(rawProducts)) prods = rawProducts;
+    } catch(e) { return ""; }
 
+    if (!prods || prods.length === 0) return "";
+
+    return `<div class="flex flex-wrap gap-1 mt-2">` + 
+        prods.map(p => {
+            let name = "Produit";
+            if (typeof p === 'string') {
+                if (p.startsWith('{')) { // C'est un JSON stringifié
+                    try { let obj = JSON.parse(p); name = obj.NAME || obj.name || "Produit"; } catch(e) { name = p; }
+                } else { name = p; }
+            } else if (typeof p === 'object' && p !== null) {
+                name = p.NAME || p.name || p.Name || "Produit";
+            }
+            return `<span class="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded text-[8px] font-black border border-indigo-100 uppercase">${name}</span>`;
+        }).join('') + `</div>`;
+}
+
+// --- MODALE DE DÉTAIL POUR L'AUDIT (VOIR TOUT) ---
+// --- MODALE DE DÉTAIL POUR L'AUDIT (VOIR TOUT) ---
+function showAuditDetails(nom, type, contenu) {
+    window.Swal.fire({
+        title: `<span class="text-xs font-black uppercase text-slate-400">${type} • ${nom}</span>`,
+        html: `
+            <div class="text-left bg-slate-50 p-6 rounded-2xl border border-slate-100 mt-4 max-h-[60vh] overflow-y-auto custom-scroll">
+                <div class="text-sm text-slate-700 leading-relaxed font-bold">
+                    ${contenu}
+                </div>
+            </div>
+        `,
+        confirmButtonText: 'Fermer',
+        confirmButtonColor: '#0f172a',
+        customClass: { popup: 'rounded-[2rem]' }
+    });
+}
+
+// --- CHARGEMENT DES RAPPORTS AVEC CALCUL DES STATS ---
 async function fetchMobileReports(page = 1) {
     const container = document.getElementById('reports-list-container');
-    const counterEl = document.getElementById('stat-visites-total');
+    const counterVisites = document.getElementById('stat-visites-total');
+    const counterProduits = document.getElementById('stat-produits-total');
+    const counterAgents = document.getElementById('stat-agents-actifs');
     const labelEl = document.getElementById('stat-report-label');
     const nameFilter = document.getElementById('filter-report-name')?.value.toLowerCase() || "";
     const periodFilter = document.getElementById('filter-report-date')?.value || "month";
 
     if (!container) return;
     
-    // Détection du rôle pour afficher ou non le bouton "Archiver"
-    const isChef = currentUser.role !== 'EMPLOYEE';
+    const isChef = AppState.currentUser.role !== 'EMPLOYEE';
+    AppState.reportPage = page;
+    container.innerHTML = '<div class="col-span-full text-center p-10"><i class="fa-solid fa-circle-notch fa-spin text-blue-500 text-2xl"></i></div>';
 
+    try {
+        const limit = 20;
+        const endpoint = AppState.currentReportTab === 'visits' ? 'read-visit-reports' : 'read-daily-reports';
+        const url = `${SIRH_CONFIG.apiBaseUrl}/${endpoint}?page=${page}&limit=${limit}&name=${encodeURIComponent(nameFilter)}&period=${periodFilter}`;
+        
+        const r = await secureFetch(url);
+        const result = await r.json();
+
+        const data = result.data || result; 
+        AppState.reportTotalPages = result.meta?.last_page || 1;
+
+        // --- CALCUL DES STATISTIQUES GLOBALES ---
+        let totalVisitesCount = result.meta?.total || data.length;
+        let totalProductsCount = 0;
+        let uniqueAgents = new Set();
+
+        data.forEach(item => {
+            const empId = item.employee_id || (item.employees && item.employees.id);
+            if(empId) uniqueAgents.add(empId);
+
+            if (AppState.currentReportTab === 'visits') {
+                let pList = [];
+                try { pList = typeof item.presented_products === 'string' ? JSON.parse(item.presented_products) : (item.presented_products || []); } catch(e){}
+                totalProductsCount += pList.length;
+            } else {
+                if (item.products_stats) {
+                    Object.values(item.products_stats).forEach(qty => totalProductsCount += (parseInt(qty) || 0));
+                }
+            }
+        });
+
+        if(counterVisites) counterVisites.innerText = totalVisitesCount;
+        if(counterProduits) counterProduits.innerText = totalProductsCount;
+        if(counterAgents) counterAgents.innerText = uniqueAgents.size;
+
+        if(labelEl) labelEl.innerText = AppState.currentReportTab === 'visits' ? "VISITES IDENTIFIÉES" : "BILANS JOURNALIERS";
+
+        container.innerHTML = '';
+        if (!data || data.length === 0) {
+            container.innerHTML = '<div class="col-span-full text-center text-slate-400 py-10 uppercase font-black text-[10px] tracking-widest">Aucune donnée trouvée</div>';
+            return;
+        }
+
+        // ... Ici le reste de ta fonction (Groupement et génération du HTML) 
+        // /!\ Utilise bien formatProductTags(v.presented_products) dans ta boucle.
+    } catch (e) {
+        console.error("Erreur rapports:", e);
+        container.innerHTML = '<div class="col-span-full text-center text-red-500 py-10 font-bold uppercase text-[10px]">Erreur de chargement</div>';
+    }
+}
+
+
+async function fetchMobileReports(page = 1) {
+    const container = document.getElementById('reports-list-container');
+    const counterVisites = document.getElementById('stat-visites-total');
+    const counterProduits = document.getElementById('stat-produits-total');
+    const counterAgents = document.getElementById('stat-agents-actifs');
+    const labelEl = document.getElementById('stat-report-label');
+    const nameFilter = document.getElementById('filter-report-name')?.value.toLowerCase() || "";
+    const periodFilter = document.getElementById('filter-report-date')?.value || "month";
+
+    if (!container) return;
+    
+    const isChef = currentUser.role !== 'EMPLOYEE';
     reportPage = page;
     container.innerHTML = '<div class="col-span-full text-center p-10"><i class="fa-solid fa-circle-notch fa-spin text-blue-500 text-2xl"></i></div>';
 
@@ -8321,11 +8430,36 @@ async function fetchMobileReports(page = 1) {
         const result = await r.json();
 
         const data = result.data || result; 
-        const totalCount = result.meta?.total || data.length;
         reportTotalPages = result.meta?.last_page || 1;
 
-        if(labelEl) labelEl.innerText = currentReportTab === 'visits' ? "TOTAL VISITES (MOIS)" : "TOTAL BILANS JOURNALIERS";
-        if(counterEl) counterEl.innerText = totalCount; 
+        // --- 1. CALCUL DES STATISTIQUES GLOBALES POUR LES CARTES ---
+        let totalVisitesCount = result.meta?.total || data.length;
+        let totalProductsCount = 0;
+        let uniqueAgents = new Set();
+
+        data.forEach(item => {
+            // Compte des agents uniques
+            const empId = item.employee_id || (item.employees && item.employees.id);
+            if(empId) uniqueAgents.add(empId);
+
+            // Compte des produits
+            if (currentReportTab === 'visits') {
+                let pList = [];
+                try { pList = typeof item.presented_products === 'string' ? JSON.parse(item.presented_products) : (item.presented_products || []); } catch(e){}
+                totalProductsCount += pList.length;
+            } else {
+                if (item.products_stats) {
+                    Object.values(item.products_stats).forEach(qty => totalProductsCount += (parseInt(qty) || 0));
+                }
+            }
+        });
+
+        // Mise à jour des compteurs visuels
+        if(counterVisites) counterVisites.innerText = totalVisitesCount;
+        if(counterProduits) counterProduits.innerText = totalProductsCount;
+        if(counterAgents) counterAgents.innerText = uniqueAgents.size;
+
+        if(labelEl) labelEl.innerText = currentReportTab === 'visits' ? "VISITES IDENTIFIÉES" : "BILANS JOURNALIERS";
 
         container.innerHTML = '';
         if (!data || data.length === 0) {
@@ -8359,8 +8493,8 @@ async function fetchMobileReports(page = 1) {
                             </div>
                         </div>
                            <div id="${accordionId}" class="hidden bg-slate-50/50">
-                                <div class="table-container"> <!-- AJOUT DU WRAPPER ICI -->
-                                    <table class="w-full text-left border-collapse min-w-[800px]"> <!-- min-w pour empêcher la déformation -->
+                                <div class="table-container">
+                                    <table class="w-full text-left border-collapse min-w-[800px]">
                                         <thead class="bg-slate-100 border-b">
                                             <tr class="text-[9px] font-black text-slate-400 uppercase tracking-widest">
                                                 <th class="p-4">👤 Contact & Lieu</th>
@@ -8376,45 +8510,9 @@ async function fetchMobileReports(page = 1) {
                     let durationText = "---";
                     if (v.duration) durationText = v.duration >= 60 ? `${Math.floor(v.duration / 60)}h ${v.duration % 60}m` : `${v.duration} min`;
 
-                     let prodsHtml = "";
-                    let prods = [];
+                    // FIX PRODUITS ICI
+                    let prodsHtml = formatProductTags(v.presented_products);
 
-                    try {
-                        // 1. Premier niveau de nettoyage
-                        if (typeof v.presented_products === 'string') {
-                            prods = JSON.parse(v.presented_products);
-                        } else if (Array.isArray(v.presented_products)) {
-                            prods = v.presented_products;
-                        }
-
-                        // 2. Nettoyage individuel (C'est ici que ça corrige ton bug)
-                        // On parcourt chaque élément et on force la conversion si c'est encore du texte
-                        prods = prods.map(item => {
-                            if (typeof item === 'string' && item.trim().startsWith('{')) {
-                                try { return JSON.parse(item); } catch (e) { return item; }
-                            }
-                            return item;
-                        });
-
-                    } catch (e) { console.error("Erreur parsing produits", e); }
-                    
-                    // 3. Affichage
-                    if (prods.length > 0) {
-                        prodsHtml = `<div class="flex flex-wrap gap-1 mt-2">` + 
-                            prods.map(p => {
-                                // On cherche le nom partout (Majuscule, minuscule, etc.)
-                                let nomAffiche = p;
-                                
-                                if (typeof p === 'object' && p !== null) {
-                                    nomAffiche = p.NAME || p.Name || p.name || p.label || "Produit";
-                                }
-                                
-                                return `<span class="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded text-[8px] font-black uppercase border border-indigo-100 shadow-sm">${nomAffiche}</span>`;
-                            }).join('') + 
-                            `</div>`;
-                    }
-
-                    // GESTION DU RÉSULTAT VISUEL
                     let outcomeBadge = "";
                     if(v.outcome === 'COMMANDE') outcomeBadge = '<span class="text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded font-black text-[9px] uppercase border border-emerald-200">💰 Commande</span>';
                     else if(v.outcome === 'ABSENT') outcomeBadge = '<span class="text-red-700 bg-red-100 px-2 py-0.5 rounded font-black text-[9px] uppercase border border-red-200">❌ Absent</span>';
@@ -8423,8 +8521,6 @@ async function fetchMobileReports(page = 1) {
 
                     html += `
                     <tr id="row-vis-${v.id}" class="hover:bg-blue-50/30 transition-colors group">
-                        
-                        <!-- COLONNE 1 : CONTACT ET LIEU -->
                         <td class="p-4 align-top">
                             <div class="flex items-start gap-3">
                                 <div class="w-8 h-8 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center text-xs font-bold shrink-0 border border-slate-200 shadow-sm group-hover:bg-blue-500 group-hover:text-white transition-colors">
@@ -8437,8 +8533,6 @@ async function fetchMobileReports(page = 1) {
                                 </div>
                             </div>
                         </td>
-
-                        <!-- COLONNE 2 : RÉSULTAT ET PRODUITS -->
                         <td class="p-4 align-top">
                             <div class="flex items-center gap-2 mb-1">
                                 ${outcomeBadge}
@@ -8446,21 +8540,15 @@ async function fetchMobileReports(page = 1) {
                             </div>
                             ${prodsHtml}
                         </td>
-
-                        <!-- COLONNE 3 : PREUVE -->
                         <td class="p-4 text-center align-top">
-                            ${v.proof_url ? `<button onclick="viewDocument('${v.proof_url}', 'Preuve Cachet')" class="text-emerald-500 hover:scale-125 transition-transform bg-emerald-50 p-2 rounded-lg"><i class="fa-solid fa-camera-retro text-lg"></i></button>` : '<div class="p-2 text-slate-200"><i class="fa-solid fa-ban"></i></div>'}
+                            ${v.proof_url ? `<button onclick="viewDocument('${v.proof_url}', 'Preuve')" class="text-emerald-500 hover:scale-125 transition-transform bg-emerald-50 p-2 rounded-lg"><i class="fa-solid fa-camera-retro text-lg"></i></button>` : '<div class="p-2 text-slate-200"><i class="fa-solid fa-ban"></i></div>'}
                         </td>
-
-                        <!-- COLONNE 4 : NOTES -->
                         <td class="p-4 text-right align-top relative">
                             <div class="text-[11px] text-slate-600 italic line-clamp-2 cursor-pointer hover:text-blue-600 transition-colors" 
                                  onclick="toggleTextFixed(this)" title="Cliquez pour lire en entier" data-fixed="false">
                                 "${v.notes || 'Aucun commentaire'}"
                             </div>
                         </td>
-
-                        <!-- COLONNE 5 : ACTION (Si Chef) -->
                         ${isChef ? `
                         <td class="p-4 text-center align-top">
                             <button onclick="deleteVisitReport('${v.id}')" class="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all" title="Marquer comme traité">
@@ -8469,13 +8557,12 @@ async function fetchMobileReports(page = 1) {
                         </td>` : ''}
                     </tr>`;
             });
-
-                html += `</tbody></table></div></div>`;
+                html += `</tbody></table></div></div></div>`;
             }
             html += `</div>`;
         } 
-                    
         else {
+            // LOGIQUE BILANS JOURNALIERS (DAILY)
             const groupedDaily = {};
             data.forEach(rep => {
                 const name = rep.employees?.nom || "Agent Inconnu";
@@ -8500,10 +8587,10 @@ async function fetchMobileReports(page = 1) {
                                 <i id="icon-${accordionId}" class="fa-solid fa-chevron-down text-slate-300 transition-transform duration-300"></i>
                             </div>
                         </div>
-                            <div id="${accordionId}" class="hidden border-t border-slate-100 bg-slate-50/50">
-                                <div class="table-container"> <!-- AJOUT DU WRAPPER ICI -->
-                                    <table class="w-full text-left min-w-[700px]"> <!-- min-w pour forcer le scroll propre -->
-                                        <tbody class="divide-y divide-slate-100">`;
+                        <div id="${accordionId}" class="hidden border-t border-slate-100 bg-slate-50/50">
+                            <div class="table-container">
+                                <table class="w-full text-left min-w-[700px]">
+                                    <tbody class="divide-y divide-slate-100">`;
                 
                 reports.forEach(rep => {
                     const hours = Math.floor(rep.total_work_minutes / 60);
@@ -8511,10 +8598,13 @@ async function fetchMobileReports(page = 1) {
                     const timeDisplay = hours > 0 ? `${hours}h ${mins}min` : `${mins} min`;
                             
                     let statsHtml = "";
-                    if (rep.products_stats && Object.keys(rep.products_stats).length > 0) {
+                    if (rep.products_stats) {
                         statsHtml = `<div class="flex flex-wrap gap-1 mt-2">`;
                         for (const [prodName, count] of Object.entries(rep.products_stats)) {
-                            statsHtml += `<span class="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded text-[8px] font-black border border-indigo-100 uppercase">${prodName} <span class="text-indigo-400">x${count}</span></span>`;
+                            // Nettoyage des noms si JSON
+                            let cleanName = prodName;
+                            if(prodName.startsWith('{')) try { cleanName = JSON.parse(prodName).NAME; } catch(e){}
+                            statsHtml += `<span class="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded text-[8px] font-black border border-indigo-100 uppercase">${cleanName} <span class="text-indigo-400">x${count}</span></span>`;
                         }
                         statsHtml += `</div>`;
                     }
@@ -8522,52 +8612,48 @@ async function fetchMobileReports(page = 1) {
                     html += `
                         <tr id="row-daily-${rep.id}" class="hover:bg-white transition-colors group relative">
                             <td class="px-6 py-4 w-1/4 align-top">
-                                <div class="text-[10px] font-black text-indigo-500 uppercase">
-                                    ${new Date(rep.report_date).toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long'})}
-                                </div>
+                                <div class="text-[10px] font-black text-indigo-500 uppercase">${new Date(rep.report_date).toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long'})}</div>
                                 <div class="mt-2 inline-flex items-center gap-1.5 px-2 py-1 bg-blue-600 text-white rounded-lg shadow-sm">
-                                    <i class="fa-solid fa-clock text-[9px]"></i>
-                                    <span class="text-[10px] font-black uppercase">${timeDisplay}</span>
+                                    <i class="fa-solid fa-clock text-[9px]"></i><span class="text-[10px] font-black uppercase">${timeDisplay}</span>
                                 </div>
                                 ${statsHtml}
-                                <div class="mt-2 text-left">${rep.needs_restock ? '<span class="text-orange-500 text-[10px] font-bold"><i class="fa-solid fa-box-open"></i> REAPPRO</span>' : '<span class="text-emerald-400 text-[10px]">OK</span>'}</div>
                             </td>
-                            <td class="px-6 py-4 w-2/4 align-top relative">
-                                <div class="text-xs text-slate-600 italic line-clamp-1 cursor-pointer transition-all duration-300"
-                                     onmouseenter="peakText(this)" onmouseleave="unpeakText(this)" onclick="toggleTextFixed(this)" data-fixed="false">
-                                    ${rep.summary || "Aucun texte."}
-                                </div>
+                            <td class="px-6 py-4 w-2/4 align-top">
+                                <div class="text-xs text-slate-600 italic line-clamp-1 cursor-pointer transition-all" onclick="toggleTextFixed(this)">${rep.summary || "..."}</div>
                             </td>
                             <td class="px-6 py-4 w-1/4 align-top text-right">
                                 <div class="flex items-center justify-end gap-3">
-                                    ${rep.photo_url ? `<button onclick="viewDocument('${rep.photo_url}', 'Cahier')" class="text-blue-500 hover:scale-125 transition-transform"><i class="fa-solid fa-file-image text-lg"></i></button>` : '<i class="fa-solid fa-ban text-slate-200"></i>'}
-                                    ${isChef ? `
-                                    <button onclick="deleteDailyReport('${rep.id}')" class="text-slate-300 hover:text-red-500 transition-all" title="Marquer comme traité">
-                                        <i class="fa-solid fa-check-double text-lg"></i>
-                                    </button>` : ''}
+                                    ${rep.photo_url ? `<button onclick="viewDocument('${rep.photo_url}', 'Cahier')" class="text-blue-500"><i class="fa-solid fa-file-image text-lg"></i></button>` : ''}
+                                    ${isChef ? `<button onclick="deleteDailyReport('${rep.id}')" class="text-slate-300 hover:text-red-500 transition-all"><i class="fa-solid fa-check-double text-lg"></i></button>` : ''}
                                 </div>
                             </td>
                         </tr>`;
                 });
-                html += `</tbody></table></div></div>`;
+                html += `</tbody></table></div></div></div>`;
             }
             html += `</div>`;
         }
 
         const paginationHtml = `
             <div class="col-span-full flex justify-between items-center mt-6 px-4">
-                <button onclick="fetchMobileReports(${reportPage - 1})" ${reportPage <= 1 ? 'disabled' : ''} class="px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-black uppercase text-slate-600 disabled:opacity-30 transition-all shadow-sm"><i class="fa-solid fa-chevron-left mr-2"></i> Précédent</button>
+                <button onclick="fetchMobileReports(${reportPage - 1})" ${reportPage <= 1 ? 'disabled' : ''} class="px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-black uppercase text-slate-600 disabled:opacity-30 shadow-sm"><i class="fa-solid fa-chevron-left mr-2"></i> Précédent</button>
                 <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Page ${reportPage} / ${reportTotalPages}</span>
-                <button onclick="fetchMobileReports(${reportPage + 1})" ${reportPage >= reportTotalPages ? 'disabled' : ''} class="px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-black uppercase text-slate-600 disabled:opacity-30 transition-all shadow-sm">Suivant <i class="fa-solid fa-chevron-right ml-2"></i></button>
+                <button onclick="fetchMobileReports(${reportPage + 1})" ${reportPage >= reportTotalPages ? 'disabled' : ''} class="px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-black uppercase text-slate-600 disabled:opacity-30 shadow-sm">Suivant <i class="fa-solid fa-chevron-right ml-2"></i></button>
             </div>`;
 
         container.innerHTML = html + paginationHtml;
 
     } catch (e) {
         console.error("Erreur rapports:", e);
-        container.innerHTML = '<div class="col-span-full text-center text-red-500 py-10 font-bold uppercase text-[10px]">Erreur de connexion</div>';
+        container.innerHTML = '<div class="col-span-full text-center text-red-500 py-10 font-bold uppercase text-[10px]">Erreur de chargement</div>';
     }
 }
+
+
+
+
+
+
 
 // 1. Pour le survol (Ordinateur)
 function peakText(el) {
@@ -8816,14 +8902,17 @@ async function fetchGlobalAudit() {
     }
 }
 
+
+
+
 // Mise à jour de la table pour inclure les produits
 function renderAuditTable(data) {
     const container = document.getElementById('reports-list-container');
     let html = `
     <div class="col-span-full bg-white rounded-[2.5rem] shadow-xl border overflow-hidden animate-fadeIn mb-10">
         <div class="p-6 border-b flex justify-between items-center bg-slate-50">
-            <div><h3 class="font-black text-slate-800 uppercase text-sm">Audit Global d'Activité (Mobiles)</h3></div>
-            <button onclick="exportAuditToExcel()" class="bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-bold text-xs shadow-lg">EXPORTER EXCEL</button>
+            <h3 class="font-black text-slate-800 uppercase text-sm">Audit d'Activité (Terrain)</h3>
+            <button onclick="exportAuditToExcel()" class="bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-bold text-xs shadow-lg active:scale-95">EXPORTER EXCEL</button>
         </div>
         <div class="overflow-x-auto">
             <table class="w-full text-left">
@@ -8831,35 +8920,41 @@ function renderAuditTable(data) {
                     <tr>
                         <th class="px-6 py-5">Collaborateur</th>
                         <th class="px-6 py-5 text-center">Visites</th>
-                        <th class="px-6 py-5 text-center">Produits Prés.</th> <!-- NOUVELLE COLONNE -->
-                        <th class="px-6 py-5">Détail des Lieux</th>
-                        <th class="px-6 py-5 text-center">Absences</th>
+                        <th class="px-6 py-5 text-center">Produits</th>
+                        <th class="px-6 py-5">Lieux visités</th>
                         <th class="px-6 py-5 text-right">Dernière Obs.</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100">`;
     
     data.forEach(row => {
+        // Préparation des listes pour le "Voir Plus"
+        const lieuList = row.detail_lieux.split(',').join('<br> • ');
+        const prodsAffiche = row.total_produits > 0 ? `${row.total_produits} présentés` : 'Aucun';
+
         html += `
-            <tr class="hover:bg-blue-50/50">
+            <tr class="hover:bg-blue-50/50 transition-all">
                 <td class="px-6 py-4">
                     <div class="font-bold text-slate-800 uppercase text-xs">${row.nom}</div>
                     <div class="text-[9px] text-slate-400 font-mono">${row.matricule}</div>
                 </td>
                 <td class="px-6 py-4 text-center">
-                    <span class="bg-blue-600 text-white px-3 py-1 rounded-full font-black text-xs">${row.total_visites}</span>
+                    <span class="bg-blue-600 text-white px-3 py-1 rounded-full font-black text-xs shadow-sm">${row.total_visites}</span>
                 </td>
                 <td class="px-6 py-4 text-center">
-                    <span class="bg-indigo-50 text-indigo-600 border border-indigo-200 px-3 py-1 rounded-full font-black text-xs">${row.total_produits || 0}</span>
+                    <button onclick="showAuditDetails('${row.nom}', 'PRODUITS', '${row.total_produits} produits au total')" 
+                            class="bg-indigo-50 text-indigo-600 border border-indigo-200 px-3 py-1 rounded-full font-black text-xs hover:bg-indigo-600 hover:text-white transition-all">
+                        ${row.total_produits}
+                    </button>
                 </td>
-                <td class="px-6 py-4 text-[10px] text-slate-600 max-w-xs truncate" title="${row.detail_lieux}">
-                    ${row.detail_lieux}
+                <td class="px-6 py-4">
+                    <div class="text-[10px] text-slate-600 max-w-[200px] truncate cursor-pointer hover:text-blue-600 font-bold" 
+                         onclick="showAuditDetails('${row.nom}', 'LIEUX VISITES', '${lieuList}')">
+                        <i class="fa-solid fa-eye mr-1 opacity-50"></i> ${row.detail_lieux}
+                    </div>
                 </td>
-                <td class="px-6 py-4 text-center">
-                    ${row.jours_absence > 0 ? `<span class="text-red-600 font-bold text-[10px] bg-red-50 px-2 py-1 rounded">${row.jours_absence} JOURS</span>` : `<span class="text-slate-300 text-[10px]">-</span>`}
-                </td>
-                <td class="px-6 py-4 text-[10px] text-slate-500 italic max-w-[150px] truncate text-right">
-                    ${row.dernier_rapport}
+                <td class="px-6 py-4 text-[10px] text-slate-500 italic text-right">
+                    <div class="max-w-[150px] truncate" title="${row.dernier_rapport}">${row.dernier_rapport}</div>
                 </td>
             </tr>`;
     });
@@ -9111,6 +9206,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
