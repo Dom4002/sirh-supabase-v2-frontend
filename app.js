@@ -8296,7 +8296,6 @@ function changeReportTab(tab) {
 
 
  
-// --- FONCTION UTILITAIRE POUR NETTOYER ET FORMATER LES TAGS DE PRODUITS ---
 // --- FONCTION DE NETTOYAGE ULTIME POUR LES PRODUITS ---
 function formatProductTags(rawProducts) {
     let prods = [];
@@ -8352,72 +8351,6 @@ function showAuditDetails(nom, type, contenu) {
     });
 }
 
-// --- CHARGEMENT DES RAPPORTS AVEC CALCUL DES STATS ---
-async function fetchMobileReports(page = 1) {
-    const container = document.getElementById('reports-list-container');
-    const counterVisites = document.getElementById('stat-visites-total');
-    const counterProduits = document.getElementById('stat-produits-total');
-    const counterAgents = document.getElementById('stat-agents-actifs');
-    const labelEl = document.getElementById('stat-report-label');
-    const nameFilter = document.getElementById('filter-report-name')?.value.toLowerCase() || "";
-    const periodFilter = document.getElementById('filter-report-date')?.value || "month";
-
-    if (!container) return;
-    
-    const isChef = AppState.currentUser.role !== 'EMPLOYEE';
-    AppState.reportPage = page;
-    container.innerHTML = '<div class="col-span-full text-center p-10"><i class="fa-solid fa-circle-notch fa-spin text-blue-500 text-2xl"></i></div>';
-
-    try {
-        const limit = 20;
-        const endpoint = AppState.currentReportTab === 'visits' ? 'read-visit-reports' : 'read-daily-reports';
-        const url = `${SIRH_CONFIG.apiBaseUrl}/${endpoint}?page=${page}&limit=${limit}&name=${encodeURIComponent(nameFilter)}&period=${periodFilter}`;
-        
-        const r = await secureFetch(url);
-        const result = await r.json();
-
-        const data = result.data || result; 
-        AppState.reportTotalPages = result.meta?.last_page || 1;
-
-        // --- CALCUL DES STATISTIQUES GLOBALES ---
-        let totalVisitesCount = result.meta?.total || data.length;
-        let totalProductsCount = 0;
-        let uniqueAgents = new Set();
-
-        data.forEach(item => {
-            const empId = item.employee_id || (item.employees && item.employees.id);
-            if(empId) uniqueAgents.add(empId);
-
-            if (AppState.currentReportTab === 'visits') {
-                let pList = [];
-                try { pList = typeof item.presented_products === 'string' ? JSON.parse(item.presented_products) : (item.presented_products || []); } catch(e){}
-                totalProductsCount += pList.length;
-            } else {
-                if (item.products_stats) {
-                    Object.values(item.products_stats).forEach(qty => totalProductsCount += (parseInt(qty) || 0));
-                }
-            }
-        });
-
-        if(counterVisites) counterVisites.innerText = totalVisitesCount;
-        if(counterProduits) counterProduits.innerText = totalProductsCount;
-        if(counterAgents) counterAgents.innerText = uniqueAgents.size;
-
-        if(labelEl) labelEl.innerText = AppState.currentReportTab === 'visits' ? "VISITES IDENTIFIÉES" : "BILANS JOURNALIERS";
-
-        container.innerHTML = '';
-        if (!data || data.length === 0) {
-            container.innerHTML = '<div class="col-span-full text-center text-slate-400 py-10 uppercase font-black text-[10px] tracking-widest">Aucune donnée trouvée</div>';
-            return;
-        }
-
-        // ... Ici le reste de ta fonction (Groupement et génération du HTML) 
-        // /!\ Utilise bien formatProductTags(v.presented_products) dans ta boucle.
-    } catch (e) {
-        console.error("Erreur rapports:", e);
-        container.innerHTML = '<div class="col-span-full text-center text-red-500 py-10 font-bold uppercase text-[10px]">Erreur de chargement</div>';
-    }
-}
 
 
 async function fetchMobileReports(page = 1) {
@@ -9223,6 +9156,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
