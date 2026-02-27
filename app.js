@@ -6050,11 +6050,11 @@ async function runArchivingJob() {
             Swal.fire({
                 title: 'Terminé !',
                 html: `
-                    <div class="text-left text-sm">
-                        <p><strong>Logs archivés :</strong> ${data.report.logs}</p>
-                        <p><strong>Photos supprimées :</strong> ${data.report.photos_deleted}</p>
-                        <p><strong>Employés archivés :</strong> ${data.report.employees}</p>
-                    </div>
+                            <div class="text-left text-sm">
+                                <p><strong>Logs archivés :</strong> ${data.report.logs_archived}</p>
+                                <p><strong>Photos supprimées :</strong> ${data.report.photos_deleted}</p>
+                                <p><strong>Employés archivés :</strong> ${data.report.employees}</p> <!-- Ça va marcher maintenant -->
+                            </div>                
                 `,
                 icon: 'success'
             });
@@ -9111,6 +9111,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
