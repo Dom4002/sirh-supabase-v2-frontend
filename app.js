@@ -3467,8 +3467,8 @@ async function fetchProducts() {
                             <button onclick="openEditProductModal('${p.id}')" class="w-8 h-8 bg-white text-blue-600 rounded-full shadow-lg hover:bg-blue-600 hover:text-white transition-all">
                                 <i class="fa-solid fa-pen text-[10px]"></i>
                             </button>
-                            <button onclick="deleteProduct('${p.id}')" class="w-8 h-8 bg-white text-red-500 rounded-full shadow-lg hover:bg-red-500 hover:text-white transition-all">
-                                <i class="fa-solid fa-trash-can text-[10px]"></i>
+                            <button onclick="deleteProduct('${p.id}')" class="w-8 h-8 bg-white text-red-500 rounded-full ...">
+                                        <i class="fa-solid fa-trash-can text-[10px]"></i>
                             </button>
                         </div>` : ''}
                     </div>
@@ -3486,7 +3486,52 @@ async function fetchProducts() {
 
 
 
+/**
+ * Supprime un produit du catalogue
+ */
+async function deleteProduct(id) {
+  // 1. Demande de confirmation sécurisée
+  const confirm = await Swal.fire({
+    title: "Supprimer ce produit ?",
+    text: "Le produit sera retiré du catalogue définitivement.",
+    icon: "warning",
+    showCancelButton: true,
+    confirmButtonColor: "#ef4444", // Rouge
+    cancelButtonColor: "#64748b",
+    confirmButtonText: "Oui, supprimer",
+    cancelButtonText: "Annuler",
+  });
 
+  if (confirm.isConfirmed) {
+    Swal.fire({
+      title: "Suppression en cours...",
+      didOpen: () => Swal.showLoading(),
+    });
+
+    try {
+      // 2. Appel à l'API backend
+      const r = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/delete-product`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+            id: id,
+            agent: AppState.currentUser.nom 
+        }),
+      });
+
+      if (r.ok) {
+        Swal.fire("Supprimé !", "Le produit a été retiré du catalogue.", "success");
+        // 3. Rafraîchir la grille des produits immédiatement
+        fetchProducts(); 
+      } else {
+        throw new Error("Erreur lors de la suppression sur le serveur.");
+      }
+    } catch (e) {
+      console.error(e);
+      Swal.fire("Erreur", e.message, "error");
+    }
+  }
+}
 
 async function openEditProductModal(id) {
     const p = window.allProductsData.find(item => item.id == id);
@@ -9066,6 +9111,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
