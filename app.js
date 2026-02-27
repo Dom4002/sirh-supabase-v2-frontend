@@ -8853,14 +8853,13 @@ async function fetchGlobalAudit() {
 
 
 
-
 function renderAuditTable(data) {
     const container = document.getElementById('reports-list-container');
     let html = `
     <div class="col-span-full bg-white rounded-[2.5rem] shadow-xl border overflow-hidden animate-fadeIn mb-10">
         <div class="p-6 border-b flex justify-between items-center bg-slate-50">
             <h3 class="font-black text-slate-800 uppercase text-sm">Audit d'Activité (Terrain)</h3>
-            <button onclick="exportAuditToExcel()" class="bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-bold text-xs shadow-lg">EXPORTER EXCEL</button>
+            <button onclick="exportAuditToExcel()" class="bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-bold text-xs shadow-lg active:scale-95">EXPORTER EXCEL</button>
         </div>
         <div class="overflow-x-auto">
             <table class="w-full text-left">
@@ -8876,9 +8875,11 @@ function renderAuditTable(data) {
                 <tbody class="divide-y divide-slate-100">`;
     
     data.forEach(row => {
-        // Préparation des listes pour le "Voir Plus"
-        const lieuList = row.detail_lieux.split(',').join('<br> • ');
-        const prodList = row.detail_produits.split(',').join('<br> • ');
+        // --- SÉCURISATION DES DONNÉES POUR LE ONCLICK ---
+        // On remplace les apostrophes ' par leur code HTML pour ne pas casser le JS
+        const safeNom = row.nom.replace(/'/g, "&#39;");
+        const safeLieux = row.detail_lieux.replace(/'/g, "&#39;").split(',').join('<br> • ');
+        const safeProds = row.detail_produits.replace(/'/g, "&#39;").split(',').join('<br> • ');
 
         html += `
             <tr class="hover:bg-blue-50/50 transition-all">
@@ -8891,7 +8892,7 @@ function renderAuditTable(data) {
                 </td>
                 <td class="px-6 py-4 text-center">
                     <!-- CLIC SUR LE NOMBRE : Affiche les noms des produits -->
-                    <button onclick="showAuditDetails('${row.nom}', 'PRODUITS PRÉSENTÉS', '• ${prodList}')" 
+                    <button onclick="showAuditDetails('${safeNom}', 'PRODUITS PRÉSENTÉS', '• ${safeProds}')" 
                             class="bg-indigo-50 text-indigo-600 border border-indigo-200 px-3 py-1 rounded-full font-black text-xs hover:bg-indigo-600 hover:text-white transition-all">
                         ${row.total_produits}
                     </button>
@@ -8899,12 +8900,12 @@ function renderAuditTable(data) {
                 <td class="px-6 py-4">
                     <!-- CLIC SUR LES LIEUX : Affiche la liste complète -->
                     <div class="text-[10px] text-slate-600 max-w-[200px] truncate cursor-pointer hover:text-blue-600 font-bold" 
-                         onclick="showAuditDetails('${row.nom}', 'LIEUX VISITES', '• ${lieuList}')">
+                         onclick="showAuditDetails('${safeNom}', 'LIEUX VISITES', '• ${safeLieux}')">
                         <i class="fa-solid fa-eye mr-1 opacity-50"></i> ${row.detail_lieux}
                     </div>
                 </td>
                 <td class="px-6 py-4 text-[10px] text-slate-500 italic text-right">
-                    <div class="max-w-[150px] truncate">${row.dernier_rapport}</div>
+                    <div class="max-w-[150px] truncate" title="${row.dernier_rapport}">${row.dernier_rapport}</div>
                 </td>
             </tr>`;
     });
@@ -9156,6 +9157,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
