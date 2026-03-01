@@ -6264,6 +6264,13 @@ async function fetchCandidates() {
             const safeAtt = attLink ? encodeURIComponent(attLink) : '';
             const safeIdCard = idCardLink ? encodeURIComponent(idCardLink) : '';
 
+            const safePhone = c.telephone ? encodeURIComponent(c.telephone) : '';
+            const safeDateNaiss = c.date_naissance ? encodeURIComponent(new Date(c.date_naissance).toLocaleDateString()) : '';
+            const safeAddr = c.adresse ? encodeURIComponent(c.adresse) : '';
+            const safeExp = c.experience ? encodeURIComponent(c.experience) : '';
+            const safeDisp = c.disponibilite ? encodeURIComponent(c.disponibilite) : '';
+            const safePretentions = c.pretentions ? encodeURIComponent(c.pretentions) : '';
+
             let stRaw = c.statut || 'Nouveau';
             let stLogic = stRaw.toString().toLowerCase().trim();
             
@@ -6275,8 +6282,8 @@ async function fetchCandidates() {
             else if(stLogic.includes('nouveau')) badgeClass = 'bg-yellow-50 text-yellow-700';
 
             const btnDocs = `
-                <button onclick="showCandidateDocs('${safeNom}', '${c.poste_vise || 'Candidat'}', '${safeCv}', '${safeLm}', '${safeDip}', '${safeAtt}', '${safeIdCard}')" 
-                        class="p-2 bg-white border border-slate-200 text-slate-600 rounded-lg hover:text-blue-600 hover:border-blue-200 shadow-sm transition-all mr-2" title="Ouvrir le dossier">
+                <button onclick="showCandidateDocs('${safeNom}', '${c.poste_vise || 'Candidat'}', '${safeCv}', '${safeLm}', '${safeDip}', '${safeAtt}', '${safeIdCard}', '${c.email}', '${safePhone}', '${safeDateNaiss}', '${safeAddr}', '${safeExp}', '${safeDisp}', '${safePretentions}')" 
+                        class="p-2 bg-white border border-slate-200 text-slate-600 rounded-lg hover:text-blue-600 hover:border-blue-200 shadow-sm transition-all mr-2" title="Ouvrir le dossier complet">
                     <i class="fa-solid fa-folder-open"></i>
                 </button>
             `;
@@ -6332,11 +6339,20 @@ async function fetchCandidates() {
 
 
 
-    // Fonction DESIGN FINAL (Airtable Compatible + Scroll Vertical autorisé, Horizontal banni)
-function showCandidateDocs(safeNom, poste, cv, lm, dip, att, idCard) {
+
+
+// Fonction DESIGN FINAL (Airtable Compatible + Infos Complètes)
+function showCandidateDocs(safeNom, poste, cv, lm, dip, att, idCard, email, safePhone, safeDateNaiss, safeAddr, safeExp, safeDisp, safePretentions) {
+    // Décodage de tous les champs
     const nom = decodeURIComponent(safeNom);
+    const phone = safePhone ? decodeURIComponent(safePhone) : 'Non renseigné';
+    const dob = safeDateNaiss ? decodeURIComponent(safeDateNaiss) : 'Non renseignée';
+    const addr = safeAddr ? decodeURIComponent(safeAddr) : 'Non renseignée';
+    const exp = safeExp ? decodeURIComponent(safeExp) : 'Non renseignée';
+    const disp = safeDisp ? decodeURIComponent(safeDisp) : 'Non renseignée';
+    const pretentions = safePretentions ? decodeURIComponent(safePretentions) + ' CFA' : 'Non précisé';
     
-    const docs = [
+    const docs =[
         { id: 'cv', label: 'CV', url: cv ? decodeURIComponent(cv) : null, icon: 'fa-file-user', color: 'blue' },
         { id: 'lm', label: 'Lettre Motiv.', url: lm ? decodeURIComponent(lm) : null, icon: 'fa-envelope-open-text', color: 'pink' },
         { id: 'id_card', label: 'Pièce Identité', url: idCard ? decodeURIComponent(idCard) : null, icon: 'fa-id-card', color: 'purple' },
@@ -6344,8 +6360,8 @@ function showCandidateDocs(safeNom, poste, cv, lm, dip, att, idCard) {
         { id: 'att', label: 'Attestation', url: att ? decodeURIComponent(att) : null, icon: 'fa-file-invoice', color: 'orange' }
     ];
 
-    // --- COLONNE GAUCHE (Menu) ---
-    let buttonsHtml = '<div class="flex flex-col gap-2 overflow-y-auto pr-1 custom-scroll" style="max-height: 350px;">';
+    // --- COLONNE GAUCHE (Fichiers) ---
+    let buttonsHtml = '<div class="flex flex-col gap-2">';
     let firstDocUrl = null;
     let hasDocs = false;
 
@@ -6356,7 +6372,7 @@ function showCandidateDocs(safeNom, poste, cv, lm, dip, att, idCard) {
             
             buttonsHtml += `
                 <button onclick="changePreview('${d.url}', this)" 
-                    class="doc-btn w-full flex items-center gap-2 p-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 transition-all text-left group shadow-sm">
+                    class="doc-btn w-full flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 transition-all text-left group shadow-sm">
                     <div class="w-8 h-8 shrink-0 rounded-lg bg-${d.color}-50 flex items-center justify-center text-${d.color}-600 group-hover:scale-110 transition-transform">
                         <i class="fa-solid ${d.icon} text-sm"></i>
                     </div>
@@ -6376,7 +6392,6 @@ function showCandidateDocs(safeNom, poste, cv, lm, dip, att, idCard) {
 
     // --- LOGIQUE D'AFFICHAGE ---
     window.changePreview = function(url, btn) {
-        // 1. Style des boutons
         document.querySelectorAll('.doc-btn').forEach(b => {
             b.classList.remove('ring-2', 'ring-blue-500', 'bg-blue-50/50');
             b.classList.add('bg-white', 'border-slate-200');
@@ -6393,82 +6408,103 @@ function showCandidateDocs(safeNom, poste, cv, lm, dip, att, idCard) {
 
         if(extLink) extLink.href = url;
 
-        // 2. Détection IMAGE vs AUTRE (PDF)
-        // On considère comme image : les extensions classiques OU les liens Airtable hébergeant des images
-        // Les liens Airtable ressemblent souvent à v5.airtableusercontent...
         const isImageExtension = url.match(/\.(jpeg|jpg|gif|png|webp|bmp)$/i);
         const isAirtableImage = url.includes('airtableusercontent') && !url.toLowerCase().includes('.pdf');
-        
-        // SÉCURITÉ : Google Drive ID
         const driveMatch = url.match(/\/d\/([a-zA-Z0-9_-]+)/) || url.match(/id=([a-zA-Z0-9_-]+)/);
+        
         let finalUrl = url;
         
         if (driveMatch) {
-            // Conversion Drive -> Image directe
             finalUrl = `https://lh3.googleusercontent.com/d/${driveMatch[1]}`;
             viewerFrame.classList.add('hidden');
             viewerImg.classList.remove('hidden');
             viewerImg.src = finalUrl;
         } 
         else if (isImageExtension || isAirtableImage) {
-            // C'EST UNE IMAGE (Airtable ou autre)
             viewerFrame.classList.add('hidden');
             viewerImg.classList.remove('hidden');
             viewerImg.src = url;
-            
-            // Réglage du conteneur pour le scroll
             container.classList.remove('overflow-hidden');
             container.classList.add('overflow-y-auto', 'overflow-x-hidden');
         } 
         else {
-            // C'EST UN PDF (ou autre fichier) -> IFRAME
             viewerImg.classList.add('hidden');
             viewerFrame.classList.remove('hidden');
-            
-            // Ajustement URL Drive pour PDF
             if(url.includes('drive.google.com') && url.includes('/view')) finalUrl = url.replace('/view', '/preview');
-            
             viewerFrame.src = finalUrl;
-            
-            // Pour l'iframe, on laisse le conteneur hidden car l'iframe a son propre scroll
             container.classList.add('overflow-hidden');
             container.classList.remove('overflow-y-auto');
         }
     };
 
-    // --- HTML SWEETALERT ---
+    // --- HTML SWEETALERT (Repensé pour tout afficher) ---
     Swal.fire({
         title: null, 
         html: `
-            <div class="flex flex-col md:flex-row h-[500px] gap-4 text-left">
+            <div class="flex flex-col md:flex-row h-[600px] gap-4 text-left">
                 
-                <!-- GAUCHE : MENU (25%) -->
-                <div class="w-full md:w-[25%] flex flex-col h-full border-r border-slate-100 pr-2">
-                    <div class="mb-4">
+                <!-- GAUCHE : MENU & INFOS (35% de largeur pour faire tenir le texte) -->
+                <div class="w-full md:w-[35%] flex flex-col h-full border-r border-slate-100 pr-2">
+                    
+                    <div class="mb-4 shrink-0">
                         <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Candidat</p>
-                        <h2 class="text-xl font-extrabold text-slate-800 leading-tight mb-1 truncate">${nom}</h2>
+                        <h2 class="text-xl font-extrabold text-slate-800 leading-tight mb-1 truncate" title="${nom}">${nom}</h2>
                         <span class="inline-block bg-blue-600 text-white text-[9px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wide">
                             ${poste}
                         </span>
                     </div>
-                    
-                    <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Fichiers</p>
-                    ${buttonsHtml}
 
-                    <div class="mt-auto pt-2">
-                        <button onclick="Swal.close()" class="w-full py-2.5 rounded-xl bg-slate-100 text-slate-600 font-bold text-xs hover:bg-slate-200 transition-colors uppercase">
+                    <!-- BLOC SCROLLABLE POUR LES INFOS TEXTUELLES ET LES FICHIERS -->
+                    <div class="flex-1 overflow-y-auto custom-scroll pr-2 space-y-4">
+                        
+                        <!-- 1. Coordonnées -->
+                        <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                            <p class="text-[9px] font-black text-slate-400 uppercase mb-2">Coordonnées</p>
+                            <div class="space-y-1">
+                                <p class="text-[10px] font-medium text-slate-600 truncate"><i class="fa-solid fa-envelope text-slate-400 mr-1 w-3"></i> ${email}</p>
+                                <p class="text-[10px] font-mono text-slate-600"><i class="fa-solid fa-phone text-slate-400 mr-1 w-3"></i> ${phone}</p>
+                                <p class="text-[10px] font-medium text-slate-600 truncate" title="${addr}"><i class="fa-solid fa-map-pin text-slate-400 mr-1 w-3"></i> ${addr}</p>
+                                <p class="text-[10px] font-medium text-slate-600"><i class="fa-solid fa-cake-candles text-slate-400 mr-1 w-3"></i> ${dob}</p>
+                            </div>
+                        </div>
+
+                        <!-- 2. Profil Pro -->
+                        <div class="bg-blue-50/50 p-3 rounded-xl border border-blue-100">
+                            <p class="text-[9px] font-black text-blue-400 uppercase mb-2">Profil Professionnel</p>
+                            <div class="space-y-2">
+                                <div>
+                                    <p class="text-[8px] font-bold text-slate-400 uppercase">Expérience</p>
+                                    <p class="text-[11px] font-bold text-slate-700">${exp}</p>
+                                </div>
+                                <div>
+                                    <p class="text-[8px] font-bold text-slate-400 uppercase">Disponibilité</p>
+                                    <p class="text-[11px] font-bold text-slate-700">${disp}</p>
+                                </div>
+                                <div>
+                                    <p class="text-[8px] font-bold text-slate-400 uppercase">Prétentions</p>
+                                    <p class="text-[11px] font-black text-emerald-600 font-mono">${pretentions}</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 3. Documents -->
+                        <div>
+                            <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Fichiers joints</p>
+                            ${buttonsHtml}
+                        </div>
+
+                    </div>
+
+                    <!-- BOUTON FERMER FIXE EN BAS -->
+                    <div class="mt-4 pt-2 border-t border-slate-100 shrink-0">
+                        <button onclick="Swal.close()" class="w-full py-2.5 rounded-xl bg-slate-100 text-slate-600 font-bold text-xs hover:bg-slate-200 transition-colors uppercase tracking-widest">
                             Fermer
                         </button>
                     </div>
                 </div>
 
-                <!-- DROITE : APERÇU (75%) -->
-                <!-- 
-                     id="preview-container" : C'est lui qui gère le scroll.
-                     overflow-x-hidden : TUE le scroll horizontal.
-                     overflow-y-auto : ACTIVE le scroll vertical si l'image est grande.
-                -->
-                <div id="preview-container" class="w-full md:w-[75%] h-full bg-slate-900 rounded-xl border border-slate-200 relative flex flex-col items-center shadow-inner overflow-x-hidden overflow-y-auto custom-scroll">
+                <!-- DROITE : APERÇU (65%) -->
+                <div id="preview-container" class="w-full md:w-[65%] h-full bg-slate-900 rounded-xl border border-slate-200 relative flex flex-col items-center shadow-inner overflow-x-hidden overflow-y-auto custom-scroll">
                     
                     ${hasDocs ? `
                         <div class="absolute top-3 right-3 z-10 sticky">
@@ -6477,24 +6513,19 @@ function showCandidateDocs(safeNom, poste, cv, lm, dip, att, idCard) {
                             </a>
                         </div>
                         
-                        <!-- IFRAME (PDF) : Prend 100% hauteur -->
                         <iframe id="doc-viewer-frame" src="" class="w-full h-full bg-white hidden" frameborder="0"></iframe>
-                        
-                        <!-- IMG : Largeur 100% (w-full) et Hauteur Auto (h-auto) 
-                             Cela force l'image à toucher les bords gauche/droite (pas de scroll H)
-                             mais à s'allonger vers le bas (scroll V) -->
                         <img id="doc-viewer-img" class="w-full h-auto min-h-full bg-black/5 hidden object-top">
 
                     ` : `
                         <div class="w-full h-full flex flex-col items-center justify-center text-slate-500">
                             <i class="fa-solid fa-file-circle-xmark text-5xl opacity-20 mb-3"></i>
-                            <p class="text-xs font-medium">Aucun aperçu</p>
+                            <p class="text-xs font-medium">Aucun fichier fourni</p>
                         </div>
                     `}
                 </div>
             </div>
         `,
-        width: '1000px',
+        width: '1050px', // Un peu plus large pour que tout respire bien
         showConfirmButton: false, 
         showCloseButton: false,
         padding: '1.5rem',
@@ -6509,6 +6540,8 @@ function showCandidateDocs(safeNom, poste, cv, lm, dip, att, idCard) {
         }
     });
 }
+
+
 
 
 
@@ -9128,6 +9161,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
