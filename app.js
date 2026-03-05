@@ -5450,7 +5450,36 @@ function triggerPayrollImport() {
 
 
 
+async function forceCloseDay() {
+    const { isConfirmed } = await Swal.fire({
+        title: 'Clôturer la journée ?',
+        text: "Vous avez oublié de pointer votre sortie ? Cette action régularisera votre journée à 18h00.",
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Oui, régulariser'
+    });
 
+    if (isConfirmed) {
+        Swal.fire({ title: 'Régularisation...', didOpen: () => Swal.showLoading() });
+        
+        try {
+            // On envoie une requête spécifique au serveur
+            const response = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/force-close-day`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: currentUser.id, agent: currentUser.nom })
+            });
+
+            if (response.ok) {
+                Swal.fire('Succès', 'Votre journée a été clôturée manuellement.', 'success');
+                localStorage.setItem(`clock_finished_${currentUser.id}`, 'true');
+                updateClockUI('DONE');
+            }
+        } catch (e) {
+            Swal.fire('Erreur', e.message, 'error');
+        }
+    }
+}
 
 
 
@@ -9170,6 +9199,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
