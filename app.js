@@ -2987,7 +2987,6 @@ async function handleClockInOut() {
     const isMobile = (empData?.employee_type === 'MOBILE') || (currentUser?.employee_type === 'MOBILE');
     
     const currentStatus = localStorage.getItem(`clock_status_${userId}`) || 'OUT';
-    const action = (currentStatus === 'IN') ? 'CLOCK_OUT' : 'CLOCK_IN';
 
     // Sécurité pour les fixes
     if (!isMobile) {
@@ -9199,6 +9198,7 @@ async function refreshClockButton() {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
