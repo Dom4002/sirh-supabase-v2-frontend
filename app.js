@@ -3207,6 +3207,10 @@ html: `
                 window.clearVisitSignature = () => { window.visitSignPad.clear(); };
                 window.currentProofMode = 'photo'; // Mode par défaut
             },
+
+            willClose: () => { 
+                stopAllCameras(); 
+            },
             preConfirm: () => {
                 let finalProof = proofBlob;
                 if (window.currentProofMode === 'sign' && !window.visitSignPad.isEmpty()) {
@@ -3281,6 +3285,7 @@ html: `
 
             fetchMobileSchedules(); 
             await refreshClockButton();
+            stopAllCameras(); 
             updateClockUI(nextState);
             document.getElementById('clock-last-action').innerText = `Validé : ${action==='CLOCK_IN'?'Entrée':'Sortie'} à ${nowStr}`;
             Swal.fire('Succès', `Pointage validé : ${resData.zone}`, 'success');
@@ -3291,6 +3296,9 @@ html: `
         Swal.fire('Erreur', e.message, 'error');
     }
 }
+
+
+
 
 
 function dataURLtoBlob(dataurl) {
@@ -9192,9 +9200,17 @@ async function refreshClockButton() {
 
 
 
-
-
-
+function stopAllCameras() {
+    // Coupe le flux vidéo de la caméra si il existe
+    if (typeof proofStream !== 'undefined' && proofStream) {
+        proofStream.getTracks().forEach(track => track.stop());
+        proofStream = null;
+        console.log("📸 Caméra coupée proprement.");
+    }
+    // Nettoie aussi le srcObject de la vidéo pour libérer la mémoire
+    const video = document.getElementById('proof-video');
+    if (video) video.srcObject = null;
+}
 
 
 
@@ -9205,6 +9221,7 @@ async function refreshClockButton() {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
