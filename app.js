@@ -2925,44 +2925,37 @@ function updateClockUI(statusMode) {
 }
 
 
+
 async function syncClockInterface() {
     if (!currentUser || !currentUser.id) return;
     const userId = currentUser.id;
 
     try {
-        // 1. Appel serveur pour obtenir l'état réel
         const response = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/get-clock-status?employee_id=${userId}`);
         const data = await response.json();
 
-        // 2. On supprime les vieux localStorage qui causent l'embrouille
-        localStorage.removeItem(`clock_status_${userId}`);
-        localStorage.removeItem(`clock_finished_${userId}`);
+        // On stocke la VÉRITÉ absolue du serveur
+        localStorage.setItem(`clock_status_${userId}`, data.status);
+        localStorage.setItem(`clock_finished_${userId}`, data.day_finished);
 
-        // 3. Mise à jour de l'UI en se basant UNIQUEMENT sur la réponse du serveur
-        // DONE = Clôturé, IN = En poste (donc bouton Sortie), OUT = Dehors (donc bouton Entrée)
-        updateClockUI(data.status); 
-        
-        // Optionnel : Mise à jour du texte de statut en fonction de la réponse serveur
-        const textEl = document.getElementById('clock-status-text');
-        if (textEl && data.message) {
-            textEl.innerText = data.message;
+        // LOGIQUE D'AFFICHAGE DU BOUTON (Priorité au verrouillage)
+        if (data.day_finished === true) {
+            updateClockUI('DONE'); // Force le gris, peu importe le reste
+        } else if (data.status === 'IN') {
+            updateClockUI('IN'); // Rouge (Sortie)
+        } else {
+            updateClockUI('OUT'); // Vert (Entrée)
         }
-
-    } catch (e) { 
-        console.error("Erreur sync serveur :", e); 
-        // En cas d'erreur réseau, on ne laisse pas l'utilisateur avec un bouton potentiellement faux
-        // On peut mettre le bouton en "Indisponible"
-    }
+    } catch (e) { console.error(e); }
 }
-
-
 
 
 
 async function handleClockInOut() {
     const userId = currentUser.id;
+    const today = new Date().toLocaleDateString('fr-CA');
     
-    // 1. INITIALISATION DES VARIABLES (Blindage contre "undefined")
+    // --- 1. INITIALISATION DES VARIABLES ---
     let formResult = null; 
     let outcome = null;
     let report = null;
@@ -2974,7 +2967,7 @@ async function handleClockInOut() {
     let schedule_id = null;
     let forced_location_id = null;
 
-    // Récupération du contexte agenda
+    // Récupération du contexte si lancé depuis l'agenda
     const savedContext = localStorage.getItem('active_mission_context');
     if (savedContext) {
         const ctx = JSON.parse(savedContext);
@@ -2982,19 +2975,21 @@ async function handleClockInOut() {
         forced_location_id = ctx.locationId; 
     }
 
-    // 2. DÉTERMINER L'ACTION RÉELLE VIA LE SERVEUR
-    Swal.fire({ title: 'Analyse statut...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-    let statusData = { status: 'OUT', employee_type: 'OFFICE' };
-    try {
-        const res = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/get-clock-status?employee_id=${userId}`);
-        statusData = await res.json();
-    } catch (e) { console.error("Erreur sync status", e); }
-    Swal.close();
+    const empData = employees.find(e => e.id === userId);
+    const isMobile = (empData?.employee_type === 'MOBILE') || (currentUser?.employee_type === 'MOBILE');
+    
+    const currentStatus = localStorage.getItem(`clock_status_${userId}`) || 'OUT';
+    const action = (currentStatus === 'IN') ? 'CLOCK_OUT' : 'CLOCK_IN';
 
-    const action = (statusData.status === 'IN') ? 'CLOCK_OUT' : 'CLOCK_IN';
-    const isMobile = (statusData.employee_type === 'MOBILE');
+    // Sécurité pour les fixes
+    if (!isMobile) {
+        const inDone = localStorage.getItem(`clock_in_done_${userId}`) === 'true';
+        const outDone = localStorage.getItem(`clock_out_done_${userId}`) === 'true';
+        if (inDone && outDone) return Swal.fire('Terminé', 'Votre journée est clôturée.', 'success');
+        if (action === 'CLOCK_IN' && inDone) return Swal.fire('Oups', 'Entrée déjà validée.', 'info');
+    }
 
-    // 3. LOGIQUE DE SORTIE MOBILE (POP-UP)
+    // --- 2. LOGIQUE DE SORTIE MOBILE (POP-UP) ---
     if (action === 'CLOCK_OUT' && isMobile) {
         Swal.fire({ title: 'Chargement...', text: 'Préparation du rapport...', didOpen: () => Swal.showLoading(), allowOutsideClick: false });
 
@@ -3008,6 +3003,7 @@ async function handleClockInOut() {
             products = await prodRes.json();
             prescripteurs = await presRes.json();
         } catch (e) { console.error("Erreur chargement CRM", e); }
+
         Swal.close();
 
         let presOptions = `<option value="">-- Choisir un contact --</option>` + 
@@ -3023,89 +3019,193 @@ async function handleClockInOut() {
                 </div>
             </label>`).join('');
 
+        // CORRECTION : On enlève le "const { value: formResult }" pour utiliser la variable du haut
         const swalRes = await Swal.fire({
             title: 'Fin de visite',
             customClass: { popup: 'wide-modal' },
-            html: `
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-8 text-left">
-                    <div class="space-y-6">
-                        <div class="bg-slate-50 p-5 rounded-2xl border border-slate-100">
-                            <label class="text-[10px] font-black text-slate-400 uppercase mb-3 block">1. Identification Contact</label>
-                            <select id="swal-prescripteur" class="w-full p-3 bg-white border border-slate-200 rounded-xl font-bold text-sm outline-none focus:ring-2 focus:ring-blue-500">${presOptions}</select>
-                            <div id="container-autre-nom" class="hidden mt-3">
-                                <input id="swal-nom-libre" class="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm" placeholder="Nom du contact...">
-                            </div>
-                        </div>
-                        <div class="bg-slate-50 p-5 rounded-2xl border border-slate-100">
-                            <label class="text-[10px] font-black text-slate-400 uppercase mb-3 block">2. Résultat de visite</label>
-                            <select id="swal-outcome" class="w-full p-3 bg-white border border-slate-200 rounded-xl font-black text-blue-600 outline-none">
-                                <option value="VU">✅ Présentation effectuée</option>
-                                <option value="ABSENT">❌ Médecin Absent</option>
-                                <option value="COMMANDE">💰 Commande prise</option>
-                                <option value="RAS">👍 Visite de courtoisie</option>
-                            </select>
-                            <p class="text-[9px] font-black text-slate-400 uppercase mt-4 mb-2">Produits présentés</p>
-                            <div class="flex flex-wrap gap-2 max-h-[100px] overflow-y-auto p-1">${productsHtml}</div>
-                        </div>
-                    </div>
-                    <div class="space-y-6 flex flex-col">
-                        <div class="flex p-1 bg-slate-100 rounded-xl border border-slate-200 shrink-0">
-                            <button type="button" onclick="switchProofMode('photo')" id="btn-mode-photo" class="flex-1 py-2 rounded-lg text-[9px] font-black uppercase transition-all bg-white shadow-sm text-blue-600">📸 Cachet</button>
-                            <button type="button" onclick="switchProofMode('sign')" id="btn-mode-sign" class="flex-1 py-2 rounded-lg text-[9px] font-black uppercase transition-all text-slate-500">✍️ Signature</button>
-                        </div>
-                        <div id="proof-photo-area" class="h-44 bg-slate-900 rounded-2xl overflow-hidden relative border-2 border-slate-200 flex-shrink-0 shadow-inner">
-                            <video id="proof-video" autoplay playsinline class="w-full h-full object-cover"></video>
-                            <img id="proof-image" class="w-full h-full object-cover hidden absolute top-0 left-0">
-                            <canvas id="proof-canvas" class="hidden"></canvas>
-                            <button type="button" id="btn-snap" class="absolute bottom-3 left-1/2 -translate-x-1/2 bg-white text-slate-900 px-4 py-2 rounded-full text-[10px] font-black shadow-xl">CAPTURER</button>
-                        </div>
-                        <div id="proof-sign-area" class="hidden h-44 flex-shrink-0"><canvas id="visit-signature-pad" class="signature-zone w-full h-full bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200"></canvas></div>
-                        <div class="flex-1 space-y-4">
-                            <textarea id="swal-report" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm h-24 resize-none outline-none focus:bg-white" placeholder="Vos observations..."></textarea>
-                            <label class="flex items-center gap-3 p-3 bg-red-50 rounded-xl border border-red-100 cursor-pointer group">
-                                <input type="checkbox" id="last-exit-check" class="w-5 h-5 accent-red-600">
-                                <span class="text-[10px] font-black text-red-700 uppercase">Clôturer ma journée après cette visite</span>
-                            </label>
-                        </div>
-                    </div>
-                </div>`,
+html: `
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 text-left">
+        <!-- COLONNE GAUCHE : FORMULAIRE -->
+        <div class="space-y-6">
+            <div class="bg-slate-50 p-5 rounded-2xl border border-slate-100">
+                <label class="text-[10px] font-black text-slate-400 uppercase mb-3 block">1. Identification Contact</label>
+                <select id="swal-prescripteur" class="w-full p-3 bg-white border border-slate-200 rounded-xl font-bold text-sm outline-none focus:ring-2 focus:ring-blue-500">${presOptions}</select>
+                <div id="container-autre-nom" class="hidden mt-3">
+                    <input id="swal-nom-libre" class="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm" placeholder="Nom du contact...">
+                </div>
+            </div>
+
+            <div class="bg-slate-50 p-5 rounded-2xl border border-slate-100">
+                <label class="text-[10px] font-black text-slate-400 uppercase mb-3 block">2. Résultat de visite</label>
+                <select id="swal-outcome" class="w-full p-3 bg-white border border-slate-200 rounded-xl font-black text-blue-600 outline-none">
+                    <option value="VU">✅ Présentation effectuée</option>
+                    <option value="ABSENT">❌ Médecin Absent</option>
+                    <option value="COMMANDE">💰 Commande prise</option>
+                    <option value="RAS">👍 Visite de courtoisie</option>
+                </select>
+                
+                <p class="text-[9px] font-black text-slate-400 uppercase mt-4 mb-2">Produits présentés</p>
+                <div class="flex flex-wrap gap-2 max-h-[100px] overflow-y-auto p-1">${productsHtml}</div>
+            </div>
+        </div>
+
+        <!-- COLONNE DROITE : MÉDIA & NOTES -->
+        <div class="space-y-6 flex flex-col">
+            <!-- SELECTEUR MODE -->
+            <div class="flex p-1 bg-slate-100 rounded-xl border border-slate-200 shrink-0">
+                <button type="button" onclick="switchProofMode('photo')" id="btn-mode-photo" class="flex-1 py-2 rounded-lg text-[9px] font-black uppercase transition-all bg-white shadow-sm text-blue-600">📸 Cachet</button>
+                <button type="button" onclick="switchProofMode('sign')" id="btn-mode-sign" class="flex-1 py-2 rounded-lg text-[9px] font-black uppercase transition-all text-slate-500">✍️ Signature</button>
+            </div>
+
+            <!-- ZONE MÉDIA -->
+            <div id="proof-photo-area" class="h-44 bg-slate-900 rounded-2xl overflow-hidden relative border-2 border-slate-200 flex-shrink-0 shadow-inner">
+                <video id="proof-video" autoplay playsinline class="w-full h-full object-cover"></video>
+                <img id="proof-image" class="w-full h-full object-cover hidden absolute top-0 left-0">
+                <canvas id="proof-canvas" class="hidden"></canvas>
+                <button type="button" id="btn-snap" class="absolute bottom-3 left-1/2 -translate-x-1/2 bg-white text-slate-900 px-4 py-2 rounded-full text-[10px] font-black shadow-xl">CAPTURER</button>
+            </div>
+
+            <div id="proof-sign-area" class="hidden h-44 flex-shrink-0">
+                <canvas id="visit-signature-pad" class="signature-zone w-full h-full bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200"></canvas>
+            </div>
+
+            <!-- NOTES & CLOTURE -->
+            <div class="flex-1 space-y-4">
+                <textarea id="swal-report" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm h-24 resize-none outline-none focus:bg-white" placeholder="Vos observations..."></textarea>
+                
+                <label class="flex items-center gap-3 p-3 bg-red-50 rounded-xl border border-red-100 cursor-pointer group">
+                    <input type="checkbox" id="last-exit-check" class="w-5 h-5 accent-red-600">
+                    <span class="text-[10px] font-black text-red-700 uppercase">Clôturer ma journée après cette visite</span>
+                </label>
+            </div>
+        </div>
+    </div>
+`,
+            confirmButtonText: 'Valider le rapport',
+            confirmButtonColor: '#2563eb',
+            showCancelButton: true,
+            cancelButtonText: 'Annuler',
+            cancelButtonColor: '#ef4444', 
+            allowOutsideClick: false,
             didOpen: () => {
+                // 1. GESTION DU CONTEXTE (Mission & Médecin) - Inchangé
                 const ctxMem = localStorage.getItem('active_mission_context');
                 if (ctxMem) {
                     const c = JSON.parse(ctxMem);
                     if (c.prescripteurId) document.getElementById('swal-prescripteur').value = c.prescripteurId;
                     if (c.preNotes) document.getElementById('swal-report').value = `[Objectif: ${c.preNotes}] \n`;
                 }
+                
                 document.getElementById('swal-prescripteur').addEventListener('change', (e) => {
                     document.getElementById('container-autre-nom').classList.toggle('hidden', e.target.value !== 'autre');
                 });
+
+                // 2. INITIALISATION CAMÉRA
                 const video = document.getElementById('proof-video');
-                navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }).then(s => { proofStream = s; video.srcObject = s; });
+                // On s'assure que proofStream est bien assigné à la variable globale
+                navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+                    .then(s => { 
+                        proofStream = s; 
+                        if (video) video.srcObject = s; 
+                    })
+                    .catch(err => console.error("Erreur Caméra:", err));
+
+                // 3. LOGIQUE CAPTURE PHOTO - Sécurisée
                 document.getElementById('btn-snap').onclick = () => {
+                    if (!video || video.videoWidth === 0) return Swal.fire('Patientez', 'La caméra s\'initialise...', 'info');
+                    
                     const canvas = document.getElementById('proof-canvas');
-                    canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+                    canvas.width = video.videoWidth; 
+                    canvas.height = video.videoHeight;
                     canvas.getContext('2d').drawImage(video, 0, 0);
-                    canvas.toBlob(b => { proofBlob = b; document.getElementById('proof-image').src = URL.createObjectURL(b); document.getElementById('proof-image').classList.remove('hidden'); }, 'image/jpeg', 0.8);
+                    
+                    canvas.toBlob(b => { 
+                        if(!b) return;
+                        proofBlob = b; 
+                        const imgPreview = document.getElementById('proof-image');
+                        imgPreview.src = URL.createObjectURL(b); 
+                        imgPreview.classList.remove('hidden'); 
+                    }, 'image/jpeg', 0.8);
                 };
-                // Init signature
+
+            // 4. INITIALISATION SIGNATURE (AVEC FONCTION DE REDIMENSIONNEMENT)
                 const signCanvas = document.getElementById('visit-signature-pad');
-                window.visitSignPad = new SignaturePad(signCanvas, { backgroundColor: 'rgba(255,255,255,0)', penColor: 'rgb(0,0,128)' });
-                window.switchProofMode = (mode) => {
+                
+                // On prépare la fonction de calcul de taille
+                window.reinitVisitCanvas = () => {
+                    const ratio = Math.max(window.devicePixelRatio || 1, 1);
+                    // On ne recalcule que si l'élément est visible à l'écran
+                    if (signCanvas.offsetWidth > 0) {
+                        signCanvas.width = signCanvas.offsetWidth * ratio;
+                        signCanvas.height = signCanvas.offsetHeight * ratio;
+                        signCanvas.getContext("2d").scale(ratio, ratio);
+                        if (window.visitSignPad) window.visitSignPad.clear();
+                    }
+                };
+
+                // Création du pad (on utilise un fond transparent au début pour éviter les bugs)
+                window.visitSignPad = new SignaturePad(signCanvas, { 
+                    backgroundColor: 'rgba(255, 255, 255, 0)', 
+                    penColor: 'rgb(0, 0, 128)' 
+                });    
+
+                // 5. FONCTION SWITCH MODE (CORRIGÉE)
+               window.switchProofMode = (mode) => {
                     const isPhoto = mode === 'photo';
+                    
+                    // 1. Gestion du flux vidéo (Inchangé)
+                    if (!isPhoto && proofStream) { 
+                        proofStream.getTracks().forEach(t => t.stop()); 
+                        proofStream = null; 
+                    } 
+                    else if (isPhoto && !proofStream) { 
+                        navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+                            .then(s => { 
+                                proofStream = s; 
+                                const v = document.getElementById('proof-video');
+                                if (v) v.srcObject = s; 
+                            }); 
+                    }
+
+                    // 2. Mise à jour visuelle de l'interface (Inchangé)
                     document.getElementById('proof-photo-area').classList.toggle('hidden', !isPhoto);
                     document.getElementById('proof-sign-area').classList.toggle('hidden', isPhoto);
+                    
+                    // --- AJOUT : RÉINITIALISATION DU CANVAS SI ON PASSE EN MODE SIGNATURE ---
+                    if (!isPhoto) {
+                        // On attend 50ms que la zone soit bien affichée par le navigateur
+                        setTimeout(() => {
+                            if (typeof window.reinitVisitCanvas === 'function') {
+                                window.reinitVisitCanvas();
+                            }
+                        }, 50);
+                    }
+                    // -----------------------------------------------------------------------
+
+                    // 3. Mise à jour des styles de boutons (Inchangé)
+                    document.getElementById('btn-mode-photo').className = isPhoto ? 'flex-1 py-1.5 rounded-lg text-[9px] font-black uppercase bg-white shadow-sm text-blue-600' : 'flex-1 py-1.5 rounded-lg text-[9px] font-black uppercase text-slate-500';
+                    document.getElementById('btn-mode-sign').className = !isPhoto ? 'flex-1 py-1.5 rounded-lg text-[9px] font-black uppercase bg-white shadow-sm text-blue-600' : 'flex-1 py-1.5 rounded-lg text-[9px] font-black uppercase text-slate-500';
+                    
                     window.currentProofMode = mode;
                 };
+
+                // 6. ACTIONS FINALES
+                window.clearVisitSignature = () => { window.visitSignPad.clear(); };
+                window.currentProofMode = 'photo'; // Mode par défaut
             },
-            willClose: () => { if(proofStream) proofStream.getTracks().forEach(t => t.stop()); },
             preConfirm: () => {
+                let finalProof = proofBlob;
+                if (window.currentProofMode === 'sign' && !window.visitSignPad.isEmpty()) {
+                    finalProof = dataURLtoBlob(window.visitSignPad.toDataURL('image/png'));
+                }
                 return {
                     outcome: document.getElementById('swal-outcome').value,
                     report: document.getElementById('swal-report').value,
                     isLastExit: document.getElementById('last-exit-check').checked,
                     prescripteur_id: document.getElementById('swal-prescripteur').value,
                     contact_nom_libre: document.getElementById('swal-nom-libre').value,
-                    selectedProducts: Array.from(document.querySelectorAll('input[name="presented_prods"]:checked')).map(i => ({id: i.value, name: i.dataset.name}))
+                    selectedProducts: Array.from(document.querySelectorAll('input[name="presented_prods"]:checked')).map(i => ({id: i.value, name: i.dataset.name})),
+                    proofFile: finalProof 
                 };
             }
         });
@@ -3115,49 +3215,67 @@ async function handleClockInOut() {
         outcome = formResult.outcome;
         report = formResult.report;
         isLastExit = formResult.isLastExit;
+        presentedProducts = formResult.selectedProducts;
         prescripteur_id = formResult.prescripteur_id;
         contact_nom_libre = formResult.contact_nom_libre;
-        presentedProducts = formResult.selectedProducts;
-        if (proofBlob) proofBlob = await compressImage(proofBlob);
     }
 
-    // 4. POINTAGE & ENVOI
-    Swal.fire({ title: 'Validation...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    // --- 3. POINTAGE GPS & ENVOI ---
+    Swal.fire({ title: 'Vérification...', text: 'Analyse GPS...', didOpen: () => Swal.showLoading(), allowOutsideClick: false });
 
     try {
-        const pos = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej));
         const ipRes = await fetch('https://api.ipify.org?format=json').then(r => r.json());
+        const pos = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej));
+        const currentGps = `${pos.coords.latitude},${pos.coords.longitude}`;
 
         const fd = new FormData();
         fd.append('id', userId);
         fd.append('action', action);
-        fd.append('gps', `${pos.coords.latitude},${pos.coords.longitude}`);
+        fd.append('gps', currentGps);
         fd.append('ip', ipRes.ip);
         fd.append('agent', currentUser.nom);
-        if (outcome) fd.append('outcome', outcome);
-        if (report) fd.append('report', report);
-        if (prescripteur_id) fd.append('prescripteur_id', prescripteur_id);
-        if (contact_nom_libre) fd.append('contact_nom_libre', contact_nom_libre);
-        if (presentedProducts.length > 0) fd.append('presentedProducts', JSON.stringify(presentedProducts));
-        if (schedule_id) fd.append('schedule_id', schedule_id);
-        if (forced_location_id) fd.append('forced_location_id', forced_location_id);
-        if (proofBlob) fd.append('proof_photo', await compressImage(proofBlob), 'capture.jpg');
-        if (isLastExit) fd.append('is_last_exit', 'true');
+        
+        // Sécurisation de l'envoi : on n'envoie les rapports que si on est en CLOCK_OUT
+        if (action === 'CLOCK_OUT' && isMobile) {
+            fd.append('outcome', outcome || 'VU');
+            fd.append('report', report || '');
+            if (prescripteur_id) fd.append('prescripteur_id', prescripteur_id);
+            if (contact_nom_libre) fd.append('contact_nom_libre', contact_nom_libre);
+            if (presentedProducts) fd.append('presentedProducts', JSON.stringify(presentedProducts));
+            if (schedule_id) fd.append('schedule_id', schedule_id);
+            if (forced_location_id) fd.append('forced_location_id', forced_location_id);
+            
+            if (formResult && formResult.proofFile) {
+                Swal.update({ text: 'Compression de la preuve...' });
+                const compressed = await compressImage(formResult.proofFile);
+                fd.append('proof_photo', compressed, 'preuve_visite.jpg');
+            }
+            if (isLastExit) fd.append('is_last_exit', 'true');
+        }
 
         const response = await secureFetch(URL_CLOCK_ACTION, { method: 'POST', body: fd });
+        const resData = await response.json();
+
         if (response.ok) {
+            const nowStr = new Date().toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'});
+            if (typeof PremiumUI !== 'undefined') { PremiumUI.vibrate('success'); PremiumUI.play('success'); }
+            
             localStorage.removeItem('active_mission_context');
-            await syncClockInterface(); // C'est ici que l'interface se met à jour grâce au serveur
-            Swal.fire('Succès', 'Pointage validé', 'success');
+            let nextState = (action === 'CLOCK_IN') ? 'IN' : 'OUT';
+            localStorage.setItem(`clock_status_${userId}`, nextState);
+            if (isLastExit || !isMobile) localStorage.setItem(`clock_finished_${userId}`, 'true');
+
+            fetchMobileSchedules(); 
+            updateClockUI(nextState);
+            document.getElementById('clock-last-action').innerText = `Validé : ${action==='CLOCK_IN'?'Entrée':'Sortie'} à ${nowStr}`;
+            Swal.fire('Succès', `Pointage validé : ${resData.zone}`, 'success');
         } else {
-            const err = await response.json();
-            throw new Error(err.error);
+            throw new Error(resData.error);
         }
     } catch (e) {
         Swal.fire('Erreur', e.message, 'error');
     }
 }
-
 
 
 function dataURLtoBlob(dataurl) {
@@ -5323,36 +5441,7 @@ function triggerPayrollImport() {
 
 
 
-async function forceCloseDay() {
-    const { isConfirmed } = await Swal.fire({
-        title: 'Clôturer la journée ?',
-        text: "Vous avez oublié de pointer votre sortie ? Cette action régularisera votre journée à 18h00.",
-        icon: 'question',
-        showCancelButton: true,
-        confirmButtonText: 'Oui, régulariser'
-    });
 
-    if (isConfirmed) {
-        Swal.fire({ title: 'Régularisation...', didOpen: () => Swal.showLoading() });
-        
-        try {
-            // On envoie une requête spécifique au serveur
-            const response = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/force-close-day`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id: currentUser.id, agent: currentUser.nom })
-            });
-
-            if (response.ok) {
-                Swal.fire('Succès', 'Votre journée a été clôturée manuellement.', 'success');
-                localStorage.setItem(`clock_finished_${currentUser.id}`, 'true');
-                updateClockUI('DONE');
-            }
-        } catch (e) {
-            Swal.fire('Erreur', e.message, 'error');
-        }
-    }
-}
 
 
 
@@ -9072,11 +9161,6 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
-
-
-
-
-
 
 
 
