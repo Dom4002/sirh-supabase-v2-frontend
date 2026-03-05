@@ -1484,6 +1484,9 @@ async function setSession(n, r, id, perms, type) {
 
         await applyModulesUI(); 
         applyPermissionsUI(perms);
+        await refreshClockButton();
+        await checkAttendanceStatus(); 
+
 
         // 4. NAVIGATION PRÉEMPTIVE (On choisit la vue SOUS le loader)
         const savedView = localStorage.getItem('sirh_last_view');
@@ -2954,6 +2957,12 @@ async function syncClockInterface() {
 async function handleClockInOut() {
     const userId = currentUser.id;
     const today = new Date().toLocaleDateString('fr-CA');
+
+    const btn = document.getElementById('btn-clock');
+
+    // 1. LA SOURCE DE VÉRITÉ EST MAINTENANT LE BOUTON (qui a été mis à jour par le serveur)
+    const action = btn.dataset.action; // Soit 'CLOCK_IN', soit 'CLOCK_OUT'
+
     
     // --- 1. INITIALISATION DES VARIABLES ---
     let formResult = null; 
@@ -3266,6 +3275,7 @@ html: `
             if (isLastExit || !isMobile) localStorage.setItem(`clock_finished_${userId}`, 'true');
 
             fetchMobileSchedules(); 
+            await refreshClockButton();
             updateClockUI(nextState);
             document.getElementById('clock-last-action').innerText = `Validé : ${action==='CLOCK_IN'?'Entrée':'Sortie'} à ${nowStr}`;
             Swal.fire('Succès', `Pointage validé : ${resData.zone}`, 'success');
@@ -9152,6 +9162,57 @@ function filterAuditTableLocally(term) {
 
 
 
+// Cette fonction demande au serveur : "Quel est mon état ?"
+async function refreshClockButton() {
+    if (!currentUser || !currentUser.id) return;
+    
+    try {
+        // On appelle ta route 'attendance-status'
+        const r = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/attendance-status?id=${currentUser.id}`);
+        const status = await r.json(); // { action: 'CLOCK_IN' ou 'CLOCK_OUT' }
+        
+        const btn = document.getElementById('btn-clock');
+        if (btn) {
+            // On met à jour l'état du bouton
+            btn.dataset.action = status.action;
+            btn.innerText = (status.action === 'CLOCK_IN') ? "ENTRÉE" : "SORTIE";
+            
+            // Si c'est CLOCK_OUT, on met la couleur rouge, si CLOCK_IN, couleur verte (via tes classes CSS)
+            updateClockUI(status.action === 'CLOCK_OUT' ? 'IN' : 'OUT');
+        }
+    } catch (e) {
+        console.error("Erreur synchro bouton :", e);
+    }
+}
+
+
+// AJOUTE CETTE FONCTION DANS TON app.js
+async function checkAttendanceStatus() {
+    if (!currentUser || !currentUser.id) return;
+    
+    try {
+        // On demande au serveur la source de vérité
+        const response = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/attendance-status?id=${currentUser.id}`);
+        const data = await response.json(); 
+        
+        // data contient : { action: 'CLOCK_IN' ou 'CLOCK_OUT', can_clock: true/false }
+        const btn = document.getElementById('btn-clock');
+        if (btn) {
+            btn.dataset.action = data.action;
+            btn.innerText = (data.action === 'CLOCK_IN') ? "ENTRÉE" : "SORTIE";
+            
+            // Si le serveur dit can_clock: false, on désactive le bouton
+            btn.disabled = !data.can_clock;
+            btn.style.opacity = data.can_clock ? '1' : '0.5';
+        }
+    } catch (e) {
+        console.error("Erreur de statut attendance:", e);
+    }
+}
+
+
+
+
 
 
                 if ('serviceWorker' in navigator) {
@@ -9161,6 +9222,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
