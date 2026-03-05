@@ -2962,45 +2962,41 @@ async function syncClockInterface() {
 async function handleClockInOut() {
     const userId = currentUser.id;
     
-    // 1. INITIALISATION DES VARIABLES (Évite le "is not defined")
+    // 1. INITIALISATION DES VARIABLES (Blindage contre "undefined")
+    let formResult = null; 
     let outcome = null;
     let report = null;
-    let proofBlob = null;
+    let proofBlob = null; 
     let isLastExit = false;
-    let presentedProducts = [];
+    let presentedProducts = []; 
     let prescripteur_id = null;
     let contact_nom_libre = null;
     let schedule_id = null;
     let forced_location_id = null;
 
-    // 2. RÉCUPÉRATION DU CONTEXTE AGENDA (Si lancé depuis la timeline)
+    // Récupération du contexte agenda
     const savedContext = localStorage.getItem('active_mission_context');
     if (savedContext) {
         const ctx = JSON.parse(savedContext);
         schedule_id = ctx.missionId;
-        forced_location_id = ctx.locationId;
+        forced_location_id = ctx.locationId; 
     }
 
-    // 3. DÉTERMINER LE STATUT RÉEL VIA LE SERVEUR
-    Swal.fire({ title: 'Synchronisation...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-    
-    let statusData;
+    // 2. DÉTERMINER L'ACTION RÉELLE VIA LE SERVEUR
+    Swal.fire({ title: 'Analyse statut...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    let statusData = { status: 'OUT', employee_type: 'OFFICE' };
     try {
         const res = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/get-clock-status?employee_id=${userId}`);
         statusData = await res.json();
-    } catch (e) {
-        Swal.fire('Erreur', 'Impossible de contacter le serveur pour vérifier votre état.', 'error');
-        return;
-    }
+    } catch (e) { console.error("Erreur sync status", e); }
     Swal.close();
 
-    // L'action dépend du statut renvoyé par le serveur
     const action = (statusData.status === 'IN') ? 'CLOCK_OUT' : 'CLOCK_IN';
     const isMobile = (statusData.employee_type === 'MOBILE');
 
-    // 4. LOGIQUE DE SORTIE MOBILE (POP-UP)
+    // 3. LOGIQUE DE SORTIE MOBILE (POP-UP)
     if (action === 'CLOCK_OUT' && isMobile) {
-        Swal.fire({ title: 'Chargement...', didOpen: () => Swal.showLoading(), allowOutsideClick: false });
+        Swal.fire({ title: 'Chargement...', text: 'Préparation du rapport...', didOpen: () => Swal.showLoading(), allowOutsideClick: false });
 
         let products = [];
         let prescripteurs = [];
@@ -3027,7 +3023,7 @@ async function handleClockInOut() {
                 </div>
             </label>`).join('');
 
-        const { value: formResult } = await Swal.fire({
+        const swalRes = await Swal.fire({
             title: 'Fin de visite',
             customClass: { popup: 'wide-modal' },
             html: `
@@ -3041,7 +3037,7 @@ async function handleClockInOut() {
                             </div>
                         </div>
                         <div class="bg-slate-50 p-5 rounded-2xl border border-slate-100">
-                            <label class="text-[10px] font-black text-slate-400 uppercase mb-3 block">2. Résultat</label>
+                            <label class="text-[10px] font-black text-slate-400 uppercase mb-3 block">2. Résultat de visite</label>
                             <select id="swal-outcome" class="w-full p-3 bg-white border border-slate-200 rounded-xl font-black text-blue-600 outline-none">
                                 <option value="VU">✅ Présentation effectuée</option>
                                 <option value="ABSENT">❌ Médecin Absent</option>
@@ -3053,23 +3049,26 @@ async function handleClockInOut() {
                         </div>
                     </div>
                     <div class="space-y-6 flex flex-col">
-                        <div id="proof-photo-area" class="h-44 bg-slate-900 rounded-2xl overflow-hidden relative border-2 border-slate-200 shadow-inner">
+                        <div class="flex p-1 bg-slate-100 rounded-xl border border-slate-200 shrink-0">
+                            <button type="button" onclick="switchProofMode('photo')" id="btn-mode-photo" class="flex-1 py-2 rounded-lg text-[9px] font-black uppercase transition-all bg-white shadow-sm text-blue-600">📸 Cachet</button>
+                            <button type="button" onclick="switchProofMode('sign')" id="btn-mode-sign" class="flex-1 py-2 rounded-lg text-[9px] font-black uppercase transition-all text-slate-500">✍️ Signature</button>
+                        </div>
+                        <div id="proof-photo-area" class="h-44 bg-slate-900 rounded-2xl overflow-hidden relative border-2 border-slate-200 flex-shrink-0 shadow-inner">
                             <video id="proof-video" autoplay playsinline class="w-full h-full object-cover"></video>
                             <img id="proof-image" class="w-full h-full object-cover hidden absolute top-0 left-0">
                             <canvas id="proof-canvas" class="hidden"></canvas>
                             <button type="button" id="btn-snap" class="absolute bottom-3 left-1/2 -translate-x-1/2 bg-white text-slate-900 px-4 py-2 rounded-full text-[10px] font-black shadow-xl">CAPTURER</button>
                         </div>
-                        <textarea id="swal-report" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm h-24 resize-none outline-none" placeholder="Vos observations..."></textarea>
-                        <label class="flex items-center gap-3 p-3 bg-red-50 rounded-xl border border-red-100 cursor-pointer">
-                            <input type="checkbox" id="last-exit-check" class="w-5 h-5 accent-red-600">
-                            <span class="text-[10px] font-black text-red-700 uppercase">Clôturer ma journée</span>
-                        </label>
+                        <div id="proof-sign-area" class="hidden h-44 flex-shrink-0"><canvas id="visit-signature-pad" class="signature-zone w-full h-full bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200"></canvas></div>
+                        <div class="flex-1 space-y-4">
+                            <textarea id="swal-report" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm h-24 resize-none outline-none focus:bg-white" placeholder="Vos observations..."></textarea>
+                            <label class="flex items-center gap-3 p-3 bg-red-50 rounded-xl border border-red-100 cursor-pointer group">
+                                <input type="checkbox" id="last-exit-check" class="w-5 h-5 accent-red-600">
+                                <span class="text-[10px] font-black text-red-700 uppercase">Clôturer ma journée après cette visite</span>
+                            </label>
+                        </div>
                     </div>
-                </div>
-            `,
-            confirmButtonText: 'Valider',
-            confirmButtonColor: '#2563eb',
-            showCancelButton: true,
+                </div>`,
             didOpen: () => {
                 const ctxMem = localStorage.getItem('active_mission_context');
                 if (ctxMem) {
@@ -3088,6 +3087,15 @@ async function handleClockInOut() {
                     canvas.getContext('2d').drawImage(video, 0, 0);
                     canvas.toBlob(b => { proofBlob = b; document.getElementById('proof-image').src = URL.createObjectURL(b); document.getElementById('proof-image').classList.remove('hidden'); }, 'image/jpeg', 0.8);
                 };
+                // Init signature
+                const signCanvas = document.getElementById('visit-signature-pad');
+                window.visitSignPad = new SignaturePad(signCanvas, { backgroundColor: 'rgba(255,255,255,0)', penColor: 'rgb(0,0,128)' });
+                window.switchProofMode = (mode) => {
+                    const isPhoto = mode === 'photo';
+                    document.getElementById('proof-photo-area').classList.toggle('hidden', !isPhoto);
+                    document.getElementById('proof-sign-area').classList.toggle('hidden', isPhoto);
+                    window.currentProofMode = mode;
+                };
             },
             willClose: () => { if(proofStream) proofStream.getTracks().forEach(t => t.stop()); },
             preConfirm: () => {
@@ -3102,7 +3110,8 @@ async function handleClockInOut() {
             }
         });
 
-        if (!formResult) return;
+        if (!swalRes.value) return; 
+        formResult = swalRes.value;
         outcome = formResult.outcome;
         report = formResult.report;
         isLastExit = formResult.isLastExit;
@@ -3112,8 +3121,8 @@ async function handleClockInOut() {
         if (proofBlob) proofBlob = await compressImage(proofBlob);
     }
 
-    // 5. POINTAGE GPS & ENVOI
-    Swal.fire({ title: 'Pointage en cours...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    // 4. POINTAGE & ENVOI
+    Swal.fire({ title: 'Validation...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
     try {
         const pos = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej));
@@ -3125,7 +3134,6 @@ async function handleClockInOut() {
         fd.append('gps', `${pos.coords.latitude},${pos.coords.longitude}`);
         fd.append('ip', ipRes.ip);
         fd.append('agent', currentUser.nom);
-        
         if (outcome) fd.append('outcome', outcome);
         if (report) fd.append('report', report);
         if (prescripteur_id) fd.append('prescripteur_id', prescripteur_id);
@@ -3133,13 +3141,13 @@ async function handleClockInOut() {
         if (presentedProducts.length > 0) fd.append('presentedProducts', JSON.stringify(presentedProducts));
         if (schedule_id) fd.append('schedule_id', schedule_id);
         if (forced_location_id) fd.append('forced_location_id', forced_location_id);
-        if (proofBlob) fd.append('proof_photo', proofBlob, 'capture.jpg');
+        if (proofBlob) fd.append('proof_photo', await compressImage(proofBlob), 'capture.jpg');
         if (isLastExit) fd.append('is_last_exit', 'true');
 
         const response = await secureFetch(URL_CLOCK_ACTION, { method: 'POST', body: fd });
         if (response.ok) {
             localStorage.removeItem('active_mission_context');
-            await syncClockInterface();
+            await syncClockInterface(); // C'est ici que l'interface se met à jour grâce au serveur
             Swal.fire('Succès', 'Pointage validé', 'success');
         } else {
             const err = await response.json();
@@ -3149,7 +3157,6 @@ async function handleClockInOut() {
         Swal.fire('Erreur', e.message, 'error');
     }
 }
-
 
 
 
@@ -9065,6 +9072,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
