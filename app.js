@@ -2889,43 +2889,50 @@ function changeViewMode(section, mode) {
 
 
            
-
 function updateClockUI(statusMode) {
     const btn = document.getElementById('btn-clock');
     const dot = document.getElementById('clock-status-dot');
     const text = document.getElementById('clock-status-text');
-    if(!btn) return; 
+    const empType = currentUser.employee_type || 'OFFICE'; // On récupère le type d'agent
+    if (!btn) return;
 
-    // On nettoie les classes
+    // Nettoyage des classes
     btn.className = "flex-1 md:flex-none px-8 py-4 rounded-2xl font-black uppercase transition-all flex items-center justify-center gap-2";
     dot.className = "w-3 h-3 rounded-full";
 
+    // ÉTAT : JOURNÉE FINIE (Partout)
     if (statusMode === 'DONE') {
-        // ÉTAT 3 : JOURNÉE FINIE -> GRIS ET BLOQUÉ
         btn.classList.add('bg-slate-200', 'text-slate-400', 'cursor-not-allowed', 'border', 'border-slate-300');
-        btn.innerHTML = '<i class="fa-solid fa-lock"></i> <span>CLÔTURÉ</span>';
-        btn.disabled = true; // Empêche physiquement le clic HTML
+        btn.innerHTML = '<i class="fa-solid fa-lock"></i> <span>JOURNÉE CLÔTURÉE</span>';
+        btn.disabled = true;
         dot.classList.add('bg-slate-300');
-        if(text) { text.innerText = "FIN DE SERVICE"; text.className = "text-2xl font-black text-slate-400"; }
+        if (text) { text.innerText = "FIN DE SERVICE"; text.className = "text-2xl font-black text-slate-400"; }
     }
+    // ÉTAT : EN POSTE / EN VISITE
     else if (statusMode === 'IN') {
-        // ÉTAT 2 : EN POSTE -> ROUGE
         btn.classList.add('bg-red-500', 'text-white', 'shadow-lg', 'hover:bg-red-400', 'active:scale-95');
-        btn.innerHTML = '<i class="fa-solid fa-person-walking-arrow-right"></i> <span>SORTIE</span>';
+        // Texte différent selon le type d'employé
+        const actionLabel = (empType === 'MOBILE') ? "FIN DE VISITE" : "SORTIE";
+        btn.innerHTML = `<i class="fa-solid fa-person-walking-arrow-right"></i> <span>${actionLabel}</span>`;
         btn.disabled = false;
         dot.classList.add('bg-emerald-500', 'shadow-[0_0_10px_rgba(16,185,129,0.5)]');
-        if(text) { text.innerText = "EN POSTE"; text.className = "text-2xl font-black text-emerald-500"; }
+        if (text) { 
+            text.innerText = (empType === 'MOBILE') ? "EN MISSION" : "EN POSTE"; 
+            text.className = "text-2xl font-black text-emerald-500"; 
+        }
     } 
+    // ÉTAT : LIBRE / PRÊT À COMMENCER
     else {
-        // ÉTAT 1 : DEHORS -> VERT
         btn.classList.add('bg-emerald-500', 'text-white', 'shadow-lg', 'hover:bg-emerald-400', 'active:scale-95');
         btn.innerHTML = '<i class="fa-solid fa-fingerprint"></i> <span>ENTRÉE</span>';
         btn.disabled = false;
         dot.classList.add('bg-red-500', 'shadow-[0_0_10px_rgba(239,68,68,0.5)]');
-        if(text) { text.innerText = "NON POINTÉ"; text.className = "text-2xl font-black text-slate-800"; }
+        if (text) { 
+            text.innerText = "PRÊT"; 
+            text.className = "text-2xl font-black text-slate-800"; 
+        }
     }
 }
-
 
 
 async function syncClockInterface() {
@@ -9198,6 +9205,7 @@ async function refreshClockButton() {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
