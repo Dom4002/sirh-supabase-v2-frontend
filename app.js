@@ -3256,20 +3256,29 @@ html: `
         const response = await secureFetch(URL_CLOCK_ACTION, { method: 'POST', body: fd });
         const resData = await response.json();
 
-        if (response.ok) {
+if (response.ok) {
             const nowStr = new Date().toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'});
             if (typeof PremiumUI !== 'undefined') { PremiumUI.vibrate('success'); PremiumUI.play('success'); }
             
             localStorage.removeItem('active_mission_context');
+            
             let nextState = (action === 'CLOCK_IN') ? 'IN' : 'OUT';
+            
+            // CORRECTION VISUELLE IMMÉDIATE : Si c'est fini, on force l'état DONE
+            if (isLastExit || (!isMobile && action === 'CLOCK_OUT')) {
+                localStorage.setItem(`clock_finished_${userId}`, 'true');
+                nextState = 'DONE';
+            }
+
             localStorage.setItem(`clock_status_${userId}`, nextState);
-            if (isLastExit || !isMobile) localStorage.setItem(`clock_finished_${userId}`, 'true');
 
             fetchMobileSchedules(); 
-            updateClockUI(nextState);
+            updateClockUI(nextState); // Le bouton deviendra gris tout de suite
             document.getElementById('clock-last-action').innerText = `Validé : ${action==='CLOCK_IN'?'Entrée':'Sortie'} à ${nowStr}`;
             Swal.fire('Succès', `Pointage validé : ${resData.zone}`, 'success');
-        } else {
+        }
+        
+        else {
             throw new Error(resData.error);
         }
     } catch (e) {
@@ -9161,6 +9170,7 @@ function filterAuditTableLocally(term) {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
