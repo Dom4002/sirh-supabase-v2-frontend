@@ -1485,7 +1485,6 @@ async function setSession(n, r, id, perms, type) {
         await applyModulesUI(); 
         applyPermissionsUI(perms);
         await refreshClockButton();
-        await checkAttendanceStatus(); 
 
 
         // 4. NAVIGATION PRÉEMPTIVE (On choisit la vue SOUS le loader)
@@ -9186,29 +9185,7 @@ async function refreshClockButton() {
 }
 
 
-// AJOUTE CETTE FONCTION DANS TON app.js
-async function checkAttendanceStatus() {
-    if (!currentUser || !currentUser.id) return;
-    
-    try {
-        // On demande au serveur la source de vérité
-        const response = await secureFetch(`${SIRH_CONFIG.apiBaseUrl}/attendance-status?id=${currentUser.id}`);
-        const data = await response.json(); 
-        
-        // data contient : { action: 'CLOCK_IN' ou 'CLOCK_OUT', can_clock: true/false }
-        const btn = document.getElementById('btn-clock');
-        if (btn) {
-            btn.dataset.action = data.action;
-            btn.innerText = (data.action === 'CLOCK_IN') ? "ENTRÉE" : "SORTIE";
-            
-            // Si le serveur dit can_clock: false, on désactive le bouton
-            btn.disabled = !data.can_clock;
-            btn.style.opacity = data.can_clock ? '1' : '0.5';
-        }
-    } catch (e) {
-        console.error("Erreur de statut attendance:", e);
-    }
-}
+
 
 
 
@@ -9222,6 +9199,7 @@ async function checkAttendanceStatus() {
                             .catch(err => console.log('Erreur Service Worker', err));
                     });
                 }
+
 
 
 
